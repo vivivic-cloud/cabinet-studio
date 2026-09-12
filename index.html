@@ -66,10 +66,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .stat span{font-size:11px;color:var(--ink2);letter-spacing:.04em}
 .view3d{grid-area:view3d;position:relative;background:var(--surface2);min-height:440px}
 .view3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-.view3d canvas:active{cursor:grabbing}
-.hud{position:absolute;left:14px;top:12px;display:flex;gap:6px;flex-wrap:wrap}
-.hud button{padding:5px 10px;font-size:12px;background:var(--surface);}
-.hud button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.hud{position:absolute;left:14px;top:12px;right:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;pointer-events:none}
+.hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px}
+.hud button{padding:4px 10px;font-size:12px;background:transparent;border-color:transparent}
+.hud button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
+.view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
+.view3d canvas.dragging{cursor:grabbing}
 .explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px;max-width:360px;margin-left:auto}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
 .viewtag{position:absolute;left:14px;bottom:14px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
@@ -156,13 +159,23 @@ dialog::backdrop{background:rgba(10,14,20,.5)}
 
   <main class="view3d" aria-label="3D 뷰">
     <canvas id="c3d"></canvas>
-    <div class="hud" role="group" aria-label="시점">
-      <button type="button" data-view="iso" aria-pressed="true">등각</button>
-      <button type="button" data-view="front">정면</button>
-      <button type="button" data-view="side">측면</button>
-      <button type="button" data-view="top">위</button>
-      <button type="button" data-view="back">뒤</button>
+    <div class="hud">
+      <div class="tools" role="group" aria-label="도구">
+        <button type="button" data-tool="select" title="선택 (Space)">선택</button>
+        <button type="button" data-tool="orbit" title="궤도 (O)" aria-pressed="true">궤도</button>
+        <button type="button" data-tool="pan" title="이동 (H)">이동</button>
+        <button type="button" data-tool="zoom" title="줌 (Z)">줌</button>
+        <button type="button" data-tool="extents" title="범위 확대 (Shift+Z)">전체</button>
+      </div>
+      <div class="views" role="group" aria-label="시점">
+        <button type="button" data-view="iso">등각</button>
+        <button type="button" data-view="front">정면</button>
+        <button type="button" data-view="side">측면</button>
+        <button type="button" data-view="top">위</button>
+        <button type="button" data-view="back">뒤</button>
+      </div>
     </div>
+    <div class="hint mono">휠 드래그 궤도 · Shift+휠 드래그 이동 · 스크롤 줌</div>
     <div class="explode">
       <label for="explode">분해도</label>
       <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해 정도">
@@ -397,10 +410,14 @@ function buildDXF(d){
   return L.join('\r\n') + '\r\n';
 }
 
-/* ───────── 3D (three.js) ───────── */
-let renderer, scene, camera, group, grid;
-const cam = { theta:0.75, phi:1.15, r:3200, tTheta:0.75, tPhi:1.15, tR:3200 };
+/* ───────── 3D (three.js) — SketchUp 방식 조작 ─────────
+   휠 버튼 드래그 = 궤도, Shift+휠 드래그 = 이동, 스크롤 = 커서 기준 줌
+   왼쪽 드래그 = 현재 도구 (선택 Space / 궤도 O / 이동 H / 줌 Z), Shift+Z = 범위 확대 */
+let renderer, scene, camera, group, grid, axes;
+const cam = { theta:0.75, phi:1.15, r:3200, tTheta:0.75, tPhi:1.15, tR:3200,
+              tgt:new THREE.Vector3(), tTgt:new THREE.Vector3() };
 const VIEWS = { iso:[0.75,1.15], front:[0,Math.PI/2], side:[Math.PI/2,Math.PI/2], top:[0,0.02], back:[Math.PI,Math.PI/2] };
+let tool = 'orbit';
 const mats = {};
 function mat(t, door){
   const key = (door ? 'door' : '') + t;
@@ -416,6 +433,28 @@ function makeGrid(){
   grid.position.y = -state.H/2 - 1;
   scene.add(grid);
 }
+// SketchUp 축: X 빨강, Y 초록(깊이), Z 파랑(위) — 음의 방향은 점선. 원점 = 가구 앞·왼쪽·바닥 모서리
+function makeAxes(){
+  if (axes){ scene.remove(axes); axes.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
+  axes = new THREE.Group();
+  const L = Math.max(state.W, state.H, state.D) * 1.2;
+  const o = new THREE.Vector3(-state.W/2, -state.H/2, state.D/2);
+  [[1,0,0,0xE53935],[0,0,-1,0x43A047],[0,1,0,0x1E88E5]].forEach(([x,y,z,c]) => {
+    const d = new THREE.Vector3(x,y,z);
+    const pos = new THREE.BufferGeometry().setFromPoints([o, o.clone().addScaledVector(d, L)]);
+    axes.add(new THREE.Line(pos, new THREE.LineBasicMaterial({ color:c })));
+    const neg = new THREE.BufferGeometry().setFromPoints([o, o.clone().addScaledVector(d, -L)]);
+    const ln = new THREE.Line(neg, new THREE.LineDashedMaterial({ color:c, dashSize:30, gapSize:20, transparent:true, opacity:.7 }));
+    ln.computeLineDistances(); axes.add(ln);
+  });
+  scene.add(axes);
+}
+function setTool(t){
+  tool = t;
+  document.querySelectorAll('.tools button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
+  const cv = $('#c3d'); cv.className = 'tool-' + t;
+}
+function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = Math.max(state.W, state.H, state.D) * 1.9 + 500; }
 function init3D(){
   const cv = $('#c3d');
   renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true, alpha:true });
@@ -430,20 +469,64 @@ function init3D(){
   const wrap = cv.parentElement;
   const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); };
   new ResizeObserver(resize).observe(wrap); resize();
+
+  const orbit = (dx,dy) => { cam.tTheta -= dx*0.006; cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi + dy*0.006)); setPressed(null); };
+  const pan = (dx,dy) => {
+    const scale = 2 * cam.tR * Math.tan(camera.fov*Math.PI/360) / cv.clientHeight;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+    cam.tTgt.addScaledVector(right, -dx*scale).addScaledVector(up, dy*scale);
+  };
+  const zoomBy = (factor, px, py) => {                 // 커서 아래 지점을 향해 줌 (SketchUp 스크롤 줌)
+    const newR = Math.min(30000, Math.max(300, cam.tR * factor)), f = newR / cam.tR;
+    if (px !== undefined){
+      const rect = cv.getBoundingClientRect();
+      const ndc = new THREE.Vector3((px-rect.left)/rect.width*2-1, -((py-rect.top)/rect.height*2-1), 0.5).unproject(camera);
+      const ray = ndc.sub(camera.position).normalize();
+      const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+      const t = cam.tTgt.clone().sub(camera.position).dot(fwd) / ray.dot(fwd);
+      const hit = camera.position.clone().addScaledVector(ray, t);
+      cam.tTgt.copy(hit).addScaledVector(cam.tTgt.clone().sub(hit), f);
+    }
+    cam.tR = newR;
+  };
+
   let drag = null;
-  cv.addEventListener('pointerdown', e => { drag = {x:e.clientX, y:e.clientY}; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (!drag) return; cam.tTheta -= (e.clientX-drag.x)*0.006; cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi + (e.clientY-drag.y)*0.006)); drag = {x:e.clientX, y:e.clientY}; setPressed(null); });
-  cv.addEventListener('pointerup', () => drag = null);
-  cv.addEventListener('pointercancel', () => drag = null);
-  cv.addEventListener('wheel', e => { e.preventDefault(); cam.tR = Math.min(30000, Math.max(400, cam.tR * Math.exp(e.deltaY*0.0012))); }, {passive:false});
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => {
+    let mode = null;
+    if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';          // 휠 버튼: SketchUp 기본
+    else if (e.button === 0) mode = tool === 'select' ? null : tool;   // 왼쪽 버튼: 현재 도구
+    if (!mode) return;
+    drag = { x:e.clientX, y:e.clientY, mode }; cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX-drag.x, dy = e.clientY-drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (drag.mode === 'orbit') orbit(dx,dy);
+    else if (drag.mode === 'pan') pan(dx,dy);
+    else if (drag.mode === 'zoom') zoomBy(Math.exp(dy*0.006));         // 위로 드래그 = 확대
+  });
+  const end = () => { drag = null; cv.classList.remove('dragging'); };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
+  document.addEventListener('keydown', e => {
+    if (e.target.matches('input,select,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && e.shiftKey){ zoomExtents(); e.preventDefault(); return; }
+    if (k === 'o') setTool('orbit'); else if (k === 'h') setTool('pan'); else if (k === 'z') setTool('zoom'); else if (k === ' '){ setTool('select'); e.preventDefault(); }
+  });
+  document.querySelectorAll('.tools button').forEach(b => b.addEventListener('click', () => b.dataset.tool === 'extents' ? zoomExtents() : setTool(b.dataset.tool)));
+  setTool('orbit');
+
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', makeGrid);
   new MutationObserver(makeGrid).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
   (function loop(){
     requestAnimationFrame(loop);
-    const k = reduced ? 1 : 0.14;
-    cam.theta += (cam.tTheta-cam.theta)*k; cam.phi += (cam.tPhi-cam.phi)*k; cam.r += (cam.tR-cam.r)*k;
-    camera.position.set(cam.r*Math.sin(cam.phi)*Math.sin(cam.theta), cam.r*Math.cos(cam.phi), cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
-    camera.lookAt(0, 0, 0);
+    const k = reduced ? 1 : 0.16;
+    cam.theta += (cam.tTheta-cam.theta)*k; cam.phi += (cam.tPhi-cam.phi)*k; cam.r += (cam.tR-cam.r)*k; cam.tgt.lerp(cam.tTgt, k);
+    camera.position.set(cam.tgt.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta), cam.tgt.y + cam.r*Math.cos(cam.phi), cam.tgt.z + cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
+    camera.lookAt(cam.tgt);
     renderer.render(scene, camera);
   })();
 }
@@ -458,14 +541,14 @@ function rebuild3D(m){
     group.add(mesh);
   });
   applyExplode();
-  makeGrid();
-  cam.tR = Math.max(W, H, D) * 1.9 + 500;
+  makeGrid(); makeAxes();
+  zoomExtents();
 }
 function applyExplode(){
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
   group.children.forEach(c => { const {base,dir} = c.userData; c.position.set(base[0]+dir[0]*e, base[1]+dir[1]*e, base[2]+dir[2]*e); });
 }
-function setPressed(v){ document.querySelectorAll('.hud button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
+function setPressed(v){ document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
 
 /* ───────── 화면 갱신 ───────── */
 let drawing = null;
@@ -498,7 +581,7 @@ document.querySelectorAll('[data-key]').forEach(el => {
 document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListener('change', () => { state.topStyle = r.value; update(); }));
 document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('change', () => { state.doors = Number(r.value); update(); }));
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
-document.querySelectorAll('.hud button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; setPressed(b.dataset.view); }));
+document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
 
 /* ───────── 내보내기 ───────── */
 let toastT;
