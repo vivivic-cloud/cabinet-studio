@@ -176,7 +176,7 @@ dialog::backdrop{background:rgba(10,14,20,.5)}
         <button type="button" data-view="back">뒤</button>
       </div>
     </div>
-    <div class="hint mono">휠 드래그 궤도 · Shift+휠 드래그 이동 · 스크롤 줌</div>
+    <div class="hint mono">왼쪽 드래그 이동 · 휠 드래그 궤도 · 스크롤 줌</div>
     <div class="explode">
       <label for="explode">분해도</label>
       <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해 정도">
@@ -507,13 +507,15 @@ function init3D(){
   let drag = null;
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => {
+    const touch = e.pointerType === 'touch';
     let mode = null;
-    if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';          // 휠 버튼: SketchUp 기본
-    else if (e.button === 0) mode = tool === 'select' ? null : tool;   // 왼쪽 버튼: 현재 도구
+    if (touch) mode = tool === 'select' ? null : tool;                 // 손가락: 도구 단추가 정한 것
+    else if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';      // 가운데(스크롤) 버튼: 360도 돌리기
+    else if (e.button === 0) mode = 'pan';                             // 왼쪽 버튼: 상하·좌우 이동만
     if (!mode) return;
-    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, held:e.pointerType === 'touch' };
+    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, held:touch };
     // 손가락은 곧바로 붙잡지 않는다. 가만히 누르면 길게 누르기(짚어서 지시)가 되도록 10px 만큼 길을 터 둔다.
-    if (!drag.held){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
+    if (!touch){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
   cv.addEventListener('pointermove', e => {
     if (!drag) return;
@@ -656,6 +658,28 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
   //    (aria-label·title 은 안 본다 — 재보고 확인). 캔버스는 셋 다 없어 'canvas' 로 떴다.
   //    화면에 드러나지 않는 placeholder 로 사람이 읽는 이름을 붙인다.
   $('#c3d').placeholder = '3D 화면';
+
+  /* ④ 3D 화면에서 손잡이가 아예 시작조차 못 하는 기기 대비.
+     손잡이는 touchstart 를 window 캡처로 듣는다. 이 파일 어디에도 그 앞을 막는 것은
+     없다(캡처는 창→캔버스 방향이라 캔버스에 건 것으로는 막지 못한다). 그런데도 사장님
+     아이폰에서 안 된다 — 이 캔버스에 touchstart 자체가 안 오는 것으로 짐작하나 여기서는
+     사파리를 띄우지 못해 가리지 못했다.
+     그래서 touchstart 가 한 번이라도 오면 아무것도 하지 않고(두 번 몰면 손잡이 시계가
+     겹친다), 안 올 때만 손잡이가 함께 듣는 mousedown/mousemove/mouseup 으로 몰아 준다.
+     10px 자와 0.5초는 손잡이 것을 그대로 쓴다 — 여기서 흉내 내지 않는다. */
+  const cv3d = $('#c3d');
+  let 터치옴 = false, 대신몲 = false;
+  const 손잡이에게 = (t,e) => cv3d.dispatchEvent(new MouseEvent(t, { clientX:e.clientX, clientY:e.clientY, bubbles:true }));
+  cv3d.addEventListener('touchstart', () => { 터치옴 = true; }, true);
+  cv3d.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') return;
+    const x = e.clientX, y = e.clientY;
+    setTimeout(() => { if (!터치옴){ 대신몲 = true; 손잡이에게('mousedown', {clientX:x, clientY:y}); } }, 0);
+  });
+  cv3d.addEventListener('pointermove', e => { if (대신몲) 손잡이에게('mousemove', e); });
+  const 몲그만 = e => { if (대신몲){ 대신몲 = false; 손잡이에게('mouseup', e); } };
+  cv3d.addEventListener('pointerup', 몲그만); cv3d.addEventListener('pointercancel', 몲그만);
+
   let 누른때 = 0, 뜬때 = 0;
   addEventListener('pointerdown', () => { 누른때 = Date.now(); }, true);
   new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
