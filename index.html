@@ -93,6 +93,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .bom th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:800}
 .bom td:first-child,.bom th:first-child{text-align:left}
 .bom td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
+.bom tbody tr.on{background:var(--surface2)}
+.bom tbody tr.on td:first-child{font-weight:700;color:var(--head);box-shadow:inset 3px 0 0 var(--dim)}
 .bom .grain{color:var(--ink3);font-size:12px}
 .bom tfoot td{color:var(--ink2);font-size:12px;border-bottom:0}
 .tablewrap{overflow-x:auto}
@@ -421,6 +423,33 @@ function mat(t, door){
   return mats[key];
 }
 const edgeMat = new THREE.LineBasicMaterial({ color:0x4E3A24, transparent:true, opacity:0.55 });
+// 고른 부속 — 집 빨강(#FF3B30). 면을 물들이고, 그 위에 빨간 테두리 상자를 씌운다.
+// depthTest:false 라 다른 판에 가려져도 테두리는 보인다 — 폰에서 어느 것인지 한눈에 알게.
+const selEdgeMat = new THREE.LineBasicMaterial({ color:0xFF3B30, depthTest:false, transparent:true });
+const selMats = {};
+function selMat(base){
+  if (!selMats[base.uuid]){ const m = base.clone(); m.emissive = new THREE.Color(0xFF3B30); m.emissiveIntensity = 0.5; selMats[base.uuid] = m; }
+  return selMats[base.uuid];
+}
+let picked = null, selBox = null;      // 3D 에서 고른 조각 하나와 그 빨간 상자
+function markBomRow(key){
+  document.querySelectorAll('#bomBody tr').forEach(tr => tr.classList.toggle('on', !!key && tr.dataset.key === key));
+}
+function select(mesh){
+  if (picked === mesh) return;
+  if (picked){
+    picked.material = picked.userData.baseMat;
+    if (selBox){ picked.remove(selBox); selBox.geometry.dispose(); selBox = null; }
+  }
+  picked = mesh || null;
+  if (picked){
+    picked.material = selMat(picked.userData.baseMat);
+    selBox = new THREE.LineSegments(new THREE.EdgesGeometry(picked.geometry), selEdgeMat);
+    selBox.scale.set(1.03, 1.03, 1.03); selBox.renderOrder = 999;
+    picked.add(selBox);
+  }
+  markBomRow(picked && picked.userData.key);   // 표의 그 줄도 함께 짚어진다
+}
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function makeGrid(){
   if (grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
@@ -501,6 +530,14 @@ function init3D(){
     cam.tR = newR;
   };
 
+  const 광선 = new THREE.Raycaster();
+  const 짚힌조각 = (px,py) => {
+    const r = cv.getBoundingClientRect();
+    광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
+    const h = 광선.intersectObjects(group.children, false)[0];
+    return h ? h.object : null;
+  };
+
   let drag = null;
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => {
@@ -509,13 +546,14 @@ function init3D(){
     if (touch) mode = tool === 'select' ? null : tool;                 // 손가락: 도구 단추가 정한 것
     else if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';      // 가운데(스크롤) 버튼: 360도 돌리기
     else if (e.button === 0) mode = 'pan';                             // 왼쪽 버튼: 상하·좌우 이동만
-    if (!mode) return;
-    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, held:touch };
+    else return;                                                       // 오른쪽 버튼 등은 그대로 둔다
+    // mode 가 없어도(선택 도구) 자국은 남긴다 — 짧게 떼면 '고르기' 로 봐야 하니까.
+    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, touch, held:touch && !!mode };
     // 손가락은 곧바로 붙잡지 않는다. 가만히 누르면 길게 누르기(짚어서 지시)가 되도록 10px 만큼 길을 터 둔다.
-    if (!touch){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
+    if (!touch && mode){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
   cv.addEventListener('pointermove', e => {
-    if (!drag) return;
+    if (!drag || !drag.mode) return;     // 고르기만 기다리는 중이면 화면은 가만히 둔다
     if (drag.held){                                                    // 10px 넘게 끌어야 비로소 3D 조작이다
       if (Math.abs(e.clientX-drag.x0) <= 10 && Math.abs(e.clientY-drag.y0) <= 10) return;
       drag.held = false; cv.setPointerCapture(drag.id); cv.classList.add('dragging');
@@ -525,7 +563,16 @@ function init3D(){
     else if (drag.mode === 'pan') pan(dx,dy);
     else if (drag.mode === 'zoom') zoomBy(Math.exp(dy*0.006), drag.x0, drag.y0);   // 위로 드래그 = 확대, 짚기 시작한 자리가 기준
   });
-  const end = () => { drag = null; cv.classList.remove('dragging'); };
+  // 짧게 누르기(탭/클릭) = 부속 고르기. 끌었으면 조작이고, 지시창이 떠 있으면 길게 누르기다.
+  // 손가락은 잘 흔들리므로 10px 까지 봐 준다(손잡이의 자와 같은 값). 마우스는 5px.
+  const end = e => {
+    if (drag && e && e.type === 'pointerup'){
+      const 자 = drag.touch ? 10 : 5;
+      const 끌었나 = Math.abs(e.clientX-drag.x0) > 자 || Math.abs(e.clientY-drag.y0) > 자;
+      if (!끌었나 && !document.querySelector('.vg-sheet')) select(짚힌조각(e.clientX, e.clientY));
+    }
+    drag = null; cv.classList.remove('dragging');
+  };
   endDrag = end;
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
@@ -550,13 +597,16 @@ function init3D(){
   })();
 }
 function rebuild3D(m){
+  picked = null; selBox = null;        // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
-    const mesh = new THREE.Mesh(geo, mat(p.cut.T, p.name === '문짝'));
+    const base = mat(p.cut.T, p.name === '문짝');
+    const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
-    mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]] };
+    mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
+      baseMat:base, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}` };   // 부품표 묶음과 같은 열쇠
     group.add(mesh);
   });
   applyExplode();
@@ -577,7 +627,7 @@ function update(){
   drawing = buildDrawing(state, m);
   $('#svgwrap').innerHTML = renderSVG(drawing);
   const rows = bomRows(m);
-  $('#bomBody').innerHTML = rows.map(r => `<tr><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
+  $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
   $('#stPitch').textContent = state.shelves ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
