@@ -652,6 +652,10 @@ $('#dlgCopy').addEventListener('click', async () => { try { await navigator.clip
    ② 지시창이 뜬 뒤 손을 떼며 나는 클릭 한 번을 삼킨다 — 그 클릭이 창 바탕에 떨어져
       뜨자마자 닫히던 것을 막는다. 나중에 바탕을 눌러 닫는 것은 그대로 된다. */
 if (new URLSearchParams(location.search).get('viggle') === '1'){
+  // ③ 짚은 자리 이름. 손잡이의 무엇() 은 innerText → value → placeholder 만 본다
+  //    (aria-label·title 은 안 본다 — 재보고 확인). 캔버스는 셋 다 없어 'canvas' 로 떴다.
+  //    화면에 드러나지 않는 placeholder 로 사람이 읽는 이름을 붙인다.
+  $('#c3d').placeholder = '3D 화면';
   let 누른때 = 0, 뜬때 = 0;
   addEventListener('pointerdown', () => { 누른때 = Date.now(); }, true);
   new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
