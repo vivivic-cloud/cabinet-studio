@@ -139,9 +139,12 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="H">높이 <small>Height</small></label><div class="num"><input id="H" data-key="H" type="number" min="300" max="2400" step="1" value="1800"><span>mm</span></div></div>
     </div>
     <div class="group">
-      <h2>판재</h2>
-      <div class="field"><label for="T">몸통 판재</label><select id="T" data-key="T"><option>12</option><option>15</option><option selected>18</option><option>24</option></select></div>
-      <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>3</option><option>5</option><option selected>9</option><option>12</option></select></div>
+      <h2>보드선택</h2>
+      <div class="field"><label for="Ttop">상판</label><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tside">측판</label><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tshelf">선반</label><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field wide"><label>상판 결합 <small>측판이 상판을 감싸는지, 상판이 측판을 덮는지</small></label>
         <div class="seg"><label><input type="radio" name="topStyle" value="inset" checked>측판 사이</label><label><input type="radio" name="topStyle" value="overlay">측판 위</label></div></div>
     </div>
@@ -214,44 +217,46 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 (function(){
 'use strict';
 const $ = s => document.querySelector(s);
-const state = { W:800, D:400, H:1800, T:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── 모델: 파라미터 → 부품 목록 (단일 진실 공급원) ───────── */
 function buildModel(s){
-  const {W,D,H,T,TB,shelves,plinth,topStyle,doors} = s;
+  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,TB,shelves,plinth,topStyle,doors} = s;
+  const Tbot = Ttop;                         // 하판·걸레받이는 사장님 목록에 없어 상판 두께를 따른다
   const CD = D - TB;                         // 몸통 깊이 (뒷판 제외)
-  const sideH = topStyle === 'overlay' ? H - T : H;
+  const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
   const parts = [];
   const add = (name,x,y,z,w,d,h,dir,cut) => parts.push({name,x,y,z,w,d,h,dir,cut,pid:parts.length});
-  add('측판', 0,   0, 0, T, CD, sideH, [-1,0,0], {L:sideH, W:CD, T, grain:'세로'});
-  add('측판', W-T, 0, 0, T, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T, grain:'세로'});
-  const tx = topStyle === 'overlay' ? 0 : T, tw = topStyle === 'overlay' ? W : W - 2*T;
-  add('상판', tx, 0, H-T, tw, CD, T, [0,0,1], {L:tw, W:CD, T, grain:'가로'});
-  add('하판', T, 0, bz, W-2*T, CD, T, [0,0,-1], {L:W-2*T, W:CD, T, grain:'가로'});
-  const innerH = (H - T) - (bz + T);
-  const pitch = (innerH - shelves*T) / (shelves + 1);
+  add('측판', 0,       0, 0, Tside, CD, sideH, [-1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
+  add('측판', W-Tside, 0, 0, Tside, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
+  const tx = topStyle === 'overlay' ? 0 : Tside, tw = topStyle === 'overlay' ? W : W - 2*Tside;
+  add('상판', tx, 0, H-Ttop, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
+  add('하판', Tside, 0, bz, W-2*Tside, CD, Tbot, [0,0,-1], {L:W-2*Tside, W:CD, T:Tbot, grain:'가로'});
+  const innerH = (H - Ttop) - (bz + Tbot);
+  const pitch = (innerH - shelves*Tshelf) / (shelves + 1);
   for (let i = 0; i < shelves; i++){
-    const z = bz + T + (i+1)*pitch + i*T;
-    add('선반', T, 0, z, W-2*T, CD, T, [0,-0.55,0], {L:W-2*T, W:CD, T, grain:'가로'});
+    const z = bz + Tbot + (i+1)*pitch + i*Tshelf;
+    add('선반', Tside, 0, z, W-2*Tside, CD, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:CD, T:Tshelf, grain:'가로'});
   }
-  if (plinth > 0) add('걸레받이', T, 30, 0, W-2*T, T, plinth, [0,-0.8,-0.5], {L:W-2*T, W:plinth, T, grain:'가로'});
+  if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tbot, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tbot, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
   if (doors > 0){
     const gap = 3, reveal = 2, n = doors;
     const dw = (W - 2*reveal - (n-1)*gap) / n, dh = H - bz - 2*reveal;
     for (let k = 0; k < n; k++)
-      add('문짝', reveal + k*(dw+gap), -T, bz + reveal, dw, T, dh, [0,-1.7,0], {L:dh, W:dw, T, grain:'세로'});
+      add('문짝', reveal + k*(dw+gap), -Tdoor, bz + reveal, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  return { parts, pitch, CD, bz, sideH, innerH, innerW: W-2*T };
+  return { parts, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
 const TH = 30; // 치수 문자 높이
 function buildDrawing(s, m){
-  const {W,D,H,T,TB} = s;
+  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,TB} = s;
+  const Tbot = Ttop;
   const P = [], hits = [];                      // hits = 화면에서 짚을 자리. P 와 따로라 내보내기에는 안 실린다.
   let pid = null;                               // 지금 그리는 것이 어느 부속인가 (부속이 아니면 null)
   const line = (x1,y1,x2,y2,layer='OUTLINE') => P.push({t:'line',x1,y1,x2,y2,layer,pid});
@@ -290,11 +295,11 @@ function buildDrawing(s, m){
   carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h)));
   doors.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h, 'HIDDEN')));
   dimH(0, W, 0, -120);
-  dimH(0, T, H, 120);
+  dimH(0, Tside, H, 120);
   dimV(0, H, W, 250);
-  let prev = m.bz + T;
-  m.parts.filter(p => p.name === '선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + T; });
-  dimV(prev, H - T, W, 120);
+  let prev = m.bz + Tbot;
+  m.parts.filter(p => p.name === '선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + Tshelf; });
+  dimV(prev, H - Ttop, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
   text('정면도  FRONT VIEW', W/2, -270, 46);
 
@@ -305,19 +310,19 @@ function buildDrawing(s, m){
   rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
   dimH(ox + m.CD, ox + D, H, 120);
-  if (doors.length) dimH(ox - T, ox, H, 120);
+  if (doors.length) dimH(ox - Tdoor, ox, H, 120);
   dimV(0, H, ox + D, 120);
   text('측면 단면도  SIDE SECTION', ox + D/2, -270, 46);
 
   // 평면 단면도 — 절단면 z = 상판 아래 100
-  const oy = H + 620, zc = H - T - 100;
+  const oy = H + 620, zc = H - Ttop - 100;
   const cutT = m.parts.filter(p => p.z <= zc && zc <= p.z + p.h);
   cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
-  rect(T, oy, W - 2*T, m.CD, 'HIDDEN');
-  dimH(0, W, oy - (doors.length ? T : 0), -120);
+  rect(Tside, oy, W - 2*Tside, m.CD, 'HIDDEN');
+  dimH(0, W, oy - (doors.length ? Tdoor : 0), -120);
   dimV(oy, oy + D, W, 120);
   dimV(oy + m.CD, oy + D, 0, -120);
-  text('평면 단면도  TOP SECTION', W/2, oy - 270 - (doors.length ? T : 0), 46);
+  text('평면 단면도  TOP SECTION', W/2, oy - 270 - (doors.length ? Tdoor : 0), 46);
 
   // 부품표 + 표제란
   const bom = bomRows(m);
@@ -336,7 +341,7 @@ function buildDrawing(s, m){
   rect(bx, ty - 300, cols[6], 300, 'TITLE');
   line(bx, ty - 110, bx + cols[6], ty - 110, 'TITLE');
   text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty - 55, 46, 'TITLE');
-  text(`몸통 ${T}T · 뒷판 ${TB}T · 선반 ${s.shelves}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 165, 30, 'TITLE');
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · 선반 ${Tshelf}T · 도어 ${Tdoor}T · 뒷판 ${TB}T · 선반 ${s.shelves}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 165, 30, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty - 245, 30, 'TITLE');
 
   let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
@@ -647,8 +652,12 @@ function update(){
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
   $('#stPitch').textContent = state.shelves ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
-  $('#stAreaT').textContent = (area[state.T]||0).toFixed(2) + ' m²'; $('#stAreaTLabel').textContent = `${state.T}T 소요 면적`;
-  $('#stAreaB').textContent = (area[state.TB]||0).toFixed(2) + ' m²'; $('#stAreaBLabel').textContent = `${state.TB}T 소요 면적`;
+  const 두께순 = Object.keys(area).sort((a,b) => area[b] - area[a]);   // 두께가 여럿이라 면적 큰 둘을 보인다
+  [['#stAreaT','#stAreaTLabel',0], ['#stAreaB','#stAreaBLabel',1]].forEach(([v,l,i]) => {
+    const t = 두께순[i];
+    $(v).textContent = t ? area[t].toFixed(2) + ' m²' : '–';
+    $(l).textContent = t ? `${t}T 소요 면적` : '소요 면적';
+  });
   applySel();
 }
 
