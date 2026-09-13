@@ -4,82 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>캐비닛 설계실</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+/* 색·글꼴은 집(작업대 viggle/index.html :root)에서 그대로 가져왔다.
+   에이엠티·조혼가구도 같은 값을 --vg-* 이름으로 쓴다. 집 세 화면 모두 어두운 모드가
+   없어 여기서도 뺐다 — 혼자 어두우면 한 집으로 안 보인다. */
 :root{
-  --bg:#EEF1F4; --surface:#FFFFFF; --surface2:#F5F7F9; --ink:#1B2430; --ink2:#5B6673; --ink3:#8A93A0;
-  --line:#D5DBE2; --line2:#E6EAEE; --accent:#1F5FA8; --accent-ink:#FFFFFF; --accent-soft:#E3ECF7;
-  --dim:#C8322B; --hidden:#8A93A0; --hatch:#A3ABB5; --grid:#C4CCD4; --grid2:#DCE2E8; --ok:#2E7D4F;
-}
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#12181F; --surface:#1A222B; --surface2:#202A34; --ink:#E6EBF0; --ink2:#98A4B1; --ink3:#6E7A88;
-  --line:#2C3743; --line2:#243039; --accent:#6FA8E8; --accent-ink:#0F1A28; --accent-soft:#1E3550;
-  --dim:#E8685F; --hidden:#7C8794; --hatch:#5E6975; --grid:#31404E; --grid2:#27333F; --ok:#5FBF86;
-}}
-:root[data-theme="dark"]{
-  --bg:#12181F; --surface:#1A222B; --surface2:#202A34; --ink:#E6EBF0; --ink2:#98A4B1; --ink3:#6E7A88;
-  --line:#2C3743; --line2:#243039; --accent:#6FA8E8; --accent-ink:#0F1A28; --accent-soft:#1E3550;
-  --dim:#E8685F; --hidden:#7C8794; --hatch:#5E6975; --grid:#31404E; --grid2:#27333F; --ok:#5FBF86;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface2:#F4F4F2; --ink:#1A1A19; --ink2:#6E6E6A; --ink3:#9C9C98;
+  --line:#E2E2DF; --line2:#EDEDEB; --accent:#111110; --accent-ink:#FFFFFF; --accent-soft:#F4F4F2;
+  --dim:#FF3B30; --hidden:#9C9C98; --hatch:#9C9C98; --grid:#E2E2DF; --grid2:#EDEDEB; --ok:#6E6E6A;
+  --head:#111110; --fill2:#EAEAE7;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-font-smoothing:antialiased}
-.mono{font-family:"IBM Plex Mono","IBM Plex Sans KR",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-variant-numeric:tabular-nums}
 .app{display:grid;min-height:100vh;grid-template-columns:284px minmax(0,1.15fr) minmax(0,1fr);grid-template-rows:auto minmax(440px,1fr) auto;
-  grid-template-areas:"head head head" "params view3d draw" "params bom draw";gap:1px;background:var(--line)}
+  grid-template-areas:"head head head" "params view3d draw" "params bom draw";gap:1px;background:var(--line2)}
 .app>*{background:var(--surface);min-width:0}
 header{grid-area:head;display:flex;align-items:center;gap:20px;padding:12px 20px;flex-wrap:wrap}
 .brand{display:flex;flex-direction:column;gap:2px;margin-right:auto}
-.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
-h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+h1{margin:0;font-size:23px;line-height:1.06;font-weight:700;letter-spacing:-.9px;color:var(--head);text-wrap:balance}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer;line-height:1.2}
-button:hover{border-color:var(--ink3)}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:500}
-button.primary:hover{filter:brightness(1.08)}
+button{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;line-height:1.2}
+button:hover{background:var(--surface2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--head);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.primary:hover{background:var(--ink);border-color:var(--ink)}
 button:disabled{opacity:.5;cursor:default}
 .params{grid-area:params;padding:18px 20px 24px;display:flex;flex-direction:column;gap:18px;overflow:auto}
 .group{display:flex;flex-direction:column;gap:10px}
-.group h2{margin:0;font-size:11px;font-family:"IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);font-weight:500;
+.group h2{margin:0;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:800;
   display:flex;align-items:center;gap:8px}
 .group h2::after{content:"";flex:1;height:1px;background:var(--line2)}
 .field{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:10px}
-.field label{color:var(--ink);font-weight:500}
-.field small{display:block;color:var(--ink3);font-weight:400;font-size:12px}
-.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--surface2);overflow:hidden}
-.num input{width:100%;border:0;background:transparent;color:var(--ink);font:inherit;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;padding:6px 8px;text-align:right;min-width:0;-moz-appearance:textfield}
+.field label{color:var(--ink);font-weight:600;word-break:keep-all}
+.field small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
+.num{display:flex;align-items:center;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
+.num:focus-within{border-color:var(--head)}
+.num input{width:100%;border:0;background:transparent;color:var(--ink);font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-variant-numeric:tabular-nums;padding:9px 10px;text-align:right;min-width:0;-moz-appearance:textfield}
 .num input::-webkit-outer-spin-button,.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.num span{padding:0 8px 0 0;color:var(--ink3);font-size:12px}
-select{font:inherit;font-family:"IBM Plex Mono",monospace;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
-.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface2)}
-.seg label{flex:1;text-align:center;padding:6px 4px;cursor:pointer;font-size:13px;color:var(--ink2);position:relative}
+.num span{padding:0 11px 0 0;color:var(--ink3);font-size:12px}
+select{font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 10px;width:100%}
+select:focus{border-color:var(--head)}
+.seg{display:flex;gap:4px;border-radius:999px;background:var(--surface2);padding:3px}
+.seg label{flex:1;text-align:center;padding:8px 4px;cursor:pointer;font-size:13px;color:var(--ink2);position:relative;border-radius:999px}
 .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink);font-weight:500}
-.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
-.seg label+label{border-left:1px solid var(--line)}
+.seg label:has(input:checked){background:#fff;color:var(--head);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.seg label:has(input:focus-visible){outline:2px solid var(--head);outline-offset:-2px}
 .field.wide{grid-template-columns:1fr}
-input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--head)}
 .stats{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding-top:14px;border-top:1px solid var(--line2)}
 .stat{display:flex;flex-direction:column;gap:1px}
-.stat b{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.stat b{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--ink2);letter-spacing:.04em}
 .view3d{grid-area:view3d;position:relative;background:var(--surface2);min-height:440px}
 .view3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;
   -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .hud{position:absolute;left:14px;top:12px;right:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;pointer-events:none}
-.hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px}
-.hud button{padding:4px 10px;font-size:12px;background:transparent;border-color:transparent}
-.hud button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:3px}
+.hud button{padding:6px 12px;font-size:12px;background:transparent;border-color:transparent;border-radius:999px}
+.hud button:hover{background:var(--fill2)}
+.hud button[aria-pressed="true"]{background:#fff;color:var(--head);font-weight:700;border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
 .view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
 .view3d canvas.dragging{cursor:grabbing}
-.explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px;max-width:360px;margin-left:auto}
+.explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;max-width:360px;margin-left:auto}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
-.viewtag{position:absolute;left:14px;bottom:14px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
+.viewtag{position:absolute;left:14px;bottom:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
 .draw{grid-area:draw;display:flex;flex-direction:column;min-height:440px}
 .panelhead{display:flex;align-items:baseline;gap:10px;padding:12px 18px 8px;border-bottom:1px solid var(--line2)}
-.panelhead h2{margin:0;font-size:13px;font-weight:600}
+.panelhead h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .panelhead .eyebrow{margin-left:auto}
 .svgwrap{flex:1;min-height:0;padding:10px;overflow:auto}
 .svgwrap svg{width:100%;height:100%;display:block}
@@ -88,27 +83,27 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .svgwrap .DIM{stroke:var(--dim);stroke-width:.9px}
 .svgwrap .HATCH{stroke:var(--hatch);stroke-width:.7px}
 .svgwrap .TITLE{stroke:var(--ink2);stroke-width:1px}
-.svgwrap text{font-family:"IBM Plex Mono","IBM Plex Sans KR",monospace;fill:var(--ink2)}
+.svgwrap text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2)}
 .svgwrap text.DIM{fill:var(--dim)}
 .svgwrap text.TEXT{fill:var(--accent)}
 .svgwrap text.TITLE{fill:var(--ink)}
 .bom{grid-area:bom;display:flex;flex-direction:column}
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
-.bom th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:500}
+.bom th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:800}
 .bom td:first-child,.bom th:first-child{text-align:left}
-.bom td.mono{font-family:"IBM Plex Mono",monospace}
+.bom td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
 .bom .grain{color:var(--ink3);font-size:12px}
 .bom tfoot td{color:var(--ink2);font-size:12px;border-bottom:0}
 .tablewrap{overflow-x:auto}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:6px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:20}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--head);color:#fff;padding:11px 18px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;transition:.25s;pointer-events:none;z-index:20}
 .toast.show{opacity:1;transform:translateX(-50%)}
-dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(720px,92vw)}
-dialog::backdrop{background:rgba(10,14,20,.5)}
+dialog{border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--ink);padding:0;width:min(720px,92vw)}
+dialog::backdrop{background:rgba(17,17,16,.4)}
 .dlg{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
-.dlg h3{margin:0;font-size:15px}
+.dlg h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .dlg p{margin:0;color:var(--ink2);font-size:13px}
-.dlg textarea{width:100%;height:240px;font:12px/1.4 "IBM Plex Mono",monospace;background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical}
+.dlg textarea{width:100%;height:240px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:13px;padding:12px 14px;resize:vertical}
 .dlg .row{display:flex;gap:8px;justify-content:flex-end}
 @media (max-width:1100px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(380px,60vh) minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "draw" "bom"}
