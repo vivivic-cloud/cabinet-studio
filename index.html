@@ -666,6 +666,7 @@ document.querySelectorAll('[data-key]').forEach(el => {
   el.addEventListener('input', () => {
     let v = Number(el.value);
     if (el.type === 'number'){ if (!Number.isFinite(v)) return; v = Math.min(Number(el.max), Math.max(Number(el.min), v)); }
+    else if (el.tagName === 'SELECT' && !(v > 0)) return;   // 목록에 없는 값이 들어오면 두께가 0 이 된다 — 그냥 무른다
     state[el.dataset.key] = v;
     if (el.id === 'shelves') $('#shelvesVal').textContent = v;
     update();
