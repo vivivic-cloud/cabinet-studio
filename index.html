@@ -468,7 +468,9 @@ function init3D(){
   const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); };
   new ResizeObserver(resize).observe(wrap); resize();
 
-  const orbit = (dx,dy) => { cam.tTheta -= dx*0.006; cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi + dy*0.006)); setPressed(null); };
+  // 좌우(tTheta)는 그대로. 상하만 뒤집는다 — 끄는 손을 모델이 따라와야 한다.
+  // 아래로 끌면 모델의 윗면이 이쪽으로 넘어와 위에서 내려다보게 된다.
+  const orbit = (dx,dy) => { cam.tTheta -= dx*0.006; cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi - dy*0.006)); setPressed(null); };
   const pan = (dx,dy) => {
     const scale = 2 * cam.tR * Math.tan(camera.fov*Math.PI/360) / cv.clientHeight;
     const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
