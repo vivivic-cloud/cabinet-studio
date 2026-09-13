@@ -423,31 +423,29 @@ function mat(t, door){
   return mats[key];
 }
 const edgeMat = new THREE.LineBasicMaterial({ color:0x4E3A24, transparent:true, opacity:0.55 });
-// 고른 부속 — 집 빨강(#FF3B30). 면을 물들이고, 그 위에 빨간 테두리 상자를 씌운다.
-// depthTest:false 라 다른 판에 가려져도 테두리는 보인다 — 폰에서 어느 것인지 한눈에 알게.
-const selEdgeMat = new THREE.LineBasicMaterial({ color:0xFF3B30, depthTest:false, transparent:true });
+// 고른 부속 — 집 빨강(#FF3B30). 붉은 표기는 그 부속 안에만 있어야 한다.
+// 따로 상자를 씌우지 않고 그 조각이 본디 가진 모서리선을 빨갛게 바꾼다(깊이 검사는 켠 채).
+// 앞 판에 가리면 가린 대로 가려진다. 대신 면을 붉게 물들여 한눈에 보이게 한다.
+const selEdgeMat = new THREE.LineBasicMaterial({ color:0xFF3B30 });
 const selMats = {};
 function selMat(base){
-  if (!selMats[base.uuid]){ const m = base.clone(); m.emissive = new THREE.Color(0xFF3B30); m.emissiveIntensity = 0.5; selMats[base.uuid] = m; }
+  if (!selMats[base.uuid]){
+    const m = base.clone();
+    m.color = new THREE.Color(0xFF3B30).lerp(new THREE.Color(base.color), 0.34);  // 붉게 — 칠은 면 안에만 든다
+    m.emissive = new THREE.Color(0xFF3B30); m.emissiveIntensity = 0.22;
+    selMats[base.uuid] = m;
+  }
   return selMats[base.uuid];
 }
-let picked = null, selBox = null;      // 3D 에서 고른 조각 하나와 그 빨간 상자
+let picked = null;                     // 3D 에서 고른 조각 하나
 function markBomRow(key){
   document.querySelectorAll('#bomBody tr').forEach(tr => tr.classList.toggle('on', !!key && tr.dataset.key === key));
 }
 function select(mesh){
   if (picked === mesh) return;
-  if (picked){
-    picked.material = picked.userData.baseMat;
-    if (selBox){ picked.remove(selBox); selBox.geometry.dispose(); selBox = null; }
-  }
+  if (picked){ picked.material = picked.userData.baseMat; picked.children[0].material = edgeMat; }
   picked = mesh || null;
-  if (picked){
-    picked.material = selMat(picked.userData.baseMat);
-    selBox = new THREE.LineSegments(new THREE.EdgesGeometry(picked.geometry), selEdgeMat);
-    selBox.scale.set(1.03, 1.03, 1.03); selBox.renderOrder = 999;
-    picked.add(selBox);
-  }
+  if (picked){ picked.material = selMat(picked.userData.baseMat); picked.children[0].material = selEdgeMat; }
   markBomRow(picked && picked.userData.key);   // 표의 그 줄도 함께 짚어진다
 }
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
@@ -597,7 +595,7 @@ function init3D(){
   })();
 }
 function rebuild3D(m){
-  picked = null; selBox = null;        // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
+  picked = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
