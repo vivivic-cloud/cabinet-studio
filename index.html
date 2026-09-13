@@ -65,7 +65,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .stat b{font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--ink2);letter-spacing:.04em}
 .view3d{grid-area:view3d;position:relative;background:var(--surface2);min-height:440px}
-.view3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.view3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .hud{position:absolute;left:14px;top:12px;right:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;pointer-events:none}
 .hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px}
 .hud button{padding:4px 10px;font-size:12px;background:transparent;border-color:transparent}
@@ -454,7 +455,9 @@ function setTool(t){
   document.querySelectorAll('.tools button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
   const cv = $('#c3d'); cv.className = 'tool-' + t;
 }
-function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = Math.max(state.W, state.H, state.D) * 1.9 + 500; }
+const extR = () => Math.max(state.W, state.H, state.D) * 1.9 + 500;   // 전체가 화면에 들어오는 거리
+function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = extR(); }
+let endDrag = () => {};                              // 지시창이 뜨면 끌던 것을 놓는다 (init3D 에서 채운다)
 function init3D(){
   const cv = $('#c3d');
   renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true, alpha:true });
@@ -477,16 +480,26 @@ function init3D(){
     const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
     cam.tTgt.addScaledVector(right, -dx*scale).addScaledVector(up, dy*scale);
   };
-  const zoomBy = (factor, px, py) => {                 // 커서 아래 지점을 향해 줌 (SketchUp 스크롤 줌)
-    const newR = Math.min(30000, Math.max(300, cam.tR * factor)), f = newR / cam.tR;
+  // 짚은 자리를 제자리에 두고 줌. 화면에 보이는 camera 는 목표를 뒤쫓는 중이라 기준이 밀린다.
+  // 그래서 계산은 언제나 '목표 시점'(tTgt·tR·tTheta·tPhi) 으로 세운 aimCam 에서 한다.
+  const aimCam = new THREE.PerspectiveCamera(32, 1, 10, 60000);
+  const camAt = (tgt,r,theta,phi) => new THREE.Vector3(
+    tgt.x + r*Math.sin(phi)*Math.sin(theta), tgt.y + r*Math.cos(phi), tgt.z + r*Math.sin(phi)*Math.cos(theta));
+  const zoomBy = (factor, px, py) => {
+    const newR = Math.min(extR()*3, Math.max(300, cam.tR * factor)), f = newR / cam.tR;   // 점이 되어 사라지지 않게 바깥을 막는다
     if (px !== undefined){
       const rect = cv.getBoundingClientRect();
-      const ndc = new THREE.Vector3((px-rect.left)/rect.width*2-1, -((py-rect.top)/rect.height*2-1), 0.5).unproject(camera);
-      const ray = ndc.sub(camera.position).normalize();
-      const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
-      const t = cam.tTgt.clone().sub(camera.position).dot(fwd) / ray.dot(fwd);
-      const hit = camera.position.clone().addScaledVector(ray, t);
-      cam.tTgt.copy(hit).addScaledVector(cam.tTgt.clone().sub(hit), f);
+      aimCam.aspect = camera.aspect; aimCam.updateProjectionMatrix();
+      aimCam.position.copy(camAt(cam.tTgt, cam.tR, cam.tTheta, cam.tPhi));
+      aimCam.lookAt(cam.tTgt); aimCam.updateMatrixWorld(true);
+      const ndc = new THREE.Vector3((px-rect.left)/rect.width*2-1, -((py-rect.top)/rect.height*2-1), 0.5).unproject(aimCam);
+      const ray = ndc.sub(aimCam.position).normalize();
+      const fwd = new THREE.Vector3(); aimCam.getWorldDirection(fwd);
+      const t = cam.tTgt.clone().sub(aimCam.position).dot(fwd) / ray.dot(fwd);
+      const hit = aimCam.position.clone().addScaledVector(ray, t);
+      // 새 기준 = 짚은 점 + (옛 기준 − 짚은 점) × f.
+      // copy() 로 먼저 덮으면 뒤따르는 뺄셈이 0 이 되어 기준이 짚은 점으로 순간이동한다 — 그래서 멀리 사라졌다.
+      cam.tTgt.sub(hit).multiplyScalar(f).add(hit);
     }
     cam.tR = newR;
   };
@@ -498,16 +511,23 @@ function init3D(){
     if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';          // 휠 버튼: SketchUp 기본
     else if (e.button === 0) mode = tool === 'select' ? null : tool;   // 왼쪽 버튼: 현재 도구
     if (!mode) return;
-    drag = { x:e.clientX, y:e.clientY, mode }; cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault();
+    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, held:e.pointerType === 'touch' };
+    // 손가락은 곧바로 붙잡지 않는다. 가만히 누르면 길게 누르기(짚어서 지시)가 되도록 10px 만큼 길을 터 둔다.
+    if (!drag.held){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
   cv.addEventListener('pointermove', e => {
     if (!drag) return;
+    if (drag.held){                                                    // 10px 넘게 끌어야 비로소 3D 조작이다
+      if (Math.abs(e.clientX-drag.x0) <= 10 && Math.abs(e.clientY-drag.y0) <= 10) return;
+      drag.held = false; cv.setPointerCapture(drag.id); cv.classList.add('dragging');
+    }
     const dx = e.clientX-drag.x, dy = e.clientY-drag.y; drag.x = e.clientX; drag.y = e.clientY;
     if (drag.mode === 'orbit') orbit(dx,dy);
     else if (drag.mode === 'pan') pan(dx,dy);
-    else if (drag.mode === 'zoom') zoomBy(Math.exp(dy*0.006));         // 위로 드래그 = 확대
+    else if (drag.mode === 'zoom') zoomBy(Math.exp(dy*0.006), drag.x0, drag.y0);   // 위로 드래그 = 확대, 짚기 시작한 자리가 기준
   });
   const end = () => { drag = null; cv.classList.remove('dragging'); };
+  endDrag = end;
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
   document.addEventListener('keydown', e => {
@@ -625,6 +645,24 @@ $('#btnSvg').addEventListener('click', async () => {
 });
 $('#dlgClose').addEventListener('click', () => $('#dlg').close());
 $('#dlgCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#dlgText').value); toast('복사됨'); } catch { $('#dlgText').select(); toast('Ctrl/Cmd+C 로 복사하세요'); } });
+
+/* ───────── 바이글 손잡이가 3D 화면 위에서도 먹게 ─────────
+   손잡이(shared/viggle.js)는 다른 저장소 것이라 여기서 고칠 수 없다. 이쪽에서 길만 터 준다.
+   ① 지시창이 뜨면 끌던 3D 를 놓는다 — 창 뒤에서 모델이 계속 돌지 않게.
+   ② 지시창이 뜬 뒤 손을 떼며 나는 클릭 한 번을 삼킨다 — 그 클릭이 창 바탕에 떨어져
+      뜨자마자 닫히던 것을 막는다. 나중에 바탕을 눌러 닫는 것은 그대로 된다. */
+if (new URLSearchParams(location.search).get('viggle') === '1'){
+  let 누른때 = 0, 뜬때 = 0;
+  addEventListener('pointerdown', () => { 누른때 = Date.now(); }, true);
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => {
+    if (n.nodeType === 1 && n.classList.contains('vg-sheet')){ 뜬때 = Date.now(); endDrag(); }
+  }))).observe(document.body, { childList:true });
+  addEventListener('click', e => {
+    if (뜬때 > 누른때 && e.target.classList && e.target.classList.contains('vg-sheet')){
+      뜬때 = 0; e.preventDefault(); e.stopPropagation();
+    }
+  }, true);
+}
 
 init3D();
 update();
