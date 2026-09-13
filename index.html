@@ -668,6 +668,44 @@ document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
 
+/* ───────── 도면 위 조절 칸을 조용히 숨긴다 ─────────
+   손이 3초 멈추면 도구줄·시점줄·안내문구·분해도막대가 옅어져 사라지고,
+   다시 닿으면 곧바로 돌아온다. 자리는 그대로 두고 보이기만 없애므로 도면이
+   움찔하지 않는다. 안 보일 때는 손도 통과해 도면이 그대로 짚힌다.
+   옅어지는 것은 자바스크립트로 그린다 — 아이폰은 동작 줄이기·저전력에서
+   CSS 애니메이션이 멎어 칸이 안 보인 채 굳어 버린다. */
+(function(){
+  const 칸 = ['.hud .tools', '.hud .views', '.hint', '.explode'].map(s => $(s)).filter(Boolean);
+  const 뷰 = $('.view3d');
+  const 머무름 = 3000, 옅어짐 = 420, 돌아옴 = 160;     // ms
+  let 값 = 1, 목표 = 1, 마지막 = 0, 돈다 = false, 시계 = null, 누르고있다 = false;
+
+  const 쓰는중 = () => 누르고있다                                     // 끌고 있는 중
+    || 칸.some(el => el.contains(document.activeElement))             // 칸에 초점이 가 있는 중
+    || !!document.querySelector('.vg-sheet');                         // 짚어서 지시창이 떠 있는 중
+  const 칠하기 = () => 칸.forEach(el => {
+    el.style.opacity = 값 === 1 ? '' : 값.toFixed(3);
+    el.style.pointerEvents = 값 < 0.05 ? 'none' : '';                 // 안 보이면 손도 통과
+  });
+  function 프레임(t){
+    const dt = 마지막 ? t - 마지막 : 16; 마지막 = t;
+    const 걸음 = dt / (목표 > 값 ? 돌아옴 : 옅어짐);
+    값 = 목표 > 값 ? Math.min(목표, 값 + 걸음) : Math.max(목표, 값 - 걸음);
+    칠하기();
+    if (값 !== 목표) requestAnimationFrame(프레임); else { 돈다 = false; 마지막 = 0; }
+  }
+  function 목표로(v){ 목표 = v; if (!돈다 && 값 !== 목표){ 돈다 = true; 마지막 = 0; requestAnimationFrame(프레임); } }
+  function 재우기(){ if (쓰는중()){ 시계 = setTimeout(재우기, 머무름); return; } 목표로(0); }
+  function 깨우기(){ 목표로(1); clearTimeout(시계); 시계 = setTimeout(재우기, 머무름); }
+
+  ['pointermove','pointerdown','wheel'].forEach(t => 뷰.addEventListener(t, 깨우기, {passive:true}));
+  뷰.addEventListener('pointerdown', () => { 누르고있다 = true; });
+  addEventListener('pointerup', () => { 누르고있다 = false; 깨우기(); });
+  addEventListener('pointercancel', () => { 누르고있다 = false; 깨우기(); });
+  칸.forEach(el => { el.addEventListener('focusin', 깨우기); el.addEventListener('input', 깨우기); });
+  깨우기();
+})();
+
 /* ───────── 2D 도면에서 부속 고르기 ─────────
    3D 와 같은 규칙이다. 짧게 톡 치면 고르고, 끌면(쪽 넘기기) 고르지 않고,
    지시창이 떠 있으면 손을 떼도 고르지 않는다. 가는 선을 손가락으로 짚기는
