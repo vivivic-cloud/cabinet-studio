@@ -87,6 +87,11 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap text.DIM{fill:var(--dim)}
 .svgwrap text.TEXT{fill:var(--accent)}
 .svgwrap text.TITLE{fill:var(--ink)}
+/* 고른 부속 — 3D 와 같은 빨강. 선은 굵기 그대로 색만 바꾼다(밖으로 안 번지게).
+   칠은 그 부속 네모 안에만 든다. 짚을 자리(.pick)는 보이지 않고 손가락만 받는다. */
+.svgwrap .pick{fill:transparent;stroke:transparent;stroke-width:22px;pointer-events:all;cursor:pointer}
+.svgwrap line.sel{stroke:var(--dim)}
+.svgwrap rect.pick.sel{fill:rgba(255,59,48,.18)}
 .bom{grid-area:bom;display:flex;flex-direction:column}
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
@@ -220,7 +225,7 @@ function buildModel(s){
   const sideH = topStyle === 'overlay' ? H - T : H;
   const bz = plinth;                         // 하판 밑면 높이
   const parts = [];
-  const add = (name,x,y,z,w,d,h,dir,cut) => parts.push({name,x,y,z,w,d,h,dir,cut});
+  const add = (name,x,y,z,w,d,h,dir,cut) => parts.push({name,x,y,z,w,d,h,dir,cut,pid:parts.length});
   add('측판', 0,   0, 0, T, CD, sideH, [-1,0,0], {L:sideH, W:CD, T, grain:'세로'});
   add('측판', W-T, 0, 0, T, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T, grain:'세로'});
   const tx = topStyle === 'overlay' ? 0 : T, tw = topStyle === 'overlay' ? W : W - 2*T;
@@ -247,9 +252,12 @@ function buildModel(s){
 const TH = 30; // 치수 문자 높이
 function buildDrawing(s, m){
   const {W,D,H,T,TB} = s;
-  const P = [];
-  const line = (x1,y1,x2,y2,layer='OUTLINE') => P.push({t:'line',x1,y1,x2,y2,layer});
-  const rect = (x,y,w,h,layer='OUTLINE') => { line(x,y,x+w,y,layer); line(x+w,y,x+w,y+h,layer); line(x+w,y+h,x,y+h,layer); line(x,y+h,x,y,layer); };
+  const P = [], hits = [];                      // hits = 화면에서 짚을 자리. P 와 따로라 내보내기에는 안 실린다.
+  let pid = null;                               // 지금 그리는 것이 어느 부속인가 (부속이 아니면 null)
+  const line = (x1,y1,x2,y2,layer='OUTLINE') => P.push({t:'line',x1,y1,x2,y2,layer,pid});
+  const rect = (x,y,w,h,layer='OUTLINE') => { line(x,y,x+w,y,layer); line(x+w,y,x+w,y+h,layer); line(x+w,y+h,x,y+h,layer); line(x,y+h,x,y,layer);
+    if (pid !== null) hits.push({x,y,w,h,pid}); };
+  const 부속 = (p, f) => { pid = p.pid; f(); pid = null; };   // 이 안에서 그린 것만 그 부속 것이 된다
   const text = (str,x,y,h,layer='TEXT',align='MC',rot=0) => P.push({t:'text',str,x,y,h,layer,align,rot});
   const hatch = (x,y,w,h) => {                      // ANSI31 45° 단면 해치
     const sp = 12, c0 = Math.ceil((y-(x+w))/sp)*sp, c1 = y+h-x;
@@ -279,8 +287,8 @@ function buildDrawing(s, m){
   const doors = m.parts.filter(p => p.name === '문짝');
 
   // 정면도 — 문짝은 숨은선
-  carcass.forEach(p => rect(p.x, p.z, p.w, p.h));
-  doors.forEach(p => rect(p.x, p.z, p.w, p.h, 'HIDDEN'));
+  carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h)));
+  doors.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h, 'HIDDEN')));
   dimH(0, W, 0, -120);
   dimH(0, T, H, 120);
   dimV(0, H, W, 250);
@@ -293,7 +301,7 @@ function buildDrawing(s, m){
   // 측면 단면도 — 절단면 x = W/4 (문짝·선반 관통)
   const ox = W + 520, xc = W/4;
   const cutS = m.parts.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
-  cutS.forEach(p => { rect(ox + p.y, p.z, p.d, p.h); hatch(ox + p.y, p.z, p.d, p.h); });
+  cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h)); hatch(ox + p.y, p.z, p.d, p.h); });
   rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
   dimH(ox + m.CD, ox + D, H, 120);
@@ -304,7 +312,7 @@ function buildDrawing(s, m){
   // 평면 단면도 — 절단면 z = 상판 아래 100
   const oy = H + 620, zc = H - T - 100;
   const cutT = m.parts.filter(p => p.z <= zc && zc <= p.z + p.h);
-  cutT.forEach(p => { rect(p.x, oy + p.y, p.w, p.d); hatch(p.x, oy + p.y, p.w, p.d); });
+  cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
   rect(T, oy, W - 2*T, m.CD, 'HIDDEN');
   dimH(0, W, oy - (doors.length ? T : 0), -120);
   dimV(oy, oy + D, W, 120);
@@ -336,7 +344,7 @@ function buildDrawing(s, m){
     if (p.t === 'line'){ minx=Math.min(minx,p.x1,p.x2); maxx=Math.max(maxx,p.x1,p.x2); miny=Math.min(miny,p.y1,p.y2); maxy=Math.max(maxy,p.y1,p.y2); }
     else { const hw = p.str.length*p.h*0.6/2; minx=Math.min(minx,p.x-hw); maxx=Math.max(maxx,p.x+hw); miny=Math.min(miny,p.y-p.h); maxy=Math.max(maxy,p.y+p.h); }
   });
-  return { P, bbox:{minx,miny,maxx,maxy} };
+  return { P, hits, bbox:{minx,miny,maxx,maxy} };
 }
 
 function bomRows(m){
@@ -350,17 +358,20 @@ function bomRows(m){
 }
 
 /* ───────── SVG 렌더 ───────── */
-function renderSVG(d){
+function renderSVG(d, 화면){
   const {minx,miny,maxx,maxy} = d.bbox, pad = 140;
   const out = [];
   d.P.forEach(p => {
-    if (p.t === 'line') out.push(`<line class="${p.layer}" x1="${p.x1}" y1="${-p.y1}" x2="${p.x2}" y2="${-p.y2}" vector-effect="non-scaling-stroke"/>`);
+    if (p.t === 'line') out.push(`<line class="${p.layer}"${화면 && p.pid !== null && p.pid !== undefined ? ` data-pid="${p.pid}"` : ''} x1="${p.x1}" y1="${-p.y1}" x2="${p.x2}" y2="${-p.y2}" vector-effect="non-scaling-stroke"/>`);
     else {
       const anchor = p.align === 'ML' ? 'start' : 'middle';
       const tr = p.rot ? ` transform="rotate(${-p.rot} ${p.x} ${-p.y})"` : '';
       out.push(`<text class="${p.layer}" x="${p.x}" y="${-p.y}" font-size="${p.h*1.3}" text-anchor="${anchor}" dominant-baseline="central"${tr}>${esc(p.str)}</text>`);
     }
   });
+  if (화면)                                     // 작은 부속이 위로 오게 — 큰 것에 묻히지 않는다
+    [...d.hits].sort((a,b) => b.w*b.h - a.w*a.h).forEach(h =>
+      out.push(`<rect class="pick" data-pid="${h.pid}" x="${h.x}" y="${-(h.y+h.h)}" width="${h.w}" height="${h.h}" vector-effect="non-scaling-stroke"/>`));
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minx-pad} ${-(maxy+pad)} ${maxx-minx+2*pad} ${maxy-miny+2*pad}" preserveAspectRatio="xMidYMid meet" fill="none" stroke-linecap="round">${out.join('')}</svg>`;
 }
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -437,17 +448,21 @@ function selMat(base){
   }
   return selMats[base.uuid];
 }
-let picked = null;                     // 3D 에서 고른 조각 하나
-function markBomRow(key){
-  document.querySelectorAll('#bomBody tr').forEach(tr => tr.classList.toggle('on', !!key && tr.dataset.key === key));
+// 고른 것은 언제나 하나 — 부속 번호(pid). 3D·2D·부품표가 그 하나를 같이 본다.
+let selPid = null, pidKey = [];
+function applySel(){
+  if (group) group.children.forEach(m => {                       // 3D
+    const on = m.userData.pid === selPid;
+    m.material = on ? selMat(m.userData.baseMat) : m.userData.baseMat;
+    m.children[0].material = on ? selEdgeMat : edgeMat;
+  });
+  document.querySelectorAll('#svgwrap [data-pid]').forEach(el =>  // 2D 도면
+    el.classList.toggle('sel', Number(el.dataset.pid) === selPid));
+  const key = selPid === null ? null : pidKey[selPid];
+  document.querySelectorAll('#bomBody tr').forEach(tr =>          // 부품표
+    tr.classList.toggle('on', !!key && tr.dataset.key === key));
 }
-function select(mesh){
-  if (picked === mesh) return;
-  if (picked){ picked.material = picked.userData.baseMat; picked.children[0].material = edgeMat; }
-  picked = mesh || null;
-  if (picked){ picked.material = selMat(picked.userData.baseMat); picked.children[0].material = selEdgeMat; }
-  markBomRow(picked && picked.userData.key);   // 표의 그 줄도 함께 짚어진다
-}
+function select(pid){ selPid = (pid === null || pid === undefined) ? null : Number(pid); applySel(); }
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function makeGrid(){
   if (grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
@@ -567,7 +582,8 @@ function init3D(){
     if (drag && e && e.type === 'pointerup'){
       const 자 = drag.touch ? 10 : 5;
       const 끌었나 = Math.abs(e.clientX-drag.x0) > 자 || Math.abs(e.clientY-drag.y0) > 자;
-      if (!끌었나 && !document.querySelector('.vg-sheet')) select(짚힌조각(e.clientX, e.clientY));
+      const 조각 = 끌었나 ? null : 짚힌조각(e.clientX, e.clientY);
+      if (!끌었나 && !document.querySelector('.vg-sheet')) select(조각 ? 조각.userData.pid : null);
     }
     drag = null; cv.classList.remove('dragging');
   };
@@ -595,7 +611,7 @@ function init3D(){
   })();
 }
 function rebuild3D(m){
-  picked = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
+  selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
@@ -604,7 +620,7 @@ function rebuild3D(m){
     const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
-      baseMat:base, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}` };   // 부품표 묶음과 같은 열쇠
+      baseMat:base, pid:p.pid, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}` };   // 부속 번호와 부품표 열쇠
     group.add(mesh);
   });
   applyExplode();
@@ -623,8 +639,9 @@ function update(){
   const m = buildModel(state);
   rebuild3D(m);
   drawing = buildDrawing(state, m);
-  $('#svgwrap').innerHTML = renderSVG(drawing);
+  $('#svgwrap').innerHTML = renderSVG(drawing, true);
   const rows = bomRows(m);
+  pidKey = m.parts.map(p => `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`);
   $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
@@ -632,6 +649,7 @@ function update(){
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
   $('#stAreaT').textContent = (area[state.T]||0).toFixed(2) + ' m²'; $('#stAreaTLabel').textContent = `${state.T}T 소요 면적`;
   $('#stAreaB').textContent = (area[state.TB]||0).toFixed(2) + ' m²'; $('#stAreaBLabel').textContent = `${state.TB}T 소요 면적`;
+  applySel();
 }
 
 /* ───────── 입력 바인딩 ───────── */
@@ -649,6 +667,36 @@ document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListene
 document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('change', () => { state.doors = Number(r.value); update(); }));
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
+
+/* ───────── 2D 도면에서 부속 고르기 ─────────
+   3D 와 같은 규칙이다. 짧게 톡 치면 고르고, 끌면(쪽 넘기기) 고르지 않고,
+   지시창이 떠 있으면 손을 떼도 고르지 않는다. 가는 선을 손가락으로 짚기는
+   어려우므로 부속 네모마다 보이지 않는 짚을 자리(.pick)를 깔아 두었다. */
+(function(){
+  const 판 = $('#svgwrap');
+  // 짚을 자리끼리 겹칠 때: 손끝이 실제로 들어 있는 것 가운데 가장 작은 부속을 고른다.
+  // (굵은 여유를 준 탓에 큰 판의 여유가 얇은 선반을 덮는 일이 있다.)
+  function 짚힌부속(x, y){
+    const 것들 = document.elementsFromPoint(x, y).filter(el => el.classList && el.classList.contains('pick'));
+    if (!것들.length) return null;
+    const 잰것 = 것들.map(el => { const r = el.getBoundingClientRect();
+      return { pid:el.dataset.pid, 넓이:r.width*r.height, 안:x >= r.left && x <= r.right && y >= r.top && y <= r.bottom }; });
+    const 안엣것 = 잰것.filter(z => z.안);
+    return (안엣것.length ? 안엣것 : 잰것).sort((a,b) => a.넓이 - b.넓이)[0].pid;
+  }
+  let 자국 = null;
+  판.addEventListener('pointerdown', e => { 자국 = { x:e.clientX, y:e.clientY, touch:e.pointerType === 'touch' }; });
+  const 그만 = () => { 자국 = null; };
+  판.addEventListener('pointercancel', 그만);
+  판.addEventListener('pointerup', e => {
+    if (!자국) return;
+    const 자 = 자국.touch ? 10 : 5;
+    const 끌었나 = Math.abs(e.clientX-자국.x) > 자 || Math.abs(e.clientY-자국.y) > 자;
+    자국 = null;
+    if (끌었나 || document.querySelector('.vg-sheet')) return;
+    select(짚힌부속(e.clientX, e.clientY));
+  });
+})();
 
 /* ───────── 내보내기 ───────── */
 let toastT;
