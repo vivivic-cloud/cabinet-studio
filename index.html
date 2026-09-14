@@ -267,7 +267,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 
 <dialog id="rulesDlg"><div class="dlg rdlg">
   <h3>관계제어판</h3>
-  <p>부속끼리 맞물리는 규칙입니다. 여기 숫자가 3D·도면·부품표에 그대로 쓰입니다.</p>
   <div class="rrow nm"><label for="rName">품목구분명</label><input id="rName" type="text" maxlength="20" placeholder="예: 싱크대 하부장"></div>
   <div class="rgrp"><h4>아웃도어 유격</h4>
     <div class="rrow"><label for="r_아웃좌우">좌우</label><div class="num"><input id="r_아웃좌우" data-rule="아웃좌우" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
@@ -281,12 +280,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </div>
   <div class="rgrp"><h4>부속끼리</h4>
     <div class="rrow"><label for="r_도어사이">도어 사이</label><div class="num"><input id="r_도어사이" data-rule="도어사이" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_걸레앞">걸레받이 앞으로 <small>몸통 앞면에서 뒤로 물린 거리</small></label><div class="num"><input id="r_걸레앞" data-rule="걸레앞" type="number" min="0" max="200" step="1"><span>mm</span></div></div>
-    <div class="rrow wide" style="grid-template-columns:1fr"><label>인도어일 때 선반 <small>도어와 겹치는 만큼 선반 깊이를 줄인다</small></label>
+    <div class="rrow"><label for="r_걸레앞">걸레받이 앞으로</label><div class="num"><input id="r_걸레앞" data-rule="걸레앞" type="number" min="0" max="200" step="1"><span>mm</span></div></div>
+    <div class="rrow wide" style="grid-template-columns:1fr"><label>인도어일 때 선반</label>
       <div class="seg"><label><input type="radio" name="인선반줄임" value="1">줄인다</label><label><input type="radio" name="인선반줄임" value="0">그대로</label></div></div>
   </div>
   <div class="rgrp"><h4>손질한 부속</h4>
-    <p>도면에서 숨기거나 지우거나 복제한 것입니다. 되돌리면 다시 제자리로 옵니다.</p>
     <div id="rFix"></div>
   </div>
   <div class="row"><button type="button" id="rReset">기본값으로</button><button type="button" id="rClose" class="primary">닫기</button></div>
