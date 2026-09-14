@@ -144,6 +144,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="Tside">측판</label><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tshelf">선반</label><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field wide"><label>상판 결합 <small>측판이 상판을 감싸는지, 상판이 측판을 덮는지</small></label>
         <div class="seg"><label><input type="radio" name="topStyle" value="inset" checked>측판 사이</label><label><input type="radio" name="topStyle" value="overlay">측판 위</label></div></div>
@@ -222,14 +224,13 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 (function(){
 'use strict';
 const $ = s => document.querySelector(s);
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── 모델: 파라미터 → 부품 목록 (단일 진실 공급원) ───────── */
 function buildModel(s){
-  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,TB,shelves,plinth,topStyle,doors} = s;
-  const Tbot = Ttop;                         // 하판·걸레받이는 사장님 목록에 없어 상판 두께를 따른다
+  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,Tbot,Tplinth,TB,shelves,plinth,topStyle,doors} = s;
   const CD = D - TB;                         // 몸통 깊이 (뒷판 제외)
   const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
@@ -250,7 +251,7 @@ function buildModel(s){
     const z = bz + Tbot + (i+1)*pitch + i*Tshelf;
     add('선반', Tside, 도어물림, z, W-2*Tside, 선반깊이, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:선반깊이, T:Tshelf, grain:'가로'});
   }
-  if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tbot, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tbot, grain:'가로'});
+  if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
   let 앞으로 = 0;                            // 도어가 몸통 앞으로 나온 길이 (도면 치수선이 쓴다)
   if (doors > 0){
@@ -261,9 +262,9 @@ function buildModel(s){
       x0 = Tside + 왼; x1 = W - Tside - 오;
       z0 = bz + Tbot + 3; z1 = (H - Ttop) - 3;
       dy = 0;                                // 몸통 앞면 안쪽에 앉는다
-    } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래(걸레받이 쪽) 5mm
+    } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래는 걸레받이와 만나 5mm
       x0 = 2; x1 = W - 2;
-      z0 = bz + 5; z1 = H - 2;
+      z0 = bz + (plinth > 0 ? 5 : 2); z1 = H - 2;   // 걸레받이가 없으면 만날 것이 없어 다른 면과 같이 2mm
       dy = -Tdoor; 앞으로 = Tdoor;            // 몸통 앞으로 나온다
     }
     const dw = (x1 - x0 - (n-1)*gap) / n, dh = z1 - z0;
@@ -276,8 +277,7 @@ function buildModel(s){
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
 const TH = 30; // 치수 문자 높이
 function buildDrawing(s, m){
-  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,TB} = s;
-  const Tbot = Ttop;
+  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,Tbot,TB} = s;
   const P = [], hits = [];                      // hits = 화면에서 짚을 자리. P 와 따로라 내보내기에는 안 실린다.
   let pid = null;                               // 지금 그리는 것이 어느 부속인가 (부속이 아니면 null)
   const line = (x1,y1,x2,y2,layer='OUTLINE') => P.push({t:'line',x1,y1,x2,y2,layer,pid});
@@ -362,8 +362,11 @@ function buildDrawing(s, m){
   rect(bx, ty - 300, cols[6], 300, 'TITLE');
   line(bx, ty - 110, bx + cols[6], ty - 110, 'TITLE');
   text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty - 55, 46, 'TITLE');
-  text(`상판 ${Ttop}T · 측판 ${Tside}T · 선반 ${Tshelf}T · 도어 ${Tdoor}T · 뒷판 ${TB}T · 선반 ${s.shelves}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 165, 30, 'TITLE');
-  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty - 245, 30, 'TITLE');
+  // 두께가 일곱이라 한 줄에 안 들어간다 — 표제란 칸(폭 1020) 안에 들도록 세 줄로 나눠 적는다
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · 선반 ${Tshelf}T`, bx + cols[6]/2, ty - 150, 26, 'TITLE');
+  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + cols[6]/2, ty - 192, 26, 'TITLE');
+  text(`뒷판 ${TB}T · 선반 ${s.shelves}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 234, 26, 'TITLE');
+  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty - 276, 26, 'TITLE');
 
   let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
   P.forEach(p => {
@@ -684,7 +687,7 @@ function update(){
   });
   const 경첩 = state.hinge === 'left' ? '좌' : '우';
   $('#gapNote').textContent = !state.doors ? ''
-    : (state.doorMode === 'in' ? `유격 경첩쪽(${경첩}) 2 · 나머지 3` : '유격 좌우 2 · 위 2 · 아래 5')
+    : (state.doorMode === 'in' ? `유격 경첩쪽(${경첩}) 2 · 나머지 3` : `유격 좌우 2 · 위 2 · 아래 ${state.plinth > 0 ? 5 : 2}`)
       + (state.doors > 1 ? ' · 도어사이 4' : '')
       + (state.doorMode === 'in' ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
