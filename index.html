@@ -242,9 +242,13 @@ function buildModel(s){
   add('하판', Tside, 0, bz, W-2*Tside, CD, Tbot, [0,0,-1], {L:W-2*Tside, W:CD, T:Tbot, grain:'가로'});
   const innerH = (H - Ttop) - (bz + Tbot);
   const pitch = (innerH - shelves*Tshelf) / (shelves + 1);
+  // 인도어는 도어가 몸통 앞면 안쪽(y 0~Tdoor)에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고
+  // 깊이를 줄인다 — 재단 치수(cut.W)도 같이 줄어든다. 겹치는 부속은 선반뿐임을 설정 8748가지로 확인했다.
+  const 도어물림 = (doors > 0 && s.doorMode === 'in') ? Tdoor : 0;
+  const 선반깊이 = CD - 도어물림;
   for (let i = 0; i < shelves; i++){
     const z = bz + Tbot + (i+1)*pitch + i*Tshelf;
-    add('선반', Tside, 0, z, W-2*Tside, CD, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:CD, T:Tshelf, grain:'가로'});
+    add('선반', Tside, 도어물림, z, W-2*Tside, 선반깊이, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:선반깊이, T:Tshelf, grain:'가로'});
   }
   if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tbot, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tbot, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
@@ -678,7 +682,8 @@ function update(){
   const 경첩 = state.hinge === 'left' ? '좌' : '우';
   $('#gapNote').textContent = !state.doors ? ''
     : (state.doorMode === 'in' ? `유격 경첩쪽(${경첩}) 2 · 나머지 3` : '유격 좌우 2 · 위 2 · 아래 5')
-      + (state.doors > 1 ? ' · 도어사이 4' : '');
+      + (state.doors > 1 ? ' · 도어사이 4' : '')
+      + (state.doorMode === 'in' ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
 }
 
