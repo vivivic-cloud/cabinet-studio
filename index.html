@@ -78,9 +78,6 @@ input[type=range]{width:100%;accent-color:var(--head)}
 #hidmenu button{min-height:44px;padding:11px 12px;text-align:left;border:0;border-radius:10px;background:none}
 #hidmenu button:hover{background:var(--surface2)}
 #hidmenu small{color:var(--ink3)}
-#pmenu button[disabled]{color:var(--ink3);cursor:default}
-#pmenu button[disabled]:hover{background:none}
-#pmenu .why{padding:2px 12px 6px;font-size:11.5px;color:var(--ink3)}
 .hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
 .view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
 .view3d canvas.dragging{cursor:grabbing}
@@ -300,7 +297,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   <button type="button" data-act="hide">숨기기</button>
   <button type="button" data-act="del">삭제</button>
   <button type="button" data-act="dup">복제</button>
-  <div class="why"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -382,8 +378,8 @@ function buildModel(s){
     for (let k = 0; k < n; k++)
       add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  // 손질한 것을 여기서 반영한다. 숨긴 것은 3D 에만 안 서고(도면·부품표에는 그대로),
-  // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다). 지우기는 붙박이 일곱에는 막혀 있다.
+  // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
+  // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
   const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
   return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
@@ -424,8 +420,8 @@ function buildDrawing(s, m){
     tick(xl,y1); tick(xl,y2);
     text(fmt(Math.abs(y2-y1)), xl - sg*(TH/2+8), (y1+y2)/2, TH, 'DIM', 'MC', 90);
   };
-  // 숨기기는 3D 에서만이다. 도면과 부품표에는 그대로 남는다 — 자재가 없어지는 것이 아니다.
-  const 목록 = m.parts;
+  // 숨긴 부속은 도면에 안 그린다 — 가린 것을 들여다보라는 것이다. 부품표에는 그대로 남는다.
+  const 목록 = m.parts.filter(p => !p.숨김);
   const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
   const doors = 목록.filter(p => p.name === '문짝');
 
@@ -775,7 +771,7 @@ function rebuild3D(m){
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
-    if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 남는다)
+    if (p.숨김) return;                // 숨긴 부속은 3D 에도 안 선다 (부품표에는 남는다)
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
     const base = mat(p.cut.T, p.name === '문짝');
     const mesh = new THREE.Mesh(geo, base);
@@ -888,9 +884,9 @@ document.querySelectorAll('.views button').forEach(b => b.addEventListener('clic
 /* ───────── 고른 부속 손질하기 — 숨기기 · 삭제 · 복제 ─────────
    3D 에서든 도면에서든 부속을 고른 뒤 우클릭하면 뜬다. 손가락에는 우클릭이 없으므로
    고른 것을 한 번 더 톡 치면 같은 메뉴가 뜬다 — 길게 누르기는 지시 남기기(viggle)가 쓰므로 안 건드린다.
-   숨기기 = 3D 에서만 안 보인다. 도면·부품표에는 그대로 남는다 — 가린 것을 들여다보라는 것이지
+   숨기기 = 3D 와 도면에서 안 보인다. 부품표에는 그대로 남는다 — 가린 것을 들여다보라는 것이지
    자재가 없어지는 것이 아니다. 숨긴 것은 시점 단추 아래 「n개 숨김」 으로 늘 보이고 거기서 되돌린다.
-   삭제 = 처음부터 있던 붙박이 부속은 막는다(지우면 도면이 무너진다). 복제 = 부품표 수량만 하나 늘린다. */
+   삭제 = 부품표에서도 뺀다. 복제 = 부품표 수량만 하나 늘린다. 둘 다 관계제어판에서 되돌린다. */
 let 메뉴짚음 = null, 메뉴닫은때 = 0;
 function 메뉴열기(x, y, pid){
   const p = 모델 && 모델.parts[pid];
@@ -901,10 +897,6 @@ function 메뉴열기(x, y, pid){
   $('#pmenuName').textContent = p.name;
   const 숨단추 = el.querySelector('button[data-act="hide"]');
   숨단추.textContent = p.숨김 ? '다시 보이기' : '숨기기';
-  const 못지움 = 붙박이.includes(p.name);
-  const 지움단추 = el.querySelector('button[data-act="del"]');
-  지움단추.disabled = 못지움;
-  el.querySelector('.why').textContent = 못지움 ? '처음부터 있는 부속이라 지울 수 없습니다' : '';
   el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
   const r = el.getBoundingClientRect();
   el.style.left = Math.max(8, Math.min(x, innerWidth  - r.width  - 8)) + 'px';
@@ -922,10 +914,9 @@ $('#pmenu').querySelectorAll('button[data-act]').forEach(b => b.addEventListener
   if (!짚) return;
   if (짓 === 'hide'){
     if (짚.숨김){ 손질.숨김 = 손질.숨김.filter(x => x !== 짚.자리); toast(`${짚.이름} 다시 보입니다`); }
-    else { 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 3D 에서만 안 보입니다`); }
+    else { 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 부품표에는 남습니다`); }
   }
   else if (짓 === 'del'){
-    if (붙박이.includes(짚.이름)){ toast(`${짚.이름} 은 처음부터 있는 부속이라 지울 수 없습니다`); return; }
     if (!손질.지움.includes(짚.자리)) 손질.지움.push(짚.자리);
     toast(`${짚.이름} 삭제 — 관계제어판에서 되돌립니다`);
   }
