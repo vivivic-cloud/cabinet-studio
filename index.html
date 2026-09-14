@@ -117,6 +117,12 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .rrow input[type=text]{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;padding:9px 12px}
 .rrow input[type=text]:focus{outline:none;border-color:var(--head)}
 .rdlg{max-height:76vh;overflow:auto}
+#rFix .none{margin:0;color:var(--ink3);font-size:13px}
+#pmenu{position:fixed;z-index:60;display:none;flex-direction:column;gap:2px;min-width:140px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+#pmenu.on{display:flex}
+#pmenu b{padding:6px 12px 4px;font-size:12px;font-weight:600;color:var(--ink3)}
+#pmenu button{min-height:44px;padding:11px 12px;text-align:left;border:0;border-radius:10px;background:none}
+#pmenu button:hover{background:var(--surface2)}
 .bom tbody tr.on{background:var(--surface2)}
 .bom tbody tr.on td:first-child{font-weight:700;color:var(--head);box-shadow:inset 3px 0 0 var(--dim)}
 .bom .grain{color:var(--ink3);font-size:12px}
@@ -262,8 +268,18 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <div class="rrow wide" style="grid-template-columns:1fr"><label>인도어일 때 선반 <small>도어와 겹치는 만큼 선반 깊이를 줄인다</small></label>
       <div class="seg"><label><input type="radio" name="인선반줄임" value="1">줄인다</label><label><input type="radio" name="인선반줄임" value="0">그대로</label></div></div>
   </div>
+  <div class="rgrp"><h4>손질한 부속</h4>
+    <p>도면에서 숨기거나 지우거나 복제한 것입니다. 되돌리면 다시 제자리로 옵니다.</p>
+    <div id="rFix"></div>
+  </div>
   <div class="row"><button type="button" id="rReset">기본값으로</button><button type="button" id="rClose" class="primary">닫기</button></div>
 </div></dialog>
+
+<div id="pmenu" role="menu" aria-hidden="true"><b id="pmenuName"></b>
+  <button type="button" data-act="hide">숨기기</button>
+  <button type="button" data-act="del">삭제</button>
+  <button type="button" data-act="dup">복제</button>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -278,15 +294,23 @@ const 규칙기본 = { 이름:'기본 조립', 아웃좌우:2, 아웃위:2, 아�
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
+// 도면에서 부속을 골라 손질한 것. 자리(이름+좌표)로 짚는다 — 치수를 바꿔 그 자리가 없어지면 저절로 풀린다.
+let 손질 = { 숨김:[], 지움:[], 복제:{} };
+const 자리 = p => `${p.name}@${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}`;
 try {
   const r = JSON.parse(localStorage.getItem(곳간 + '.규칙') || 'null');
   if (r && typeof r === 'object') 규칙 = { ...규칙기본, ...r };
   const c = JSON.parse(localStorage.getItem(곳간 + '.부속') || 'null');
   if (Array.isArray(c)) 만든부속 = c.filter(x => x && typeof x.이름 === 'string');
+  const h = JSON.parse(localStorage.getItem(곳간 + '.손질') || 'null');
+  if (h && typeof h === 'object') 손질 = { 숨김:Array.isArray(h.숨김) ? h.숨김 : [],
+                                           지움:Array.isArray(h.지움) ? h.지움 : [],
+                                           복제:(h.복제 && typeof h.복제 === 'object') ? h.복제 : {} };
 } catch (e) {}
 function 담기(){ try {
   localStorage.setItem(곳간 + '.규칙', JSON.stringify(규칙));
   localStorage.setItem(곳간 + '.부속', JSON.stringify(만든부속));
+  localStorage.setItem(곳간 + '.손질', JSON.stringify(손질));
 } catch (e) {} }
 
 const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
@@ -336,7 +360,11 @@ function buildModel(s){
     for (let k = 0; k < n; k++)
       add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  return { parts, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
+  // 도면에서 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 그림에만 안 나오며,
+  // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 그림에는 새로 안 선다).
+  const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
+  산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
+  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -374,8 +402,9 @@ function buildDrawing(s, m){
     tick(xl,y1); tick(xl,y2);
     text(fmt(Math.abs(y2-y1)), xl - sg*(TH/2+8), (y1+y2)/2, TH, 'DIM', 'MC', 90);
   };
-  const carcass = m.parts.filter(p => p.name !== '뒷판' && p.name !== '문짝');
-  const doors = m.parts.filter(p => p.name === '문짝');
+  const 목록 = m.parts.filter(p => !p.숨김);          // 숨긴 부속은 도면에 안 그린다
+  const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
+  const doors = 목록.filter(p => p.name === '문짝');
 
   // 정면도 — 문짝은 숨은선
   carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h)));
@@ -384,14 +413,14 @@ function buildDrawing(s, m){
   dimH(0, Tside, H, 120);
   dimV(0, H, W, 250);
   let prev = m.bz + Tbot;
-  m.parts.filter(p => p.name === '선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + Tshelf; });
+  목록.filter(p => p.name === '선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + Tshelf; });
   dimV(prev, H - Ttop, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
   text('정면도  FRONT VIEW', W/2, -270, 46);
 
   // 측면 단면도 — 절단면 x = W/4 (문짝·선반 관통)
   const ox = W + 520, xc = W/4;
-  const cutS = m.parts.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
+  const cutS = 목록.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
   cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h)); hatch(ox + p.y, p.z, p.d, p.h); });
   rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
@@ -402,7 +431,7 @@ function buildDrawing(s, m){
 
   // 평면 단면도 — 절단면 z = 상판 아래 100
   const oy = H + 620, zc = H - Ttop - 100;
-  const cutT = m.parts.filter(p => p.z <= zc && zc <= p.z + p.h);
+  const cutT = 목록.filter(p => p.z <= zc && zc <= p.z + p.h);
   cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
   rect(Tside, oy, W - 2*Tside, m.CD, 'HIDDEN');
   dimH(0, W, oy - m.앞으로, -120);
@@ -446,7 +475,7 @@ function bomRows(m){
   m.parts.forEach(p => {
     const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
     if (!map.has(k)) map.set(k, {name:p.name, qty:0, ...p.cut});
-    map.get(k).qty++;
+    map.get(k).qty += 1 + (p.더 || 0);
   });
   // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
   만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로'}));
@@ -712,6 +741,7 @@ function rebuild3D(m){
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
+    if (p.숨김) return;                // 숨긴 부속은 3D 에도 안 선다
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
     const base = mat(p.cut.T, p.name === '문짝');
     const mesh = new THREE.Mesh(geo, base);
@@ -733,9 +763,10 @@ function applyExplode(){
 function setPressed(v){ document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
 
 /* ───────── 화면 갱신 ───────── */
-let drawing = null;
+let drawing = null, 모델 = null;
 function update(){
   const m = buildModel(state);
+  모델 = m;
   rebuild3D(m);
   drawing = buildDrawing(state, m);
   $('#svgwrap').innerHTML = renderSVG(drawing, true);
@@ -819,6 +850,43 @@ document.querySelectorAll('.views button').forEach(b => b.addEventListener('clic
   깨우기();
 })();
 
+/* ───────── 고른 부속 손질하기 — 숨기기 · 삭제 · 복제 ─────────
+   도면에서 부속을 고른 뒤 우클릭하면 뜬다. 손가락에는 우클릭이 없으므로 고른 것을 한 번 더
+   톡 치면 같은 메뉴가 뜬다 — 길게 누르기는 지시 남기기가 쓰므로 건드리지 않았다.
+   숨기기 = 그림에서만 뺀다(부품표에는 남는다) · 삭제 = 부품표에서도 뺀다 · 복제 = 같은 것을 하나 더 짠다.
+   되돌리기는 관계제어판의 「손질한 부속」 에 있다. */
+let 메뉴짚음 = null, 메뉴닫은때 = 0;
+function 메뉴열기(x, y, pid){
+  const p = 모델 && 모델.parts[pid];
+  if (!p) return;
+  메뉴짚음 = { 자리:p.자리, 이름:p.name };
+  const el = $('#pmenu');
+  $('#pmenuName').textContent = p.name;
+  el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
+  const r = el.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(x, innerWidth  - r.width  - 8)) + 'px';
+  el.style.top  = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+}
+function 메뉴닫기(){
+  if (메뉴짚음) 메뉴닫은때 = performance.now();
+  메뉴짚음 = null;
+  const el = $('#pmenu');
+  el.classList.remove('on'); el.setAttribute('aria-hidden', 'true');
+}
+$('#pmenu').querySelectorAll('button[data-act]').forEach(b => b.addEventListener('click', () => {
+  const 짚 = 메뉴짚음, 짓 = b.dataset.act;
+  메뉴닫기();
+  if (!짚) return;
+  if (짓 === 'hide'){ if (!손질.숨김.includes(짚.자리)) 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 관계제어판에서 되돌립니다`); }
+  else if (짓 === 'del'){ if (!손질.지움.includes(짚.자리)) 손질.지움.push(짚.자리); toast(`${짚.이름} 삭제 — 관계제어판에서 되돌립니다`); }
+  else { 손질.복제[짚.자리] = (손질.복제[짚.자리] || 0) + 1; toast(`${짚.이름} 복제 — 부품표 수량이 하나 늘었습니다`); }
+  담기(); update();
+}));
+addEventListener('pointerdown', e => { if (메뉴짚음 && !(e.target.closest && e.target.closest('#pmenu'))) 메뉴닫기(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') 메뉴닫기(); });
+addEventListener('scroll', () => { if (메뉴짚음) 메뉴닫기(); }, true);
+addEventListener('resize', () => { if (메뉴짚음) 메뉴닫기(); });
+
 /* ───────── 2D 도면에서 부속 고르기 ─────────
    3D 와 같은 규칙이다. 짧게 톡 치면 고르고, 끌면(쪽 넘기기) 고르지 않고,
    지시창이 떠 있으면 손을 떼도 고르지 않는다. 가는 선을 손가락으로 짚기는
@@ -845,7 +913,18 @@ document.querySelectorAll('.views button').forEach(b => b.addEventListener('clic
     const 끌었나 = Math.abs(e.clientX-자국.x) > 자 || Math.abs(e.clientY-자국.y) > 자;
     자국 = null;
     if (끌었나 || document.querySelector('.vg-sheet')) return;
-    select(짚힌부속(e.clientX, e.clientY));
+    const 짚 = 짚힌부속(e.clientX, e.clientY);
+    // 이미 고른 것을 한 번 더 톡 치면 손질 메뉴 (손가락용 우클릭)
+    if (짚 !== null && selPid !== null && Number(짚) === selPid && performance.now() - 메뉴닫은때 > 400)
+      메뉴열기(e.clientX, e.clientY, selPid);
+    else select(짚);
+  });
+  판.addEventListener('contextmenu', e => {
+    const 짚 = 짚힌부속(e.clientX, e.clientY);
+    if (짚 === null) return;                 // 부속 밖이면 브라우저 메뉴를 그대로 둔다
+    e.preventDefault();
+    select(짚);
+    메뉴열기(e.clientX, e.clientY, selPid);
   });
 })();
 
@@ -966,6 +1045,19 @@ function 제어판그리기(){
   $('#rName').value = 규칙.이름;
   document.querySelectorAll('#rulesDlg [data-rule]').forEach(el => { el.value = 규칙[el.dataset.rule]; });
   document.querySelectorAll('input[name=인선반줄임]').forEach(r => { r.checked = (r.value === '1') === !!규칙.인선반줄임; });
+  const 목록 = [...손질.숨김.map(k => ['숨김', k]), ...손질.지움.map(k => ['삭제', k]),
+               ...Object.keys(손질.복제).filter(k => 손질.복제[k] > 0).map(k => [`복제 +${손질.복제[k]}`, k])];
+  $('#rFix').innerHTML = 목록.length
+    ? 목록.map(([무엇, k], i) => `<div class="rrow"><label>${esc(k.split('@')[0])} <small>${esc(무엇)} · 자리 ${esc(k.split('@')[1] || '')}</small></label>` +
+        `<button type="button" data-fix="${i}">되돌리기</button></div>`).join('')
+    : '<p class="none">손질한 것이 없습니다.</p>';
+  $('#rFix').querySelectorAll('button[data-fix]').forEach(el => el.addEventListener('click', () => {
+    const [무엇, k] = 목록[+el.dataset.fix];
+    if (무엇 === '숨김') 손질.숨김 = 손질.숨김.filter(x => x !== k);
+    else if (무엇 === '삭제') 손질.지움 = 손질.지움.filter(x => x !== k);
+    else delete 손질.복제[k];
+    담기(); 제어판그리기(); update();
+  }));
 }
 $('#btnRules').addEventListener('click', () => { 제어판그리기(); $('#rulesDlg').showModal(); });
 $('#rClose').addEventListener('click', () => $('#rulesDlg').close());
