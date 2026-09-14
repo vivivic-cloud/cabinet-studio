@@ -154,6 +154,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="plinth">걸레받이 <small>0 = 없음</small></label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
       <div class="field wide"><label>문짝</label>
         <div class="seg"><label><input type="radio" name="doors" value="0">없음</label><label><input type="radio" name="doors" value="1">여닫이 1</label><label><input type="radio" name="doors" value="2" checked>여닫이 2</label></div></div>
+      <div class="field wide"><label>도어 방식</label>
+        <div class="seg"><label><input type="radio" name="doorMode" value="out" checked>아웃도어</label><label><input type="radio" name="doorMode" value="in">인도어</label></div></div>
+      <div class="field wide"><label>경첩</label>
+        <div class="seg"><label><input type="radio" name="hinge" value="left" checked>좌</label><label><input type="radio" name="hinge" value="right">우</label></div></div>
+      <div class="field wide"><small id="gapNote" class="mono"></small></div>
     </div>
     <div class="stats">
       <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
@@ -217,7 +222,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 (function(){
 'use strict';
 const $ = s => document.querySelector(s);
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -243,13 +248,25 @@ function buildModel(s){
   }
   if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tbot, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tbot, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
+  let 앞으로 = 0;                            // 도어가 몸통 앞으로 나온 길이 (도면 치수선이 쓴다)
   if (doors > 0){
-    const gap = 3, reveal = 2, n = doors;
-    const dw = (W - 2*reveal - (n-1)*gap) / n, dh = H - bz - 2*reveal;
+    const n = doors, gap = 4;                // 도어 사이 4mm
+    let x0, x1, z0, z1, dy;
+    if (s.doorMode === 'in'){                // 인도어 — 몸통 안. 경첩쪽 2mm, 맞닿는 나머지 면 3mm
+      const 왼 = s.hinge === 'left' ? 2 : 3, 오 = s.hinge === 'left' ? 3 : 2;
+      x0 = Tside + 왼; x1 = W - Tside - 오;
+      z0 = bz + Tbot + 3; z1 = (H - Ttop) - 3;
+      dy = 0;                                // 몸통 앞면 안쪽에 앉는다
+    } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래(걸레받이 쪽) 5mm
+      x0 = 2; x1 = W - 2;
+      z0 = bz + 5; z1 = H - 2;
+      dy = -Tdoor; 앞으로 = Tdoor;            // 몸통 앞으로 나온다
+    }
+    const dw = (x1 - x0 - (n-1)*gap) / n, dh = z1 - z0;
     for (let k = 0; k < n; k++)
-      add('문짝', reveal + k*(dw+gap), -Tdoor, bz + reveal, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
+      add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  return { parts, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside };
+  return { parts, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -310,7 +327,7 @@ function buildDrawing(s, m){
   rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
   dimH(ox + m.CD, ox + D, H, 120);
-  if (doors.length) dimH(ox - Tdoor, ox, H, 120);
+  if (doors.length){ const dy0 = doors[0].y; dimH(ox + dy0, ox + dy0 + Tdoor, H, 120); }
   dimV(0, H, ox + D, 120);
   text('측면 단면도  SIDE SECTION', ox + D/2, -270, 46);
 
@@ -319,10 +336,10 @@ function buildDrawing(s, m){
   const cutT = m.parts.filter(p => p.z <= zc && zc <= p.z + p.h);
   cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
   rect(Tside, oy, W - 2*Tside, m.CD, 'HIDDEN');
-  dimH(0, W, oy - (doors.length ? Tdoor : 0), -120);
+  dimH(0, W, oy - m.앞으로, -120);
   dimV(oy, oy + D, W, 120);
   dimV(oy + m.CD, oy + D, 0, -120);
-  text('평면 단면도  TOP SECTION', W/2, oy - 270 - (doors.length ? Tdoor : 0), 46);
+  text('평면 단면도  TOP SECTION', W/2, oy - 270 - m.앞으로, 46);
 
   // 부품표 + 표제란
   const bom = bomRows(m);
@@ -658,6 +675,10 @@ function update(){
     $(v).textContent = t ? area[t].toFixed(2) + ' m²' : '–';
     $(l).textContent = t ? `${t}T 소요 면적` : '소요 면적';
   });
+  const 경첩 = state.hinge === 'left' ? '좌' : '우';
+  $('#gapNote').textContent = !state.doors ? ''
+    : (state.doorMode === 'in' ? `유격 경첩쪽(${경첩}) 2 · 나머지 3` : '유격 좌우 2 · 위 2 · 아래 5')
+      + (state.doors > 1 ? ' · 도어사이 4' : '');
   applySel();
 }
 
@@ -675,6 +696,8 @@ document.querySelectorAll('[data-key]').forEach(el => {
 });
 document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListener('change', () => { state.topStyle = r.value; update(); }));
 document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('change', () => { state.doors = Number(r.value); update(); }));
+document.querySelectorAll('input[name=doorMode]').forEach(r => r.addEventListener('change', () => { state.doorMode = r.value; update(); }));
+document.querySelectorAll('input[name=hinge]').forEach(r => r.addEventListener('change', () => { state.hinge = r.value; update(); }));
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
 
