@@ -126,6 +126,14 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .rrow{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:10px;margin:0 0 8px}
 .rrow label{font-weight:600}
 .rrow.nm{grid-template-columns:auto 1fr}
+.krow{display:grid;grid-template-columns:1fr 112px;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line2)}
+.krow:first-child{border-top:0}
+.krow.wide{grid-template-columns:1fr;gap:6px}
+.krow b{display:block;font-size:12px;font-weight:700;color:var(--head);letter-spacing:-.2px}
+.krow small{display:block;margin-top:2px;color:var(--ink2);font-size:12.5px;line-height:1.4;word-break:keep-all}
+.kv{text-align:right}
+.kv .fix{font-size:12.5px;color:var(--ink3);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
+.kv .fix em{font-style:normal;color:var(--ink2)}
 .rrow small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
 .rrow input[type=text]{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;padding:9px 12px}
 .rrow input[type=text]:focus{outline:none;border-color:var(--head)}
@@ -268,21 +276,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 <dialog id="rulesDlg"><div class="dlg rdlg">
   <h3>관계제어판</h3>
   <div class="rrow nm"><label for="rName">품목구분명</label><input id="rName" type="text" maxlength="20" placeholder="예: 싱크대 하부장"></div>
-  <div class="rgrp"><h4>아웃도어 유격</h4>
-    <div class="rrow"><label for="r_아웃좌우">좌우</label><div class="num"><input id="r_아웃좌우" data-rule="아웃좌우" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_아웃위">위</label><div class="num"><input id="r_아웃위" data-rule="아웃위" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_아웃아래걸레">아래 <small>걸레받이 있을 때</small></label><div class="num"><input id="r_아웃아래걸레" data-rule="아웃아래걸레" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_아웃아래없음">아래 <small>걸레받이 없을 때</small></label><div class="num"><input id="r_아웃아래없음" data-rule="아웃아래없음" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-  </div>
-  <div class="rgrp"><h4>인도어 유격</h4>
-    <div class="rrow"><label for="r_인경첩">경첩쪽</label><div class="num"><input id="r_인경첩" data-rule="인경첩" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_인나머지">나머지 면</label><div class="num"><input id="r_인나머지" data-rule="인나머지" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-  </div>
-  <div class="rgrp"><h4>부속끼리</h4>
-    <div class="rrow"><label for="r_도어사이">도어 사이</label><div class="num"><input id="r_도어사이" data-rule="도어사이" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
-    <div class="rrow"><label for="r_걸레앞">걸레받이 앞으로</label><div class="num"><input id="r_걸레앞" data-rule="걸레앞" type="number" min="0" max="200" step="1"><span>mm</span></div></div>
-    <div class="rrow wide" style="grid-template-columns:1fr"><label>인도어일 때 선반</label>
-      <div class="seg"><label><input type="radio" name="인선반줄임" value="1">줄인다</label><label><input type="radio" name="인선반줄임" value="0">그대로</label></div></div>
+  <div class="rgrp"><h4>관계표</h4>
+    <div id="rTable"></div>
   </div>
   <div class="rgrp"><h4>손질한 부속</h4>
     <div id="rFix"></div>
@@ -821,6 +816,7 @@ function update(){
       + (state.doorMode === 'in' && 규칙.인선반줄임 ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
   숨김바();
+  표값갱신();
 }
 
 /* ───────── 입력 바인딩 ───────── */
@@ -1121,10 +1117,73 @@ $('#btnAdd').addEventListener('click', () => {
 $('#newPart').addEventListener('input', () => { $('#addWarn').textContent = ''; });
 $('#newPart').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
 
+/* ───────── 관계표 — 이 도면이 서는 규칙 전부 ─────────
+   부속과 부속 사이의 말로 적는다. 숫자 칸이 붙은 줄은 여기서 고치면 3D·도면·부품표가 따라 선다.
+   칸이 없는 줄은 아직 코드에 박혀 있는 것이라 지금 값만 보인다 — 품목마다 따로 두려면 그것부터 풀어야 한다. */
+const 관계표 = [
+  { 사이:'측판 ↔ 바닥', 말:'측판 두 장이 바닥에서 선다. 높이는 가구 전체 높이다. 상판을 측판 위에 얹으면 상판 두께만큼 낮아진다.',
+    값:(m,s) => `높이 ${fmt(m.sideH)}` },
+  { 사이:'상판 ↔ 측판', 말:'측판 사이에 끼우거나 측판 위에 얹는다. 끼우면 상판 폭은 안치수, 얹으면 가구 전체 폭이다.',
+    값:(m,s) => s.topStyle === 'overlay' ? '측판 위' : '측판 사이', 어디:'보드선택 아래 「상판 결합」' },
+  { 사이:'하판 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
+  { 사이:'하판 ↔ 바닥', 말:'걸레받이 높이만큼 띄워 앉는다. 걸레받이가 없으면 바닥에 붙는다.',
+    값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면의 「걸레받이」' },
+  { 사이:'뒷판 ↔ 몸통', 말:'몸통 뒤에 가구 폭·높이 그대로 댄다. 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
+    값:m => `몸통 깊이 ${fmt(m.CD)}` },
+  { 사이:'선반 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
+  { 사이:'선반 ↔ 하판·상판', 말:'하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
+    값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면의 「선반」 단수' },
+  { 사이:'걸레받이 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 걸레받이 값이다.', 값:m => `폭 ${fmt(m.innerW)}` },
+  { 사이:'걸레받이 ↔ 몸통 앞면', 말:'몸통 앞면에서 뒤로 물린다.', 규칙:'걸레앞', 최소:0, 최대:200, 걸음:1 },
+  { 사이:'문짝 ↔ 몸통 (아웃도어)', 말:'몸통 앞에 덧댄다. 도어 두께만큼 앞으로 나온다.', 값:(m,s) => `${fmt(s.Tdoor)} 나옴` },
+  { 사이:'문짝 ↔ 측판 바깥 (아웃도어)', 말:'측판 바깥 끝에서 안으로 띄운다. 좌우 같다.', 규칙:'아웃좌우', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 상판 (아웃도어)', 말:'상판 윗면 끝에서 아래로 띄운다.', 규칙:'아웃위', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 걸레받이 (아웃도어)', 말:'걸레받이가 있으면 그 윗면에서 띄운다.', 규칙:'아웃아래걸레', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 바닥 (아웃도어)', 말:'걸레받이가 없으면 바닥에서 띄운다.', 규칙:'아웃아래없음', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 측판 안 (인도어)', 말:'몸통 안에 앉는다. 경첩이 달리는 쪽을 띄운다.', 규칙:'인경첩', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 상판·하판·측판 (인도어)', 말:'경첩 쪽 말고 맞닿는 나머지 면을 띄운다.', 규칙:'인나머지', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 ↔ 문짝', 말:'두 짝이 맞닿는 사이를 띄운다.', 규칙:'도어사이', 최소:0, 최대:50, 걸음:0.1 },
+  { 사이:'문짝 폭', 말:'유격을 뺀 남은 폭을 짝 수대로 똑같이 나눈다.',
+    값:m => { const d = m.parts.filter(p => p.name === '문짝'); return d.length ? `${fmt(d[0].w)} × ${d.length}짝` : '도어 없음'; },
+    어디:'내부·전면의 「도어」 짝수' },
+  { 사이:'선반 ↔ 문짝 (인도어)', 말:'인도어는 몸통 앞면 안쪽에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고 깊이를 줄인다.',
+    고름:'인선반줄임' },
+  { 사이:'결 ↔ 부속', 말:'측판·문짝·뒷판은 결이 세로, 상판·하판·선반·걸레받이는 가로다.', 값:() => '세로 3 · 가로 4' },
+  { 사이:'재단 치수 ↔ 부속', 말:'길이 × 폭 × 두께로 낸다. 두께는 부속마다 보드선택에서 고른다. 재단 여유는 넣지 않는다.',
+    값:m => `${m.parts.length}조각`, 어디:'보드선택' }
+];
+function 표그리기(){
+  const m = 모델 || buildModel(state);
+  $('#rTable').innerHTML = 관계표.map((r, i) => {
+    const 말 = `<div><b>${esc(r.사이)}</b><small>${esc(r.말)}${r.어디 ? ` <em>— ${esc(r.어디)}에서 고칩니다</em>` : ''}</small></div>`;
+    if (r.규칙)
+      return `<div class="krow">${말}<div class="num"><input data-rule="${r.규칙}" type="number" min="${r.최소}" max="${r.최대}" step="${r.걸음}" value="${규칙[r.규칙]}"><span>mm</span></div></div>`;
+    if (r.고름)
+      return `<div class="krow wide">${말}<div class="seg"><label><input type="radio" name="인선반줄임" value="1"${규칙.인선반줄임 ? ' checked' : ''}>줄인다</label>` +
+             `<label><input type="radio" name="인선반줄임" value="0"${규칙.인선반줄임 ? '' : ' checked'}>그대로</label></div></div>`;
+    return `<div class="krow">${말}<div class="kv"><span class="fix" data-k="${i}">${esc(String(r.값(m, state)))}</span></div></div>`;
+  }).join('');
+  $('#rTable').querySelectorAll('[data-rule]').forEach(el => el.addEventListener('input', () => {
+    const v = Number(el.value);
+    if (!Number.isFinite(v)) return;
+    규칙[el.dataset.rule] = Math.min(Number(el.max), Math.max(Number(el.min), v));
+    담기(); update();
+  }));
+  $('#rTable').querySelectorAll('input[name=인선반줄임]').forEach(r => r.addEventListener('change', () => {
+    규칙.인선반줄임 = r.value === '1'; 담기(); update(); }));
+}
+// 제어판을 열어 둔 채 치수를 바꾸면 칸 없는 줄의 값도 따라 바뀌어야 한다.
+// 칸(입력) 은 건드리지 않는다 — 적는 중에 새로 그리면 글자가 날아간다.
+function 표값갱신(){
+  if (!$('#rulesDlg').open || !모델) return;
+  $('#rTable').querySelectorAll('.fix[data-k]').forEach(el => {
+    const r = 관계표[+el.dataset.k];
+    if (r && r.값) el.textContent = String(r.값(모델, state));
+  });
+}
 function 제어판그리기(){
   $('#rName').value = 규칙.이름;
-  document.querySelectorAll('#rulesDlg [data-rule]').forEach(el => { el.value = 규칙[el.dataset.rule]; });
-  document.querySelectorAll('input[name=인선반줄임]').forEach(r => { r.checked = (r.value === '1') === !!규칙.인선반줄임; });
+  표그리기();
   const 목록 = [...손질.숨김.map(k => ['숨김', k]), ...손질.지움.map(k => ['삭제', k]),
                ...Object.keys(손질.복제).filter(k => 손질.복제[k] > 0).map(k => [`복제 +${손질.복제[k]}`, k])];
   $('#rFix').innerHTML = 목록.length
@@ -1143,14 +1202,6 @@ $('#btnRules').addEventListener('click', () => { 제어판그리기(); $('#rules
 $('#rClose').addEventListener('click', () => $('#rulesDlg').close());
 $('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담기(); 제어판그리기(); update(); });
 $('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
-document.querySelectorAll('#rulesDlg [data-rule]').forEach(el => el.addEventListener('input', () => {
-  const v = Number(el.value);
-  if (!Number.isFinite(v)) return;
-  규칙[el.dataset.rule] = Math.min(Number(el.max), Math.max(Number(el.min), v));
-  담기(); update();
-}));
-document.querySelectorAll('input[name=인선반줄임]').forEach(r => r.addEventListener('change', () => {
-  규칙.인선반줄임 = r.value === '1'; 담기(); update(); }));
 
 부속그리기();
 init3D();
