@@ -520,6 +520,7 @@ function setTool(t){
 }
 const extR = () => Math.max(state.W, state.H, state.D) * 1.9 + 500;   // 전체가 화면에 들어오는 거리
 function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = extR(); }
+let 첫판 = true;                                     // 처음 한 번만 화면에 맞춘다
 let endDrag = () => {};                              // 지시창이 뜨면 끌던 것을 놓는다 (init3D 에서 채운다)
 function init3D(){
   const cv = $('#c3d');
@@ -651,7 +652,9 @@ function rebuild3D(m){
   });
   applyExplode();
   makeGrid(); makeAxes();
-  zoomExtents();
+  // 세팅을 바꿀 때마다 보시던 시각이 처음으로 돌아가지 않게, 맞추기는 첫 판에서만 한다.
+  // 다시 맞추고 싶으시면 도구줄의 「전체」 나 Shift+Z 를 쓰시면 된다.
+  if (첫판){ zoomExtents(); 첫판 = false; }
 }
 function applyExplode(){
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
