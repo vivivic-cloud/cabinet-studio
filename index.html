@@ -66,6 +66,20 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .hud button{padding:6px 12px;font-size:12px;background:transparent;border-color:transparent;border-radius:999px}
 .hud button:hover{background:var(--fill2)}
 .hud button[aria-pressed="true"]{background:#fff;color:var(--head);font-weight:700;border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.hud>div[hidden]{display:none}
+.hud .hidbar{flex-basis:100%;justify-content:flex-end;gap:6px;background:none;border:0;padding:0}
+.hidbar button{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px}
+.hidbar #btnHid{font-weight:700}
+.hidbar button:hover{background:var(--fill2)}
+#hidmenu{position:fixed;z-index:60;display:none;flex-direction:column;gap:2px;min-width:170px;max-width:min(280px,86vw);max-height:52vh;overflow:auto;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+#hidmenu.on{display:flex}
+#hidmenu b{padding:6px 12px 4px;font-size:12px;font-weight:600;color:var(--ink3)}
+#hidmenu button{min-height:44px;padding:11px 12px;text-align:left;border:0;border-radius:10px;background:none}
+#hidmenu button:hover{background:var(--surface2)}
+#hidmenu small{color:var(--ink3)}
+#pmenu button[disabled]{color:var(--ink3);cursor:default}
+#pmenu button[disabled]:hover{background:none}
+#pmenu .why{padding:2px 12px 6px;font-size:11.5px;color:var(--ink3)}
 .hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
 .view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
 .view3d canvas.dragging{cursor:grabbing}
@@ -217,6 +231,10 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <button type="button" data-view="top">위</button>
         <button type="button" data-view="back">뒤</button>
       </div>
+      <div class="hidbar" id="hidBar" hidden>
+        <button id="btnHid" type="button" aria-expanded="false">0개 숨김</button>
+        <button id="btnHidAll" type="button">모두 보이기</button>
+      </div>
     </div>
     <div class="hint mono">왼쪽 드래그 이동 · 휠 드래그 궤도 · 스크롤 줌</div>
     <div class="explode">
@@ -275,10 +293,13 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   <div class="row"><button type="button" id="rReset">기본값으로</button><button type="button" id="rClose" class="primary">닫기</button></div>
 </div></dialog>
 
+<div id="hidmenu" role="menu" aria-hidden="true"></div>
+
 <div id="pmenu" role="menu" aria-hidden="true"><b id="pmenuName"></b>
   <button type="button" data-act="hide">숨기기</button>
   <button type="button" data-act="del">삭제</button>
   <button type="button" data-act="dup">복제</button>
+  <div class="why"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -360,8 +381,8 @@ function buildModel(s){
     for (let k = 0; k < n; k++)
       add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  // 도면에서 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 그림에만 안 나오며,
-  // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 그림에는 새로 안 선다).
+  // 손질한 것을 여기서 반영한다. 숨긴 것은 3D 에만 안 서고(도면·부품표에는 그대로),
+  // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다). 지우기는 붙박이 일곱에는 막혀 있다.
   const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
   return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
@@ -402,7 +423,8 @@ function buildDrawing(s, m){
     tick(xl,y1); tick(xl,y2);
     text(fmt(Math.abs(y2-y1)), xl - sg*(TH/2+8), (y1+y2)/2, TH, 'DIM', 'MC', 90);
   };
-  const 목록 = m.parts.filter(p => !p.숨김);          // 숨긴 부속은 도면에 안 그린다
+  // 숨기기는 3D 에서만이다. 도면과 부품표에는 그대로 남는다 — 자재가 없어지는 것이 아니다.
+  const 목록 = m.parts;
   const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
   const doors = 목록.filter(p => p.name === '문짝');
 
@@ -678,7 +700,13 @@ function init3D(){
   };
 
   let drag = null;
-  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('contextmenu', e => {
+    e.preventDefault();                                  // 브라우저 차림표는 전과 같이 막는다
+    const 조각 = 짚힌조각(e.clientX, e.clientY);
+    if (!조각) return;
+    select(조각.userData.pid);
+    메뉴열기(e.clientX, e.clientY, selPid);
+  });
   cv.addEventListener('pointerdown', e => {
     const touch = e.pointerType === 'touch';
     let mode = null;
@@ -709,7 +737,12 @@ function init3D(){
       const 자 = drag.touch ? 10 : 5;
       const 끌었나 = Math.abs(e.clientX-drag.x0) > 자 || Math.abs(e.clientY-drag.y0) > 자;
       const 조각 = 끌었나 ? null : 짚힌조각(e.clientX, e.clientY);
-      if (!끌었나 && !document.querySelector('.vg-sheet')) select(조각 ? 조각.userData.pid : null);
+      if (!끌었나 && !document.querySelector('.vg-sheet')){
+        // 이미 고른 것을 한 번 더 톡 치면 손질 차림표 — 폰에는 우클릭이 없다
+        if (조각 && selPid !== null && 조각.userData.pid === selPid && performance.now() - 메뉴닫은때 > 400)
+          메뉴열기(e.clientX, e.clientY, selPid);
+        else select(조각 ? 조각.userData.pid : null);
+      }
     }
     drag = null; cv.classList.remove('dragging');
   };
@@ -741,7 +774,7 @@ function rebuild3D(m){
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
-    if (p.숨김) return;                // 숨긴 부속은 3D 에도 안 선다
+    if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 남는다)
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
     const base = mat(p.cut.T, p.name === '문짝');
     const mesh = new THREE.Mesh(geo, base);
@@ -791,6 +824,7 @@ function update(){
       + (state.doors > 1 ? ` · 도어사이 ${fmt(규칙.도어사이)}` : '')
       + (state.doorMode === 'in' && 규칙.인선반줄임 ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
+  숨김바();
 }
 
 /* ───────── 입력 바인딩 ───────── */
@@ -851,17 +885,25 @@ document.querySelectorAll('.views button').forEach(b => b.addEventListener('clic
 })();
 
 /* ───────── 고른 부속 손질하기 — 숨기기 · 삭제 · 복제 ─────────
-   도면에서 부속을 고른 뒤 우클릭하면 뜬다. 손가락에는 우클릭이 없으므로 고른 것을 한 번 더
-   톡 치면 같은 메뉴가 뜬다 — 길게 누르기는 지시 남기기가 쓰므로 건드리지 않았다.
-   숨기기 = 그림에서만 뺀다(부품표에는 남는다) · 삭제 = 부품표에서도 뺀다 · 복제 = 같은 것을 하나 더 짠다.
-   되돌리기는 관계제어판의 「손질한 부속」 에 있다. */
+   3D 에서든 도면에서든 부속을 고른 뒤 우클릭하면 뜬다. 손가락에는 우클릭이 없으므로
+   고른 것을 한 번 더 톡 치면 같은 메뉴가 뜬다 — 길게 누르기는 지시 남기기(viggle)가 쓰므로 안 건드린다.
+   숨기기 = 3D 에서만 안 보인다. 도면·부품표에는 그대로 남는다 — 가린 것을 들여다보라는 것이지
+   자재가 없어지는 것이 아니다. 숨긴 것은 시점 단추 아래 「n개 숨김」 으로 늘 보이고 거기서 되돌린다.
+   삭제 = 처음부터 있던 붙박이 부속은 막는다(지우면 도면이 무너진다). 복제 = 부품표 수량만 하나 늘린다. */
 let 메뉴짚음 = null, 메뉴닫은때 = 0;
 function 메뉴열기(x, y, pid){
   const p = 모델 && 모델.parts[pid];
   if (!p) return;
-  메뉴짚음 = { 자리:p.자리, 이름:p.name };
+  숨김목록닫기();
+  메뉴짚음 = { 자리:p.자리, 이름:p.name, 숨김:!!p.숨김 };
   const el = $('#pmenu');
   $('#pmenuName').textContent = p.name;
+  const 숨단추 = el.querySelector('button[data-act="hide"]');
+  숨단추.textContent = p.숨김 ? '다시 보이기' : '숨기기';
+  const 못지움 = 붙박이.includes(p.name);
+  const 지움단추 = el.querySelector('button[data-act="del"]');
+  지움단추.disabled = 못지움;
+  el.querySelector('.why').textContent = 못지움 ? '처음부터 있는 부속이라 지울 수 없습니다' : '';
   el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
   const r = el.getBoundingClientRect();
   el.style.left = Math.max(8, Math.min(x, innerWidth  - r.width  - 8)) + 'px';
@@ -877,15 +919,62 @@ $('#pmenu').querySelectorAll('button[data-act]').forEach(b => b.addEventListener
   const 짚 = 메뉴짚음, 짓 = b.dataset.act;
   메뉴닫기();
   if (!짚) return;
-  if (짓 === 'hide'){ if (!손질.숨김.includes(짚.자리)) 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 관계제어판에서 되돌립니다`); }
-  else if (짓 === 'del'){ if (!손질.지움.includes(짚.자리)) 손질.지움.push(짚.자리); toast(`${짚.이름} 삭제 — 관계제어판에서 되돌립니다`); }
+  if (짓 === 'hide'){
+    if (짚.숨김){ 손질.숨김 = 손질.숨김.filter(x => x !== 짚.자리); toast(`${짚.이름} 다시 보입니다`); }
+    else { 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 3D 에서만 안 보입니다`); }
+  }
+  else if (짓 === 'del'){
+    if (붙박이.includes(짚.이름)){ toast(`${짚.이름} 은 처음부터 있는 부속이라 지울 수 없습니다`); return; }
+    if (!손질.지움.includes(짚.자리)) 손질.지움.push(짚.자리);
+    toast(`${짚.이름} 삭제 — 관계제어판에서 되돌립니다`);
+  }
   else { 손질.복제[짚.자리] = (손질.복제[짚.자리] || 0) + 1; toast(`${짚.이름} 복제 — 부품표 수량이 하나 늘었습니다`); }
   담기(); update();
 }));
-addEventListener('pointerdown', e => { if (메뉴짚음 && !(e.target.closest && e.target.closest('#pmenu'))) 메뉴닫기(); }, true);
-addEventListener('keydown', e => { if (e.key === 'Escape') 메뉴닫기(); });
-addEventListener('scroll', () => { if (메뉴짚음) 메뉴닫기(); }, true);
-addEventListener('resize', () => { if (메뉴짚음) 메뉴닫기(); });
+
+/* ───────── 숨긴 부속 되돌리기 — 시점 단추 아래 ─────────
+   숨긴 것이 하나라도 있으면 「n개 숨김」 이 늘 떠 있다(사라지는 도구줄과 달리 안 사라진다).
+   눌러서 목록에서 고르면 그것만 돌아오고, 「모두 보이기」 면 다 돌아온다. */
+let 숨김열림 = false;
+function 숨김바(){
+  const 것들 = 모델 ? 모델.parts.filter(p => p.숨김) : [];
+  $('#hidBar').hidden = 것들.length === 0;
+  $('#btnHid').textContent = `${것들.length}개 숨김`;
+  if (!것들.length) 숨김목록닫기(); else if (숨김열림) 숨김목록그리기();
+}
+function 숨김목록그리기(){
+  const el = $('#hidmenu'), 것들 = 모델 ? 모델.parts.filter(p => p.숨김) : [];
+  el.innerHTML = '<b>숨긴 부속</b>' + 것들.map(p =>
+    `<button type="button" data-show="${esc(p.자리)}">${esc(p.name)} <small>${fmt(p.cut.L)}×${fmt(p.cut.W)} · 자리 ${esc(p.자리.split('@')[1] || '')}</small></button>`).join('');
+  el.querySelectorAll('button[data-show]').forEach(b => b.addEventListener('click', () => {
+    손질.숨김 = 손질.숨김.filter(x => x !== b.dataset.show);
+    담기(); update();
+  }));
+  const r = $('#btnHid').getBoundingClientRect(), w = el.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(r.right - w.width, innerWidth - w.width - 8)) + 'px';
+  el.style.top  = Math.min(r.bottom + 6, innerHeight - w.height - 8) + 'px';
+}
+function 숨김목록열기(){ 메뉴닫기(); 숨김열림 = true;
+  $('#hidmenu').classList.add('on'); $('#hidmenu').setAttribute('aria-hidden', 'false');
+  $('#btnHid').setAttribute('aria-expanded', 'true'); 숨김목록그리기(); }
+function 숨김목록닫기(){ 숨김열림 = false;
+  $('#hidmenu').classList.remove('on'); $('#hidmenu').setAttribute('aria-hidden', 'true');
+  $('#btnHid').setAttribute('aria-expanded', 'false'); }
+$('#btnHid').addEventListener('click', () => 숨김열림 ? 숨김목록닫기() : 숨김목록열기());
+$('#btnHidAll').addEventListener('click', () => {
+  const n = 모델 ? 모델.parts.filter(p => p.숨김).length : 0;
+  손질.숨김 = []; 숨김목록닫기(); 담기(); update();
+  toast(n ? `${n}개 다시 보입니다` : '숨긴 것이 없습니다');
+});
+
+addEventListener('pointerdown', e => {
+  const 안 = e.target.closest ? e.target.closest('#pmenu,#hidmenu,#hidBar') : null;
+  if (메뉴짚음 && !안) 메뉴닫기();
+  if (숨김열림 && !안) 숨김목록닫기();
+}, true);
+addEventListener('keydown', e => { if (e.key === 'Escape'){ 메뉴닫기(); 숨김목록닫기(); } });
+addEventListener('scroll', () => { if (메뉴짚음) 메뉴닫기(); if (숨김열림) 숨김목록닫기(); }, true);
+addEventListener('resize', () => { if (메뉴짚음) 메뉴닫기(); if (숨김열림) 숨김목록닫기(); });
 
 /* ───────── 2D 도면에서 부속 고르기 ─────────
    3D 와 같은 규칙이다. 짧게 톡 치면 고르고, 끌면(쪽 넘기기) 고르지 않고,
