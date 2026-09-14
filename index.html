@@ -98,6 +98,25 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .bom th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:800}
 .bom td:first-child,.bom th:first-child{text-align:left}
 .bom td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
+.addrow{display:flex;gap:6px}
+.addrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;padding:9px 12px}
+.addrow input:focus{outline:none;border-color:var(--head)}
+.addrow button{flex:none}
+.two{display:flex;gap:6px;align-items:center}
+.two select{flex:1;min-width:0}
+.two .x{flex:none;width:32px;height:32px;padding:0;border-radius:50%;line-height:1;font-size:16px;color:var(--ink3)}
+.two .x:hover{background:var(--surface2);color:var(--dim)}
+.linkbtn{background:none;border:0;padding:4px 0;font-size:12px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:0}
+.linkbtn:hover{background:none;color:var(--head)}
+.warn{display:block;color:var(--dim);font-size:12px;min-height:0}
+.rgrp{border-top:1px solid var(--line2);padding-top:12px;margin-top:4px}
+.rgrp h4{margin:0 0 8px;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:800}
+.rrow{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:10px;margin:0 0 8px}
+.rrow label{font-weight:600}
+.rrow small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
+.rrow input[type=text]{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;padding:9px 12px}
+.rrow input[type=text]:focus{outline:none;border-color:var(--head)}
+.rdlg{max-height:76vh;overflow:auto}
 .bom tbody tr.on{background:var(--surface2)}
 .bom tbody tr.on td:first-child{font-weight:700;color:var(--head);box-shadow:inset 3px 0 0 var(--dim)}
 .bom .grain{color:var(--ink3);font-size:12px}
@@ -147,6 +166,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div id="customList"></div>
+      <div class="field wide"><label for="newPart">부속 만들기</label>
+        <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름"><button id="btnAdd" type="button">추가</button></div>
+        <small id="addWarn" class="warn"></small></div>
+      <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
       <div class="field wide"><label>상판 결합 <small>측판이 상판을 감싸는지, 상판이 측판을 덮는지</small></label>
         <div class="seg"><label><input type="radio" name="topStyle" value="inset" checked>측판 사이</label><label><input type="radio" name="topStyle" value="overlay">측판 위</label></div></div>
     </div>
@@ -218,12 +242,53 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   <div class="row"><button type="button" id="dlgCopy">복사</button><button type="button" id="dlgClose" class="primary">닫기</button></div>
 </div></dialog>
 
+<dialog id="rulesDlg"><div class="dlg rdlg">
+  <h3>관계제어판</h3>
+  <p>부속끼리 맞물리는 규칙입니다. 여기 숫자가 3D·도면·부품표에 그대로 쓰입니다.</p>
+  <div class="rrow"><label for="rName">대표명칭</label><input id="rName" type="text" maxlength="20"></div>
+  <div class="rgrp"><h4>아웃도어 유격</h4>
+    <div class="rrow"><label for="r_아웃좌우">좌우</label><div class="num"><input id="r_아웃좌우" data-rule="아웃좌우" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+    <div class="rrow"><label for="r_아웃위">위</label><div class="num"><input id="r_아웃위" data-rule="아웃위" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+    <div class="rrow"><label for="r_아웃아래걸레">아래 <small>걸레받이 있을 때</small></label><div class="num"><input id="r_아웃아래걸레" data-rule="아웃아래걸레" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+    <div class="rrow"><label for="r_아웃아래없음">아래 <small>걸레받이 없을 때</small></label><div class="num"><input id="r_아웃아래없음" data-rule="아웃아래없음" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+  </div>
+  <div class="rgrp"><h4>인도어 유격</h4>
+    <div class="rrow"><label for="r_인경첩">경첩쪽</label><div class="num"><input id="r_인경첩" data-rule="인경첩" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+    <div class="rrow"><label for="r_인나머지">나머지 면</label><div class="num"><input id="r_인나머지" data-rule="인나머지" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+  </div>
+  <div class="rgrp"><h4>부속끼리</h4>
+    <div class="rrow"><label for="r_도어사이">도어 사이</label><div class="num"><input id="r_도어사이" data-rule="도어사이" type="number" min="0" max="50" step="0.1"><span>mm</span></div></div>
+    <div class="rrow"><label for="r_걸레앞">걸레받이 앞으로 <small>몸통 앞면에서 뒤로 물린 거리</small></label><div class="num"><input id="r_걸레앞" data-rule="걸레앞" type="number" min="0" max="200" step="1"><span>mm</span></div></div>
+    <div class="rrow wide" style="grid-template-columns:1fr"><label>인도어일 때 선반 <small>도어와 겹치는 만큼 선반 깊이를 줄인다</small></label>
+      <div class="seg"><label><input type="radio" name="인선반줄임" value="1">줄인다</label><label><input type="radio" name="인선반줄임" value="0">그대로</label></div></div>
+  </div>
+  <div class="row"><button type="button" id="rReset">기본값으로</button><button type="button" id="rClose" class="primary">닫기</button></div>
+</div></dialog>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 (function(){
 'use strict';
 const $ = s => document.querySelector(s);
+/* ───────── 부속끼리 맞물리는 규칙 ─────────
+   여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
+   그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
+const 규칙기본 = { 이름:'기본 조립', 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+                  인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
+const 곳간 = 'cabinet-studio';
+let 규칙 = { ...규칙기본 }, 만든부속 = [];
+try {
+  const r = JSON.parse(localStorage.getItem(곳간 + '.규칙') || 'null');
+  if (r && typeof r === 'object') 규칙 = { ...규칙기본, ...r };
+  const c = JSON.parse(localStorage.getItem(곳간 + '.부속') || 'null');
+  if (Array.isArray(c)) 만든부속 = c.filter(x => x && typeof x.이름 === 'string');
+} catch (e) {}
+function 담기(){ try {
+  localStorage.setItem(곳간 + '.규칙', JSON.stringify(규칙));
+  localStorage.setItem(곳간 + '.부속', JSON.stringify(만든부속));
+} catch (e) {} }
+
 const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -245,26 +310,26 @@ function buildModel(s){
   const pitch = (innerH - shelves*Tshelf) / (shelves + 1);
   // 인도어는 도어가 몸통 앞면 안쪽(y 0~Tdoor)에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고
   // 깊이를 줄인다 — 재단 치수(cut.W)도 같이 줄어든다. 겹치는 부속은 선반뿐임을 설정 8748가지로 확인했다.
-  const 도어물림 = (doors > 0 && s.doorMode === 'in') ? Tdoor : 0;
+  const 도어물림 = (doors > 0 && s.doorMode === 'in' && 규칙.인선반줄임) ? Tdoor : 0;
   const 선반깊이 = CD - 도어물림;
   for (let i = 0; i < shelves; i++){
     const z = bz + Tbot + (i+1)*pitch + i*Tshelf;
     add('선반', Tside, 도어물림, z, W-2*Tside, 선반깊이, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:선반깊이, T:Tshelf, grain:'가로'});
   }
-  if (plinth > 0) add('걸레받이', Tside, 30, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
+  if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
   let 앞으로 = 0;                            // 도어가 몸통 앞으로 나온 길이 (도면 치수선이 쓴다)
   if (doors > 0){
-    const n = doors, gap = 4;                // 도어 사이 4mm
+    const n = doors, gap = 규칙.도어사이;
     let x0, x1, z0, z1, dy;
     if (s.doorMode === 'in'){                // 인도어 — 몸통 안. 경첩쪽 2mm, 맞닿는 나머지 면 3mm
-      const 왼 = s.hinge === 'left' ? 2 : 3, 오 = s.hinge === 'left' ? 3 : 2;
+      const 왼 = s.hinge === 'left' ? 규칙.인경첩 : 규칙.인나머지, 오 = s.hinge === 'left' ? 규칙.인나머지 : 규칙.인경첩;
       x0 = Tside + 왼; x1 = W - Tside - 오;
-      z0 = bz + Tbot + 3; z1 = (H - Ttop) - 3;
+      z0 = bz + Tbot + 규칙.인나머지; z1 = (H - Ttop) - 규칙.인나머지;
       dy = 0;                                // 몸통 앞면 안쪽에 앉는다
     } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래는 걸레받이와 만나 5mm
-      x0 = 2; x1 = W - 2;
-      z0 = bz + (plinth > 0 ? 5 : 2); z1 = H - 2;   // 걸레받이가 없으면 만날 것이 없어 다른 면과 같이 2mm
+      x0 = 규칙.아웃좌우; x1 = W - 규칙.아웃좌우;
+      z0 = bz + (plinth > 0 ? 규칙.아웃아래걸레 : 규칙.아웃아래없음); z1 = H - 규칙.아웃위;
       dy = -Tdoor; 앞으로 = Tdoor;            // 몸통 앞으로 나온다
     }
     const dw = (x1 - x0 - (n-1)*gap) / n, dh = z1 - z0;
@@ -383,6 +448,8 @@ function bomRows(m){
     if (!map.has(k)) map.set(k, {name:p.name, qty:0, ...p.cut});
     map.get(k).qty++;
   });
+  // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
+  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로'}));
   return [...map.values()];
 }
 
@@ -687,9 +754,11 @@ function update(){
   });
   const 경첩 = state.hinge === 'left' ? '좌' : '우';
   $('#gapNote').textContent = !state.doors ? ''
-    : (state.doorMode === 'in' ? `유격 경첩쪽(${경첩}) 2 · 나머지 3` : `유격 좌우 2 · 위 2 · 아래 ${state.plinth > 0 ? 5 : 2}`)
-      + (state.doors > 1 ? ' · 도어사이 4' : '')
-      + (state.doorMode === 'in' ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
+    : (state.doorMode === 'in'
+        ? `유격 경첩쪽(${경첩}) ${fmt(규칙.인경첩)} · 나머지 ${fmt(규칙.인나머지)}`
+        : `유격 좌우 ${fmt(규칙.아웃좌우)} · 위 ${fmt(규칙.아웃위)} · 아래 ${fmt(state.plinth > 0 ? 규칙.아웃아래걸레 : 규칙.아웃아래없음)}`)
+      + (state.doors > 1 ? ` · 도어사이 ${fmt(규칙.도어사이)}` : '')
+      + (state.doorMode === 'in' && 규칙.인선반줄임 ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
 }
 
@@ -867,6 +936,51 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
   }, true);
 }
 
+/* ───────── 부속 만들기 · 관계제어판 ─────────
+   만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
+   제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
+const 붙박이 = ['상판','측판','선반','도어','하판','걸레받이','뒷판','문짝'];
+const 두께값 = [12,15,18,23,24,25,28,55];
+function 부속그리기(){
+  $('#customList').innerHTML = 만든부속.map((c,i) =>
+    `<div class="field"><label>${esc(c.이름)}</label><div class="two">` +
+    `<select data-ci="${i}">${두께값.map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
+    `<button type="button" class="x" data-del="${i}" aria-label="지우기">×</button></div></div>`).join('');
+  $('#customList').querySelectorAll('select[data-ci]').forEach(el =>
+    el.addEventListener('change', () => { 만든부속[+el.dataset.ci].T = Number(el.value); 담기(); update(); }));
+  $('#customList').querySelectorAll('button[data-del]').forEach(el =>
+    el.addEventListener('click', () => { 만든부속.splice(+el.dataset.del, 1); 담기(); 부속그리기(); update(); }));
+}
+$('#btnAdd').addEventListener('click', () => {
+  const 이름 = $('#newPart').value.trim(), 알림 = $('#addWarn');
+  if (!이름){ 알림.textContent = '이름을 적어 주세요'; return; }
+  if (붙박이.includes(이름) || 만든부속.some(c => c.이름 === 이름)){
+    알림.textContent = `이미 있는 이름입니다 — ${이름}`; return; }
+  만든부속.push({ 이름, T:18 }); $('#newPart').value = ''; 알림.textContent = '';
+  담기(); 부속그리기(); update();
+});
+$('#newPart').addEventListener('input', () => { $('#addWarn').textContent = ''; });
+$('#newPart').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
+
+function 제어판그리기(){
+  $('#rName').value = 규칙.이름;
+  document.querySelectorAll('#rulesDlg [data-rule]').forEach(el => { el.value = 규칙[el.dataset.rule]; });
+  document.querySelectorAll('input[name=인선반줄임]').forEach(r => { r.checked = (r.value === '1') === !!규칙.인선반줄임; });
+}
+$('#btnRules').addEventListener('click', () => { 제어판그리기(); $('#rulesDlg').showModal(); });
+$('#rClose').addEventListener('click', () => $('#rulesDlg').close());
+$('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담기(); 제어판그리기(); update(); });
+$('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
+document.querySelectorAll('#rulesDlg [data-rule]').forEach(el => el.addEventListener('input', () => {
+  const v = Number(el.value);
+  if (!Number.isFinite(v)) return;
+  규칙[el.dataset.rule] = Math.min(Number(el.max), Math.max(Number(el.min), v));
+  담기(); update();
+}));
+document.querySelectorAll('input[name=인선반줄임]').forEach(r => r.addEventListener('change', () => {
+  규칙.인선반줄임 = r.value === '1'; 담기(); update(); }));
+
+부속그리기();
 init3D();
 update();
 })();
