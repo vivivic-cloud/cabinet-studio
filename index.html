@@ -95,6 +95,7 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap .DIM{stroke:var(--dim);stroke-width:.7px}
 .svgwrap .HATCH{stroke:var(--hatch);stroke-width:.5px}
 .svgwrap .TITLE{stroke:var(--ink3);stroke-width:.8px}
+.svgwrap .강{stroke:var(--ink2);stroke-width:1.2px}
 .svgwrap text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2)}
 .svgwrap text.DIM{fill:var(--dim)}
 .svgwrap text.TEXT{fill:var(--accent)}
@@ -307,7 +308,7 @@ const $ = s => document.querySelector(s);
 /* ───────── 부속끼리 맞물리는 규칙 ─────────
    여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
    그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
-const 규칙기본 = { 이름:'', 이동좌우:0, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+const 규칙기본 = { 이름:'', 이동좌우:1, 이동깊이:10, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
@@ -357,13 +358,15 @@ function buildModel(s){
   const 도어물림 = (doors > 0 && s.doorMode === 'in' && 규칙.인선반줄임) ? Tdoor : 0;
   const 선반깊이 = CD - 도어물림;
   // 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 칸 높이는 다 같게 나눈다.
+  // 이동 선반은 넣고 뺄 여유가 있어야 하므로 좌우로 한 쪽씩, 뒤로 한 번 물려 짠다.
   let 선반z = bz + Tbot;
   for (let i = 0; i < 단수; i++){
     const 이동 = i >= shelves;
-    const t = 이동 ? Tshelf2 : Tshelf, 뺌 = 이동 ? 2*규칙.이동좌우 : 0;
+    const t = 이동 ? Tshelf2 : Tshelf;
+    const 옆 = 이동 ? 규칙.이동좌우 : 0, 깊 = 선반깊이 - (이동 ? 규칙.이동깊이 : 0);
     선반z += pitch;
-    add(이동 ? '이동선반' : '고정선반', Tside + (이동 ? 규칙.이동좌우 : 0), 도어물림, 선반z,
-        W - 2*Tside - 뺌, 선반깊이, t, [0,-0.55,0], {L:W - 2*Tside - 뺌, W:선반깊이, T:t, grain:'가로'});
+    add(이동 ? '이동선반' : '고정선반', Tside + 옆, 도어물림, 선반z,
+        W - 2*Tside - 2*옆, 깊, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:깊, T:t, grain:'가로'});
     선반z += t;
   }
   if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
@@ -399,11 +402,14 @@ function buildDrawing(s, m){
   const {W,D,H,Ttop,Tside,Tshelf,Tdoor,Tbot,TB} = s;
   const P = [], hits = [];                      // hits = 화면에서 짚을 자리. P 와 따로라 내보내기에는 안 실린다.
   let pid = null;                               // 지금 그리는 것이 어느 부속인가 (부속이 아니면 null)
-  const line = (x1,y1,x2,y2,layer='OUTLINE') => P.push({t:'line',x1,y1,x2,y2,layer,pid});
-  const rect = (x,y,w,h,layer='OUTLINE') => { line(x,y,x+w,y,layer); line(x+w,y,x+w,y+h,layer); line(x+w,y+h,x,y+h,layer); line(x,y+h,x,y,layer);
+  // 쪽 = 이것이 어디로 나가는가. 0 화면·SVG·DXF 다 / 1 화면·SVG 만(꾸밈) / 2 DXF 만.
+  // CAD 가 읽는 DXF 에는 꾸밈을 안 실는다 — 도면 자료에 장식이 섞이면 안 된다.
+  let 쪽 = 0;
+  const line = (x1,y1,x2,y2,layer='OUTLINE',굵기) => P.push({t:'line',x1,y1,x2,y2,layer,pid,쪽,굵기});
+  const rect = (x,y,w,h,layer='OUTLINE',굵기) => { line(x,y,x+w,y,layer,굵기); line(x+w,y,x+w,y+h,layer,굵기); line(x+w,y+h,x,y+h,layer,굵기); line(x,y+h,x,y,layer,굵기);
     if (pid !== null) hits.push({x,y,w,h,pid}); };
   const 부속 = (p, f) => { pid = p.pid; f(); pid = null; };   // 이 안에서 그린 것만 그 부속 것이 된다
-  const text = (str,x,y,h,layer='TEXT',align='MC',rot=0) => P.push({t:'text',str,x,y,h,layer,align,rot});
+  const text = (str,x,y,h,layer='TEXT',align='MC',rot=0) => P.push({t:'text',str,x,y,h,layer,align,rot,쪽});
   const hatch = (x,y,w,h) => {                      // ANSI31 45° 단면 해치
     const sp = 12, c0 = Math.ceil((y-(x+w))/sp)*sp, c1 = y+h-x;
     for (let c = c0; c <= c1; c += sp){
@@ -416,7 +422,7 @@ function buildDrawing(s, m){
     }
   };
   // 뷰 제목 — 글자 아래에 짧은 줄을 그어 그림과 가른다 (스펙시트에서 흔한 꼴)
-  const 제목 = (str, cx, y, w) => { text(str, cx, y, 46); line(cx - w/2, y - 36, cx + w/2, y - 36, 'TITLE'); };
+  const 제목 = (str, cx, y, w) => { text(str, cx, y, 46); 쪽 = 1; line(cx - w/2, y - 36, cx + w/2, y - 36, 'TITLE'); 쪽 = 0; };
   const tick = (x,y) => line(x-9,y-9,x+9,y+9,'DIM');
   const dimH = (x1,x2,y,off) => {
     const sg = Math.sign(off)||1, yl = y+off;
@@ -476,13 +482,24 @@ function buildDrawing(s, m){
   rows.forEach((row, i) => {
     const y = by - i*rh;
     row.forEach((v, c) => text(v, bx + (cols[c]+cols[c+1])/2, y - rh/2, 28, 'TITLE'));
-    // 머리줄 위아래만 굵게 — 표가 한눈에 잡힌다
-    line(bx, y, bx + cols[6], y, i <= 1 ? 'OUTLINE' : 'TITLE');
+    // 머리줄 위아래만 굵게 — 층(TITLE)은 그대로라 DXF 는 하나도 안 바뀐다
+    line(bx, y, bx + cols[6], y, 'TITLE', i <= 1 ? '강' : null);
   });
   const yEnd = by - rows.length*rh;
-  line(bx, yEnd, bx + cols[6], yEnd, 'OUTLINE');
-  cols.forEach((c, i) => line(bx + c, by, bx + c, yEnd, (i === 0 || i === 6) ? 'OUTLINE' : 'TITLE'));
-  // 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
+  line(bx, yEnd, bx + cols[6], yEnd, 'TITLE', '강');
+  cols.forEach((c, i) => line(bx + c, by, bx + c, yEnd, 'TITLE', (i === 0 || i === 6) ? '강' : null));
+  // DXF 로 나가는 표제란은 예전 그대로 둔다 (CAD 자료는 바뀌면 안 된다)
+  const ty0 = yEnd - 160;
+  쪽 = 2;
+  rect(bx, ty0 - 300, cols[6], 300, 'TITLE');
+  line(bx, ty0 - 110, bx + cols[6], ty0 - 110, 'TITLE');
+  text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty0 - 55, 46, 'TITLE');
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + cols[6]/2, ty0 - 150, 26, 'TITLE');
+  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + cols[6]/2, ty0 - 192, 26, 'TITLE');
+  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty0 - 234, 26, 'TITLE');
+  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty0 - 276, 26, 'TITLE');
+  쪽 = 1;
+  // 화면·SVG 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
   // 가운데로 몰아 적던 것보다 눈이 훨씬 덜 헤맨다.
   // 값 칸 폭은 780 이다. 한글은 글자당 24 쯤 먹으므로 한 줄에 서른 자를 넘기지 않게 끊어 적는다.
   const ty = yEnd - 160, tw = cols[6], lw = 240, rh2 = 58;
@@ -508,18 +525,28 @@ function buildDrawing(s, m){
   line(bx, ty - tH, bx + tw, ty - tH, 'OUTLINE');
   line(bx, ty, bx, ty - tH, 'OUTLINE'); line(bx + tw, ty, bx + tw, ty - tH, 'OUTLINE');
   line(bx + lw, ty, bx + lw, ty - tH, 'TITLE');
+  쪽 = 0;
 
-  let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
-  P.forEach(p => {
-    if (p.t === 'line'){ minx=Math.min(minx,p.x1,p.x2); maxx=Math.max(maxx,p.x1,p.x2); miny=Math.min(miny,p.y1,p.y2); maxy=Math.max(maxy,p.y1,p.y2); }
-    else { const hw = p.str.length*p.h*0.6/2; minx=Math.min(minx,p.x-hw); maxx=Math.max(maxx,p.x+hw); miny=Math.min(miny,p.y-p.h); maxy=Math.max(maxy,p.y+p.h); }
-  });
-  // 도면 테두리 — 종이 한 장처럼 보이게 마지막에 두른다
+  // 칸을 두 벌 잰다 — 화면·SVG 용(꾸밈 포함)과 DXF 용(꾸밈 빼고, 예전 그대로)
+  const 재기 = 거를것 => {
+    let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
+    P.forEach(p => {
+      if (p.쪽 === 거를것) return;
+      if (p.t === 'line'){ minx=Math.min(minx,p.x1,p.x2); maxx=Math.max(maxx,p.x1,p.x2); miny=Math.min(miny,p.y1,p.y2); maxy=Math.max(maxy,p.y1,p.y2); }
+      else { const hw = p.str.length*p.h*0.6/2; minx=Math.min(minx,p.x-hw); maxx=Math.max(maxx,p.x+hw); miny=Math.min(miny,p.y-p.h); maxy=Math.max(maxy,p.y+p.h); }
+    });
+    return {minx,miny,maxx,maxy};
+  };
+  const bboxDxf = 재기(1);                       // DXF 는 꾸밈을 뺀 채로 잰다
+  const b = 재기(2);
+  // 도면 테두리 — 종이 한 장처럼 보이게 마지막에 두른다. 화면·SVG 에만 나간다.
   const 여백 = 200;
-  minx -= 여백; miny -= 여백; maxx += 여백; maxy += 여백;
-  line(minx, miny, maxx, miny, 'OUTLINE'); line(maxx, miny, maxx, maxy, 'OUTLINE');
-  line(maxx, maxy, minx, maxy, 'OUTLINE'); line(minx, maxy, minx, miny, 'OUTLINE');
-  return { P, hits, bbox:{minx,miny,maxx,maxy} };
+  b.minx -= 여백; b.miny -= 여백; b.maxx += 여백; b.maxy += 여백;
+  쪽 = 1;
+  line(b.minx, b.miny, b.maxx, b.miny, 'OUTLINE'); line(b.maxx, b.miny, b.maxx, b.maxy, 'OUTLINE');
+  line(b.maxx, b.maxy, b.minx, b.maxy, 'OUTLINE'); line(b.minx, b.maxy, b.minx, b.miny, 'OUTLINE');
+  쪽 = 0;
+  return { P, hits, bbox:b, bboxDxf, 세로칸:m.pitch };   // 세로칸 = 선반 사이 — 세로 치수 글자를 얼마나 키울지 정한다
 }
 
 function bomRows(m){
@@ -535,15 +562,24 @@ function bomRows(m){
 }
 
 /* ───────── SVG 렌더 ───────── */
-function renderSVG(d, 화면){
+// 글자배 — 폰에서는 도면이 작게 눌려 치수 숫자가 2px 로 떨어진다. 그래서 화면에 그릴 때만
+// 치수 숫자와 투상 제목을 키운다. 표(부품표·표제란) 글자는 칸을 넘치므로 그대로 둔다.
+// 내려받는 SVG 와 DXF 는 손대지 않는다 — 종이로 뽑으면 원래 크기가 맞다.
+function renderSVG(d, 화면, 글자배 = 1){
   const {minx,miny,maxx,maxy} = d.bbox, pad = 140;
+  const 세로배 = Math.min(글자배, Math.max(1, (d.세로칸 || 400) * 0.55 / 117));
   const out = [];
   d.P.forEach(p => {
-    if (p.t === 'line') out.push(`<line class="${p.layer}"${화면 && p.pid !== null && p.pid !== undefined ? ` data-pid="${p.pid}"` : ''} x1="${p.x1}" y1="${-p.y1}" x2="${p.x2}" y2="${-p.y2}" vector-effect="non-scaling-stroke"/>`);
+    if (p.쪽 === 2) return;                       // DXF 로만 가는 것은 화면·SVG 에 안 그린다
+    if (p.t === 'line') out.push(`<line class="${p.layer}${p.굵기 ? ' ' + p.굵기 : ''}"${화면 && p.pid !== null && p.pid !== undefined ? ` data-pid="${p.pid}"` : ''} x1="${p.x1}" y1="${-p.y1}" x2="${p.x2}" y2="${-p.y2}" vector-effect="non-scaling-stroke"/>`);
     else {
       const anchor = p.align === 'ML' ? 'start' : 'middle';
       const tr = p.rot ? ` transform="rotate(${-p.rot} ${p.x} ${-p.y})"` : '';
-      out.push(`<text class="${p.layer}" x="${p.x}" y="${-p.y}" font-size="${p.h*1.3}" text-anchor="${anchor}" dominant-baseline="central"${tr}>${esc(p.str)}</text>`);
+      // 세로로 세운 치수 글자는 선반 사이에 줄지어 서므로, 그 칸을 넘지 않을 만큼만 키운다.
+      // 투상 제목은 글자가 길어 많이 키우면 옆 제목과 부딪힌다 — 1.3 배까지만.
+      const 키움 = !(화면 && 글자배 > 1) ? 1
+        : (p.layer === 'DIM' ? (p.rot ? 세로배 : 글자배) : (p.h >= 46 ? Math.min(글자배, 1.3) : 1));
+      out.push(`<text class="${p.layer}" x="${p.x}" y="${-p.y}" font-size="${p.h*1.3*키움}" text-anchor="${anchor}" dominant-baseline="central"${tr}>${esc(p.str)}</text>`);
     }
   });
   if (화면)                                     // 작은 부속이 위로 오게 — 큰 것에 묻히지 않는다
@@ -555,7 +591,7 @@ const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','
 
 // 저장용 SVG: 테마 변수 대신 고정 색 (검정 선, 빨강 치수)
 function svgForFile(d){
-  const css = `<style>line{stroke:#000;stroke-width:0.4}.HIDDEN{stroke:#666;stroke-dasharray:7 4;stroke-width:0.2}.DIM{stroke:#c0392b;stroke-width:0.16}.HATCH{stroke:#777;stroke-width:0.12}.TITLE{stroke:#888;stroke-width:0.18}text{font-family:'IBM Plex Mono','Apple SD Gothic Neo','Malgun Gothic',monospace;fill:#333}text.DIM{fill:#c0392b}text.TEXT{fill:#1F5FA8}</style>`;
+  const css = `<style>line{stroke:#000;stroke-width:0.4}.HIDDEN{stroke:#666;stroke-dasharray:7 4;stroke-width:0.2}.DIM{stroke:#c0392b;stroke-width:0.16}.HATCH{stroke:#777;stroke-width:0.12}.TITLE{stroke:#888;stroke-width:0.18}text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',monospace;fill:#333}.강{stroke-width:0.3}text.DIM{fill:#c0392b}text.TEXT{fill:#1F5FA8}</style>`;
   return renderSVG(d).replace('<svg ', '<svg width="' + (d.bbox.maxx-d.bbox.minx+280) + 'mm" ').replace('>', '>' + css);
 }
 
@@ -568,8 +604,9 @@ function buildDXF(d){
   const layers = [['OUTLINE',7,'CONTINUOUS'],['HIDDEN',8,'DASHED'],['DIM',1,'CONTINUOUS'],['TEXT',3,'CONTINUOUS'],['HATCH',8,'CONTINUOUS'],['TITLE',7,'CONTINUOUS']];
   g(0,'SECTION'); g(2,'HEADER');
   g(9,'$ACADVER'); g(1,'AC1009');
-  g(9,'$EXTMIN'); g(10,fx(d.bbox.minx)); g(20,fx(d.bbox.miny)); g(30,0);
-  g(9,'$EXTMAX'); g(10,fx(d.bbox.maxx)); g(20,fx(d.bbox.maxy)); g(30,0);
+  const bb = d.bboxDxf || d.bbox;               // 꾸밈을 뺀 칸 — 예전과 같은 값이어야 한다
+  g(9,'$EXTMIN'); g(10,fx(bb.minx)); g(20,fx(bb.miny)); g(30,0);
+  g(9,'$EXTMAX'); g(10,fx(bb.maxx)); g(20,fx(bb.maxy)); g(30,0);
   g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'TABLES');
   g(0,'TABLE'); g(2,'LTYPE'); g(70,2);
@@ -585,6 +622,7 @@ function buildDXF(d){
   g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'ENTITIES');
   d.P.forEach(p => {
+    if (p.쪽 === 1) return;                       // 꾸밈은 CAD 자료에 안 실는다
     if (p.t === 'line'){ g(0,'LINE'); g(8,p.layer); g(10,fx(p.x1)); g(20,fx(p.y1)); g(30,0); g(11,fx(p.x2)); g(21,fx(p.y2)); g(31,0); }
     else {
       g(0,'TEXT'); g(8,p.layer); g(10,fx(p.x)); g(20,fx(p.y)); g(30,0); g(40,fx(p.h)); g(1,dxfText(p.str));
@@ -858,7 +896,7 @@ function update(){
   모델 = m;
   rebuild3D(m);
   drawing = buildDrawing(state, m);
-  $('#svgwrap').innerHTML = renderSVG(drawing, true);
+  도면그리기();
   const rows = bomRows(m);
   pidKey = m.parts.map(p => `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`);
   $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
@@ -883,6 +921,25 @@ function update(){
   숨김바();
   표값갱신();
 }
+
+// 도면 칸 너비가 바뀌면 글자배도 달라진다 — 다시 그린다(모델은 그대로).
+function 글자배(){
+  if (!drawing) return 1;
+  const 칸 = $('#svgwrap').clientWidth || 1;
+  const 폭 = (drawing.bbox.maxx - drawing.bbox.minx) + 280;
+  const px칸 = 칸 / 폭;                                   // 도면 1mm 이 화면에서 몇 px 인가
+  return Math.min(3, Math.max(1, 9 / (30 * px칸)));       // 치수 숫자(30)가 9px 은 되게
+}
+function 도면그리기(){
+  if (!drawing) return;
+  $('#svgwrap').innerHTML = renderSVG(drawing, true, 글자배());
+  applySel();
+}
+let 도면칸폭 = 0;
+new ResizeObserver(() => {                                // 너비가 실제로 바뀔 때만 (다시 그리기가 스스로를 부르지 않게)
+  const w = $('#svgwrap').clientWidth;
+  if (w !== 도면칸폭){ 도면칸폭 = w; 도면그리기(); }
+}).observe($('#svgwrap'));
 
 /* ───────── 입력 바인딩 ───────── */
 document.querySelectorAll('[data-key]').forEach(el => {
@@ -1197,8 +1254,12 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'뒷판 ↔ 몸통', 말:'몸통 뒤에 가구 폭·높이 그대로 댄다. 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
     값:m => `몸통 깊이 ${fmt(m.CD)}` },
   { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
-  { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'체결하지 않는다. 철물 위에 얹혀 이동한다. 얹히는 것이라 측판 사이보다 좌우로 조금 작게 짠다.',
+  { 갈래:'몸통', 사이:'이동 선반 ↔ 철물', 말:'조립할 때 체결하지 않는다. 다보 같은 철물 위에 얹혀 손으로 들어 옮긴다.',
+    값:(m,s) => `${s.shelvesM}장`, 어디:'내부·전면 「이동 선반」 단수' },
+  { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'넣고 뺄 여유가 있어야 하므로 측판 안쪽면에서 한 쪽씩 뗀다. 폭은 그만큼 두 배로 작아진다.',
     규칙:'이동좌우', 최소:0, 최대:20, 걸음:0.5 },
+  { 갈래:'몸통', 사이:'이동 선반 ↔ 뒷판', 말:'고정 선반보다 뒤로 물려 얕게 짠다. 뒤가 꽉 차면 들어 올릴 수 없다.',
+    규칙:'이동깊이', 최소:0, 최대:100, 걸음:1 },
   { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'고정 선반과 이동 선반을 한데 세어 하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
     값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「고정 선반」·「이동 선반」 단수' },
   { 갈래:'몸통', 사이:'걸레받이 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 걸레받이 값이다. 걸레받이를 0 으로 두면 아예 안 짠다.',
