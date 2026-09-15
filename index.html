@@ -198,6 +198,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field wide"><label>뒷판 조립</label>
+        <div class="seg"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div></div>
       <div id="customList"></div>
       <div class="field wide"><label for="newPart">부속 만들기</label>
         <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름"><button id="btnAdd" type="button">추가</button></div>
@@ -264,7 +266,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   <section class="bom" aria-label="부품표">
     <div class="panelhead"><h2>부품표</h2><span class="eyebrow">재단 치수 · 결 방향 기준</span></div>
     <div class="tablewrap"><table>
-      <thead><tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th></tr></thead>
+      <thead id="bomHead"><tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th></tr></thead>
       <tbody id="bomBody"></tbody>
       <tfoot><tr><td colspan="6" id="bomFoot"></td></tr></tfoot>
     </table></div>
@@ -308,7 +310,7 @@ const $ = s => document.querySelector(s);
 /* ───────── 부속끼리 맞물리는 규칙 ─────────
    여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
    그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
-const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:11, 홈깊이:6, 홈유격:0.8, 홈뒤살:9, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
@@ -331,14 +333,19 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.손질', JSON.stringify(손질));
 } catch (e) {} }
 
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', backMode:'cover', doors:2, doorMode:'out', hinge:'left', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── 모델: 파라미터 → 부품 목록 (단일 진실 공급원) ───────── */
 function buildModel(s){
   const {W,D,H,Ttop,Tside,Tshelf,Tshelf2,Tdoor,Tbot,Tplinth,TB,shelves,shelvesM,plinth,topStyle,doors} = s;
-  const CD = D - TB;                         // 몸통 깊이 (뒷판 제외)
+  // 뒷판 조립은 두 가지다.
+  //  덮기(cover)  — 뒷판이 몸통 뒤에 덧붙는다. 몸통은 그만큼 얕아진다. 여태 쓰던 방식이다.
+  //  끼우기(insert) — 뒷판이 몸통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다.
+  //                  뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.
+  const 끼움 = s.backMode === 'insert';
+  const CD = 끼움 ? D : D - TB;              // 몸통 깊이
   const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
   const parts = [];
@@ -371,7 +378,16 @@ function buildModel(s){
     선반z += t;
   }
   if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
-  add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
+  // 뒷판. 끼우기면 통 내부보다 가로·세로로 「뒷판키움」 만큼 크게 짜서 홈에 물린다.
+  // 홈은 뒤에서 「홈뒤살」 만큼 들어와, 뒷판 두께에 「홈유격」 을 더한 폭으로 「홈깊이」 만큼 판다.
+  const 홈폭 = TB + 규칙.홈유격, 홈뒤 = D - 규칙.홈뒤살, 홈앞 = 홈뒤 - 홈폭;
+  const 홈 = 끼움 ? { 깊이:규칙.홈깊이, 폭:홈폭, 앞:홈앞, 뒤:홈뒤 } : null;
+  if (끼움){
+    const 키 = 규칙.뒷판키움, bw = (W - 2*Tside) + 키, bh = innerH + 키;
+    add('뒷판', Tside - 키/2, 홈뒤 - TB, bz + Tbot - 키/2, bw, TB, bh, [0,1,0], {L:bh, W:bw, T:TB, grain:'세로'});
+  } else {
+    add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
+  }
   let 앞으로 = 0;                            // 도어가 몸통 앞으로 나온 길이 (도면 치수선이 쓴다)
   if (doors > 0){
     const n = doors, gap = 규칙.도어사이;
@@ -394,7 +410,7 @@ function buildModel(s){
   // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
   const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
-  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로 };
+  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -458,6 +474,10 @@ function buildDrawing(s, m){
   const ox = W + 520, xc = W/4;
   const cutS = 목록.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
   cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h)); hatch(ox + p.y, p.z, p.d, p.h); });
+  if (m.홈){                                  // 상판·하판에 판 홈 (잘린 자리라 보인다)
+    rect(ox + m.홈.앞, H - Ttop, m.홈.폭, m.홈.깊이);
+    rect(ox + m.홈.앞, m.bz + Tbot - m.홈.깊이, m.홈.폭, m.홈.깊이);
+  }
   rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
   dimH(ox + m.CD, ox + D, H, 120);
@@ -469,6 +489,10 @@ function buildDrawing(s, m){
   const oy = H + 620, zc = H - Ttop - 100;
   const cutT = 목록.filter(p => p.z <= zc && zc <= p.z + p.h);
   cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
+  if (m.홈){                                  // 양 측판 안쪽면에 판 홈
+    rect(Tside - m.홈.깊이, oy + m.홈.앞, m.홈.깊이, m.홈.폭);
+    rect(W - Tside,        oy + m.홈.앞, m.홈.깊이, m.홈.폭);
+  }
   rect(Tside, oy, W - 2*Tside, m.CD, 'HIDDEN');
   dimH(0, W, oy - m.앞으로, -120);
   dimV(oy, oy + D, W, 120);
@@ -477,33 +501,37 @@ function buildDrawing(s, m){
 
   // 부품표 + 표제란
   const bom = bomRows(m);
-  const bx = ox + D + 420, by = H, cols = [0, 300, 420, 600, 780, 900, 1020], rh = 70;
-  제목('부품표  BOM', bx + cols[6]/2, by + 90, cols[6]);
-  const rows = [['부품명','수량','결길이','결폭','두께','결'], ...bom.map(r => [r.name, String(r.qty), fmt(r.L), fmt(r.W), String(r.T), r.grain])];
+  const 비고있나 = bom.some(r => r.비고);
+  const bx = ox + D + 420, by = H, rh = 70;
+  const cols = 비고있나 ? [0, 300, 420, 600, 780, 900, 1020, 1320] : [0, 300, 420, 600, 780, 900, 1020];
+  const 표폭 = cols[cols.length - 1];
+  제목('부품표  BOM', bx + 표폭/2, by + 90, 표폭);
+  const rows = [['부품명','수량','결길이','결폭','두께','결'].concat(비고있나 ? ['비고'] : []),
+    ...bom.map(r => [r.name, String(r.qty), fmt(r.L), fmt(r.W), String(r.T), r.grain].concat(비고있나 ? [r.비고 || ''] : []))];
   rows.forEach((row, i) => {
     const y = by - i*rh;
     row.forEach((v, c) => text(v, bx + (cols[c]+cols[c+1])/2, y - rh/2, 28, 'TITLE'));
     // 머리줄 위아래만 굵게 — 층(TITLE)은 그대로라 DXF 는 하나도 안 바뀐다
-    line(bx, y, bx + cols[6], y, 'TITLE', i <= 1 ? '강' : null);
+    line(bx, y, bx + 표폭, y, 'TITLE', i <= 1 ? '강' : null);
   });
   const yEnd = by - rows.length*rh;
-  line(bx, yEnd, bx + cols[6], yEnd, 'TITLE', '강');
-  cols.forEach((c, i) => line(bx + c, by, bx + c, yEnd, 'TITLE', (i === 0 || i === 6) ? '강' : null));
+  line(bx, yEnd, bx + 표폭, yEnd, 'TITLE', '강');
+  cols.forEach((c, i) => line(bx + c, by, bx + c, yEnd, 'TITLE', (i === 0 || i === cols.length - 1) ? '강' : null));
   // DXF 로 나가는 표제란은 예전 그대로 둔다 (CAD 자료는 바뀌면 안 된다)
   const ty0 = yEnd - 160;
   쪽 = 2;
-  rect(bx, ty0 - 300, cols[6], 300, 'TITLE');
-  line(bx, ty0 - 110, bx + cols[6], ty0 - 110, 'TITLE');
-  text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty0 - 55, 46, 'TITLE');
-  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + cols[6]/2, ty0 - 150, 26, 'TITLE');
-  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + cols[6]/2, ty0 - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty0 - 234, 26, 'TITLE');
-  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty0 - 276, 26, 'TITLE');
+  rect(bx, ty0 - 300, 표폭, 300, 'TITLE');
+  line(bx, ty0 - 110, bx + 표폭, ty0 - 110, 'TITLE');
+  text(`수납장  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
+  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
+  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
+  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + 표폭/2, ty0 - 276, 26, 'TITLE');
   쪽 = 1;
   // 화면·SVG 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
   // 가운데로 몰아 적던 것보다 눈이 훨씬 덜 헤맨다.
   // 값 칸 폭은 780 이다. 한글은 글자당 24 쯤 먹으므로 한 줄에 서른 자를 넘기지 않게 끊어 적는다.
-  const ty = yEnd - 160, tw = cols[6], lw = 240, rh2 = 58;
+  const ty = yEnd - 160, tw = 표폭, lw = 240, rh2 = 58;
   const 표제 = [
     ['품명',        규칙.이름 || '수납장', 36],
     ['치수',        `W${W} × D${D} × H${H}`],
@@ -551,15 +579,18 @@ function buildDrawing(s, m){
   return { P, hits, bbox:b, bboxDxf, 세로칸:m.pitch };   // 세로칸 = 선반 사이 — 세로 치수 글자를 얼마나 키울지 정한다
 }
 
+// 홈을 파는 부속 — 사장님 말씀의 「양측판, 상판, 맨바닥선반」. 이 모델에서 뒷판이 닿는 맨 아래 것은 하판이라 하판으로 본다.
+const 홈부속 = ['측판','상판','하판'];
 function bomRows(m){
   const map = new Map();
+  const 홈글 = m.홈 ? `홈 ${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}` : '';
   m.parts.forEach(p => {
     const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
-    if (!map.has(k)) map.set(k, {name:p.name, qty:0, ...p.cut});
+    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 비고: (홈글 && 홈부속.includes(p.name)) ? 홈글 : '', ...p.cut});
     map.get(k).qty += 1 + (p.더 || 0);
   });
   // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
-  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로'}));
+  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 비고:''}));
   return [...map.values()];
 }
 
@@ -901,7 +932,9 @@ function update(){
   도면그리기();
   const rows = bomRows(m);
   pidKey = m.parts.map(p => `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`);
-  $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
+  const 비고있나 = rows.some(r => r.비고);        // 뒷판을 끼울 때만 「비고」 칸이 생긴다
+  $('#bomHead').innerHTML = '<tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th>' + (비고있나 ? '<th>비고</th>' : '') + '</tr>';
+  $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td>` + (비고있나 ? `<td class="mono">${esc(r.비고 || '')}</td>` : '') + `</tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
   $('#stPitch').textContent = (state.shelves + state.shelvesM) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
@@ -957,6 +990,7 @@ document.querySelectorAll('[data-key]').forEach(el => {
   el.addEventListener('change', () => { if (el.type === 'number') el.value = state[el.dataset.key]; });
 });
 document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListener('change', () => { state.topStyle = r.value; update(); }));
+document.querySelectorAll('input[name=backMode]').forEach(r => r.addEventListener('change', () => { state.backMode = r.value; update(); }));
 document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('change', () => { state.doors = Number(r.value); update(); }));
 document.querySelectorAll('input[name=doorMode]').forEach(r => r.addEventListener('change', () => { state.doorMode = r.value; update(); }));
 document.querySelectorAll('input[name=hinge]').forEach(r => r.addEventListener('change', () => { state.hinge = r.value; update(); }));
@@ -1253,8 +1287,18 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'하판 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'걸레받이 높이만큼 띄워 앉는다. 걸레받이가 없으면 바닥에 붙는다.',
     값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「걸레받이」' },
-  { 갈래:'몸통', 사이:'뒷판 ↔ 몸통', 말:'몸통 뒤에 가구 폭·높이 그대로 댄다. 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
-    값:m => `몸통 깊이 ${fmt(m.CD)}` },
+  { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 뒷판이 뒤에 붙으므로 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
+    값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'보드선택 「뒷판 조립」' },
+  { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (끼우기)', 말:'뒷판이 통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다. 뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.',
+    값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'보드선택 「뒷판 조립」' },
+  { 갈래:'뒷판', 사이:'뒷판 ↔ 홈 (끼우기)', 말:'통 내부보다 가로·세로로 이만큼 크게 짠다. 홈 깊이의 두 배보다 조금 작게 잡아야 바닥에 닿지 않는다.',
+    규칙:'뒷판키움', 최소:0, 최대:40, 걸음:0.5 },
+  { 갈래:'뒷판', 사이:'측판·상판·하판 ↔ 홈 (끼우기)', 말:'뒷판이 닿는 세 부속 안쪽면에 이 깊이로 홈을 판다.',
+    규칙:'홈깊이', 최소:0, 최대:20, 걸음:0.5 },
+  { 갈래:'뒷판', 사이:'홈 ↔ 뒷판 두께 (끼우기)', 말:'홈 폭은 뒷판 두께에 이 유격을 더한 값이다. 2.7T 뒷판이면 홈이 3.5 가 된다.',
+    규칙:'홈유격', 최소:0, 최대:3, 걸음:0.1 },
+  { 갈래:'뒷판', 사이:'홈 ↔ 몸통 뒷면 (끼우기)', 말:'몸통 뒷면에서 이만큼 살을 남기고 홈을 판다.',
+    규칙:'홈뒤살', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 철물', 말:'조립할 때 체결하지 않는다. 다보 같은 철물 위에 얹혀 손으로 들어 옮긴다.',
     값:(m,s) => `${s.shelvesM}장`, 어디:'내부·전면 「이동 선반」 단수' },
