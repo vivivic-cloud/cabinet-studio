@@ -144,6 +144,17 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .rrow input[type=text]:focus{outline:none;border-color:var(--head)}
 .rdlg{max-height:76vh;overflow:auto}
 #rFix .none{margin:0;color:var(--ink3);font-size:13px}
+.bdlg{max-height:88vh}
+.brow{display:flex;align-items:center;gap:12px}
+.brow h3{margin:0;font-size:17px;font-weight:700;color:var(--head)}
+.bzoom{margin-left:auto;display:flex;align-items:center;gap:6px}
+.bzoom button{min-width:40px;padding:6px 10px;font-size:15px;line-height:1}
+.bzoom b{min-width:58px;text-align:center;font-size:13px;color:var(--ink2)}
+.bview{flex:1;min-height:0;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;-webkit-overflow-scrolling:touch}
+.bdlg .row{flex-wrap:wrap}
+.bdlg .row button{white-space:nowrap}
+.bview svg{display:block;height:auto}
+#bomWrap{cursor:zoom-in}
 #pmenu{position:fixed;z-index:60;display:none;flex-direction:column;gap:2px;min-width:140px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
 #pmenu.on{display:flex}
 #pmenu b{padding:6px 12px 4px;font-size:12px;font-weight:600;color:var(--ink3)}
@@ -267,8 +278,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </section>
 
   <section class="bom" aria-label="부품표">
-    <div class="panelhead"><h2>부품표</h2><span class="eyebrow">재단 치수 · 결 방향 기준</span></div>
-    <div class="tablewrap"><table>
+    <div class="panelhead"><h2>부품표</h2><button id="btnBom" class="linkbtn" type="button">크게 보기</button><span class="eyebrow">재단 치수 · 결 방향 기준</span></div>
+    <div class="tablewrap" id="bomWrap"><table>
       <thead id="bomHead"><tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th></tr></thead>
       <tbody id="bomBody"></tbody>
       <tfoot><tr><td colspan="6" id="bomFoot"></td></tr></tfoot>
@@ -294,6 +305,23 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <div id="rFix"></div>
   </div>
   <div class="row"><button type="button" id="rReset">기본값으로</button><button type="button" id="rClose" class="primary">닫기</button></div>
+</div></dialog>
+
+<dialog id="bomDlg"><div class="dlg bdlg">
+  <div class="brow">
+    <h3>부품표</h3>
+    <div class="bzoom">
+      <button type="button" id="bzOut" aria-label="줄이기">−</button>
+      <b id="bzVal" class="mono">100%</b>
+      <button type="button" id="bzIn" aria-label="키우기">＋</button>
+    </div>
+  </div>
+  <div class="bview" id="bomBig"></div>
+  <div class="row">
+    <button type="button" id="bPrint">인쇄 · PDF</button>
+    <button type="button" id="bSave">SVG 저장</button>
+    <button type="button" id="bClose" class="primary">닫기</button>
+  </div>
 </div></dialog>
 
 <div id="hidmenu" role="menu" aria-hidden="true"></div>
@@ -1204,6 +1232,75 @@ addEventListener('resize', () => { if (메뉴짚음) 메뉴닫기(); if (숨김�
     메뉴열기(e.clientX, e.clientY, selPid);
   });
 })();
+
+
+/* ───────── 부품표 크게 보기 — 팝업 한 장 · 확대 · 인쇄 · PDF ─────────
+   글자와 선을 그대로 가진 SVG 라서 아무리 키워도 뭉개지지 않는다.
+   인쇄 창에서 「PDF 로 저장」 을 고르면 그대로 PDF 가 된다. */
+const 표글꼴 = "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',monospace";
+function 부품표SVG(){
+  const m = 모델 || buildModel(state), rows = bomRows(m);
+  const 비고 = rows.some(r => r.비고);
+  const 칸 = 비고 ? [320,110,180,180,110,110,300] : [320,110,180,180,110,110];
+  const 머리 = ['부품명','수량','결 길이','결 폭','두께','결'].concat(비고 ? ['비고'] : []);
+  const 여백 = 40, rh = 64, 표폭 = 칸.reduce((a,b) => a + b, 0), 위 = 160;
+  const 바닥 = 위 + rh*(rows.length + 1);
+  const W = 표폭 + 여백*2, H = 바닥 + 96;
+  const x = []; let acc = 여백;
+  칸.forEach(c => { x.push(acc); acc += c; }); x.push(acc);
+  const o = [];
+  const 선 = (x1,y1,x2,y2,굵기) => o.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#111110" stroke-width="${굵기}"/>`);
+  const 글 = (t,cx,cy,크기,정렬,색,굵게) => o.push(`<text x="${cx}" y="${cy}" font-size="${크기}" text-anchor="${정렬||'middle'}" dominant-baseline="central" fill="${색||'#111110'}"${굵게 ? ' font-weight="700"' : ''}>${esc(String(t))}</text>`);
+  글(`${규칙.이름 || '수납장'}   W${state.W} × D${state.D} × H${state.H}`, 여백, 52, 34, 'start', '#111110', true);
+  글(`재단 치수 · 결 방향 기준 · 단위 mm · ${new Date().toISOString().slice(0,10)}`, 여백, 100, 22, 'start', '#6E6E6A');
+  [머리, ...rows.map(r => [r.name, String(r.qty), fmt(r.L), fmt(r.W), String(r.T), r.grain].concat(비고 ? [r.비고 || ''] : []))]
+    .forEach((줄, i) => {
+      const y = 위 + rh*i;
+      줄.forEach((v, c) => (c === 0 || (비고 && c === 줄.length - 1))
+        ? 글(v, x[c] + 14, y + rh/2, 24, 'start', i ? '#111110' : '#6E6E6A', !i)
+        : 글(v, (x[c] + x[c+1])/2, y + rh/2, 24, 'middle', i ? '#111110' : '#6E6E6A', !i));
+      if (i) 선(여백, y, 여백 + 표폭, y, 0.8);
+    });
+  선(여백, 위, 여백 + 표폭, 위, 1.6); 선(여백, 위 + rh, 여백 + 표폭, 위 + rh, 1.6);
+  선(여백, 바닥, 여백 + 표폭, 바닥, 1.6);
+  x.forEach((c, i) => 선(c, 위, c, 바닥, (i === 0 || i === x.length - 1) ? 1.6 : 0.8));
+  글(`총 ${rows.reduce((a,r) => a + r.qty, 0)}개 · 재단 여유 미포함`, 여백, 바닥 + 46, 22, 'start', '#6E6E6A');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${표글꼴}" fill="none">` +
+         `<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>${o.join('')}</svg>`;
+}
+let 표배 = 1, 표기준 = 0.4;
+function 표크기(){
+  const el = $('#bomBig svg'); if (!el) return;
+  const vb = el.viewBox.baseVal;
+  el.setAttribute('width', Math.round(vb.width * 표기준 * 표배));
+  el.setAttribute('height', Math.round(vb.height * 표기준 * 표배));
+  $('#bzVal').textContent = Math.round(표배*100) + '%';
+}
+function 표열기(){
+  $('#bomBig').innerHTML = 부품표SVG();
+  const el = $('#bomBig svg'), vb = el.viewBox.baseVal;
+  $('#bomDlg').showModal();
+  표기준 = Math.max(0.12, ($('#bomBig').clientWidth - 28) / vb.width);   // 열 때 칸 너비에 맞춘다
+  표배 = 1; 표크기();
+}
+$('#btnBom').addEventListener('click', 표열기);
+$('#bomWrap').addEventListener('click', 표열기);
+$('#bClose').addEventListener('click', () => $('#bomDlg').close());
+$('#bzIn').addEventListener('click', () => { 표배 = Math.min(6, 표배*1.25); 표크기(); });
+$('#bzOut').addEventListener('click', () => { 표배 = Math.max(0.5, 표배/1.25); 표크기(); });
+$('#bPrint').addEventListener('click', () => {
+  const svg = 부품표SVG();
+  const w = window.open('', '_blank');
+  if (!w){ toast('새 창이 막혀 있습니다 — 팝업을 허용해 주십시오'); return; }
+  w.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>' + esc(fileBase()) + ' 부품표</title>' +
+    '<style>@page{size:A4 portrait;margin:12mm}html,body{margin:0;padding:0;background:#fff}svg{width:100%;height:auto;display:block}</style>' +
+    '</head><body>' + svg + '<' + 'script>onload=function(){setTimeout(function(){window.print()},300)}<' + '/script></body></html>');
+  w.document.close();
+});
+$('#bSave').addEventListener('click', async () => {
+  const svg = 부품표SVG();
+  await save(fileBase() + '_부품표.svg', svg, () => showFallback('부품표 SVG', '이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 .svg 파일로 저장하세요.', svg));
+});
 
 /* ───────── 내보내기 ───────── */
 let toastT;
