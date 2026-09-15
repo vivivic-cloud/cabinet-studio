@@ -144,15 +144,16 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .rrow input[type=text]:focus{outline:none;border-color:var(--head)}
 .rdlg{max-height:76vh;overflow:auto}
 #rFix .none{margin:0;color:var(--ink3);font-size:13px}
-.bdlg{max-height:88vh}
+.bdlg{height:86vh;max-height:86vh}                     /* 높이를 못 박는다 — 그림을 키워도 단추 줄이 안 움직인다 */
 .brow{display:flex;align-items:center;gap:12px}
 .brow h3{margin:0;font-size:17px;font-weight:700;color:var(--head)}
 .bzoom{margin-left:auto;display:flex;align-items:center;gap:6px}
-.bzoom button{min-width:40px;padding:6px 10px;font-size:15px;line-height:1}
+.bzoom button{min-width:44px;min-height:44px;padding:6px 10px;font-size:17px;line-height:1}
 .bzoom b{min-width:58px;text-align:center;font-size:13px;color:var(--ink2)}
 .bview{flex:1;min-height:0;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;-webkit-overflow-scrolling:touch}
-.bdlg .row{flex-wrap:wrap}
-.bdlg .row button{white-space:nowrap}
+.bdlg .row{flex-wrap:wrap;flex:none}
+.bdlg .row button{white-space:nowrap;min-height:44px;padding:10px 16px}
+.brow{flex:none}
 .bview svg{display:block;height:auto}
 #bomWrap{cursor:zoom-in}
 #pmenu{position:fixed;z-index:60;display:none;flex-direction:column;gap:2px;min-width:140px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
@@ -539,7 +540,7 @@ function buildDrawing(s, m){
   if (m.홈){
     const M = 10, 보임 = 90, 간격 = 1100, gy = -1150;   // 10배 · 뒤 끝에서 90mm 만큼만 보인다
     const 칸들 = [['측판 2장', '안쪽면', Tside], ['상판', '아랫면', Ttop], ['하판', '윗면', Tbot]];
-    제목(`홈 가공도  GROOVE DETAIL · 10배`, (칸들.length-1)*간격/2 + 보임*M/2, gy + 540, 칸들.length*간격 - 200);
+    제목(`홈 가공도  GROOVE DETAIL · 10배`, (칸들.length-1)*간격/2 + 보임*M/2, gy + 760, 칸들.length*간격 - 200);
     칸들.forEach(([이름, 면, T], i) => {
       const x0 = i*간격, w = 보임*M, h = T*M, y0 = gy - h;
       const gx = x0 + w - (규칙.홈뒤살 + m.홈.폭)*M, gw = m.홈.폭*M, gd = m.홈.깊이*M;
@@ -550,13 +551,28 @@ function buildDrawing(s, m){
       line(gx + gw, y0 + h - gd, gx + gw, y0 + h);
       line(gx + gw, y0 + h, x0 + w, y0 + h);
       hatch(x0, y0, gx - x0, h); hatch(gx, y0, gw, h - gd); hatch(gx + gw, y0, x0 + w - (gx + gw), h);
-      // 세 숫자 — 홈 폭 · 뒤 끝까지 · 홈 깊이. 여섯 배로 그렸으니 숫자는 참값을 적는다.
-      dimH(gx, gx + gw, y0 + h, 130, fmt(m.홈.폭));
-      dimH(gx + gw, x0 + w, y0 + h, 300, fmt(규칙.홈뒤살));   // 한 칸 위에 — 화면에서 치수 글자를 키우면 홈 폭과 부딪힌다
-      dimV(y0 + h - gd, y0 + h, x0, -130, fmt(m.홈.깊이));
-      dimV(y0, y0 + h, x0, -310, fmt(T));
-      text(`${이름} · ${면}`, x0 + w/2, y0 - 150, 40);
-      text('← 앞                    뒤 →', x0 + w/2, y0 - 220, 30, 'TITLE');
+      // 세 숫자 — 홈 폭 · 뒤 끝까지 · 홈 깊이. 열 배로 그렸으니 숫자는 참값을 적는다.
+      // 홈은 10mm 안팎이라 숫자가 제 치수선보다 넓다. 그래서 숫자는 위로 빼고 지시선을 그어 잇는다.
+      const 치수선 = (x1,x2,y,올림) => {                     // 글자 없는 치수선 (ㅏ ㅓ 모양)
+        const yl = y + 올림;
+        line(x1, y + 8, x1, yl + 14, 'DIM'); line(x2, y + 8, x2, yl + 14, 'DIM');
+        line(x1, yl, x2, yl, 'DIM'); tick(x1, yl); tick(x2, yl);
+      };
+      const 빼서적기 = (px, py, lx, ly, 글) => {             // 가리키는 곳 → 어깨 → 글자
+        line(px, py, lx, ly - 46, 'DIM'); line(lx - 70, ly - 46, lx + 70, ly - 46, 'DIM');
+        text(글, lx, ly + 34, TH, 'DIM');
+      };
+      치수선(gx, gx + gw, y0 + h, 70);
+      치수선(gx + gw, x0 + w, y0 + h, 70);
+      line(gx + gw + 40, y0 + h - gd, gx + gw + 40, y0 + h, 'DIM');
+      tick(gx + gw + 40, y0 + h - gd); tick(gx + gw + 40, y0 + h);
+      빼서적기(gx + gw/2, y0 + h + 70, x0 + w*0.22, y0 + h + 240, `폭 ${fmt(m.홈.폭)}`);
+      빼서적기(gx + gw + 40, y0 + h - gd/2, x0 + w*0.78, y0 + h + 240, `깊이 ${fmt(m.홈.깊이)}`);
+      빼서적기((gx + gw + x0 + w)/2, y0 + h + 70, x0 + w*0.5, y0 + h + 470, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
+      dimV(y0, y0 + h, x0, -150, fmt(T));
+      text('앞', x0 + 40, y0 - 80, TH, 'DIM');            // 어느 쪽이 앞인지 — 치수 글자와 같이 커진다
+      text('뒤', x0 + w - 40, y0 - 80, TH, 'DIM');
+      text(`${이름} · ${면}`, x0 + w/2, y0 - 200, 46);
     });
   }
 
