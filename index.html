@@ -191,7 +191,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <h2>보드선택</h2>
       <div class="field"><label for="Ttop">상판</label><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tside">측판</label><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tshelf">선반</label><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tshelf">고정 선반</label><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tshelf2">이동 선반</label><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
@@ -206,7 +207,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     </div>
     <div class="group">
       <h2>내부 · 전면</h2>
-      <div class="field wide"><label for="shelves">선반 <b id="shelvesVal" class="mono">3</b>단</label><input id="shelves" data-key="shelves" type="range" min="0" max="8" step="1" value="3"></div>
+      <div class="field wide"><label for="shelves">고정 선반 <b id="shelvesVal" class="mono">3</b>단</label><input id="shelves" data-key="shelves" type="range" min="0" max="8" step="1" value="3"></div>
+      <div class="field wide"><label for="shelvesM">이동 선반 <b id="shelvesMVal" class="mono">0</b>단</label><input id="shelvesM" data-key="shelvesM" type="range" min="0" max="8" step="1" value="0"></div>
       <div class="field"><label for="plinth">걸레받이 <small>0 = 없음</small></label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
       <div class="field wide"><label>문짝</label>
         <div class="seg"><label><input type="radio" name="doors" value="0">없음</label><label><input type="radio" name="doors" value="1">여닫이 1</label><label><input type="radio" name="doors" value="2" checked>여닫이 2</label></div></div>
@@ -305,7 +307,7 @@ const $ = s => document.querySelector(s);
 /* ───────── 부속끼리 맞물리는 규칙 ─────────
    여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
    그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
-const 규칙기본 = { 이름:'', 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+const 규칙기본 = { 이름:'', 이동좌우:0, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
@@ -328,13 +330,13 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.손질', JSON.stringify(손질));
 } catch (e) {} }
 
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:9, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', doors:2, doorMode:'out', hinge:'left', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── 모델: 파라미터 → 부품 목록 (단일 진실 공급원) ───────── */
 function buildModel(s){
-  const {W,D,H,Ttop,Tside,Tshelf,Tdoor,Tbot,Tplinth,TB,shelves,plinth,topStyle,doors} = s;
+  const {W,D,H,Ttop,Tside,Tshelf,Tshelf2,Tdoor,Tbot,Tplinth,TB,shelves,shelvesM,plinth,topStyle,doors} = s;
   const CD = D - TB;                         // 몸통 깊이 (뒷판 제외)
   const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
@@ -346,14 +348,23 @@ function buildModel(s){
   add('상판', tx, 0, H-Ttop, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
   add('하판', Tside, 0, bz, W-2*Tside, CD, Tbot, [0,0,-1], {L:W-2*Tside, W:CD, T:Tbot, grain:'가로'});
   const innerH = (H - Ttop) - (bz + Tbot);
-  const pitch = (innerH - shelves*Tshelf) / (shelves + 1);
+  // 선반은 두 갈래다. 고정 선반은 측판에 체결해 박히고, 이동 선반은 체결 없이 철물 위에 얹힌다.
+  // 얹히는 것이라 좌우로 조금 작게 짜는 집이 있어 그 값을 규칙에 두었다(기본 0 — 안 건드리면 예전과 같다).
+  const 단수 = shelves + shelvesM;
+  const pitch = (innerH - shelves*Tshelf - shelvesM*Tshelf2) / (단수 + 1);
   // 인도어는 도어가 몸통 앞면 안쪽(y 0~Tdoor)에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고
   // 깊이를 줄인다 — 재단 치수(cut.W)도 같이 줄어든다. 겹치는 부속은 선반뿐임을 설정 8748가지로 확인했다.
   const 도어물림 = (doors > 0 && s.doorMode === 'in' && 규칙.인선반줄임) ? Tdoor : 0;
   const 선반깊이 = CD - 도어물림;
-  for (let i = 0; i < shelves; i++){
-    const z = bz + Tbot + (i+1)*pitch + i*Tshelf;
-    add('선반', Tside, 도어물림, z, W-2*Tside, 선반깊이, Tshelf, [0,-0.55,0], {L:W-2*Tside, W:선반깊이, T:Tshelf, grain:'가로'});
+  // 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 칸 높이는 다 같게 나눈다.
+  let 선반z = bz + Tbot;
+  for (let i = 0; i < 단수; i++){
+    const 이동 = i >= shelves;
+    const t = 이동 ? Tshelf2 : Tshelf, 뺌 = 이동 ? 2*규칙.이동좌우 : 0;
+    선반z += pitch;
+    add(이동 ? '이동선반' : '고정선반', Tside + (이동 ? 규칙.이동좌우 : 0), 도어물림, 선반z,
+        W - 2*Tside - 뺌, 선반깊이, t, [0,-0.55,0], {L:W - 2*Tside - 뺌, W:선반깊이, T:t, grain:'가로'});
+    선반z += t;
   }
   if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
   add('뒷판', 0, CD, 0, W, TB, H, [0,1,0], {L:H, W:W, T:TB, grain:'세로'});
@@ -429,7 +440,7 @@ function buildDrawing(s, m){
   dimH(0, Tside, H, 120);
   dimV(0, H, W, 250);
   let prev = m.bz + Tbot;
-  목록.filter(p => p.name === '선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + Tshelf; });
+  목록.filter(p => p.name === '고정선반' || p.name === '이동선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + p.h; });
   dimV(prev, H - Ttop, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
   text('정면도  FRONT VIEW', W/2, -270, 46);
@@ -473,9 +484,9 @@ function buildDrawing(s, m){
   line(bx, ty - 110, bx + cols[6], ty - 110, 'TITLE');
   text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty - 55, 46, 'TITLE');
   // 두께가 일곱이라 한 줄에 안 들어간다 — 표제란 칸(폭 1020) 안에 들도록 세 줄로 나눠 적는다
-  text(`상판 ${Ttop}T · 측판 ${Tside}T · 선반 ${Tshelf}T`, bx + cols[6]/2, ty - 150, 26, 'TITLE');
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + cols[6]/2, ty - 150, 26, 'TITLE');
   text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + cols[6]/2, ty - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · 선반 ${s.shelves}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 234, 26, 'TITLE');
+  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 234, 26, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty - 276, 26, 'TITLE');
 
   let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
@@ -828,7 +839,7 @@ function update(){
   $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td></tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
-  $('#stPitch').textContent = state.shelves ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
+  $('#stPitch').textContent = (state.shelves + state.shelvesM) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
   const 두께순 = Object.keys(area).sort((a,b) => area[b] - area[a]);   // 두께가 여럿이라 면적 큰 둘을 보인다
   [['#stAreaT','#stAreaTLabel',0], ['#stAreaB','#stAreaBLabel',1]].forEach(([v,l,i]) => {
@@ -856,6 +867,7 @@ document.querySelectorAll('[data-key]').forEach(el => {
     else if (el.tagName === 'SELECT' && !(v > 0)) return;   // 목록에 없는 값이 들어오면 두께가 0 이 된다 — 그냥 무른다
     state[el.dataset.key] = v;
     if (el.id === 'shelves') $('#shelvesVal').textContent = v;
+    if (el.id === 'shelvesM') $('#shelvesMVal').textContent = v;
     update();
   });
   el.addEventListener('change', () => { if (el.type === 'number') el.value = state[el.dataset.key]; });
@@ -1123,7 +1135,7 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
 /* ───────── 부속 만들기 · 관계제어판 ─────────
    만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
    제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
-const 붙박이 = ['상판','측판','선반','도어','하판','걸레받이','뒷판','문짝'];
+const 붙박이 = ['상판','측판','선반','고정선반','이동선반','도어','하판','걸레받이','뒷판','문짝'];
 const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
   $('#customList').innerHTML = 만든부속.map((c,i) =>
@@ -1159,9 +1171,11 @@ const 관계표 = [
     값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「걸레받이」' },
   { 갈래:'몸통', 사이:'뒷판 ↔ 몸통', 말:'몸통 뒤에 가구 폭·높이 그대로 댄다. 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
     값:m => `몸통 깊이 ${fmt(m.CD)}` },
-  { 갈래:'몸통', 사이:'선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어간다.', 값:m => `폭 ${fmt(m.innerW)}` },
-  { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
-    값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「선반」 단수' },
+  { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
+  { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'체결하지 않는다. 철물 위에 얹혀 이동한다. 얹히는 것이라 측판 사이보다 좌우로 조금 작게 짠다.',
+    규칙:'이동좌우', 최소:0, 최대:20, 걸음:0.5 },
+  { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'고정 선반과 이동 선반을 한데 세어 하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
+    값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「고정 선반」·「이동 선반」 단수' },
   { 갈래:'몸통', 사이:'걸레받이 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 걸레받이 값이다. 걸레받이를 0 으로 두면 아예 안 짠다.',
     값:(m,s) => s.plinth > 0 ? `높이 ${fmt(s.plinth)}` : '안 짬', 어디:'내부·전면 「걸레받이」' },
   { 갈래:'몸통', 사이:'걸레받이 ↔ 몸통 앞면', 말:'몸통 앞면에서 뒤로 물린다.', 규칙:'걸레앞', 최소:0, 최대:200, 걸음:1 },
@@ -1178,9 +1192,11 @@ const 관계표 = [
   { 갈래:'도어', 사이:'문짝 ↔ 문짝 (폭 나누기)', 말:'유격을 뺀 남은 폭을 짝 수대로 똑같이 나눈다.',
     값:m => { const d = m.parts.filter(p => p.name === '문짝'); return d.length ? `${fmt(d[0].w)} × ${d.length}짝` : '도어 없음'; },
     어디:'내부·전면 「도어」 짝수' },
-  { 갈래:'도어', 사이:'선반 ↔ 문짝 (인도어)', 말:'인도어는 몸통 앞면 안쪽에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고 깊이를 줄인다.',
+  { 갈래:'도어', 사이:'선반 ↔ 문짝 (인도어)', 말:'인도어는 몸통 앞면 안쪽에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고 깊이를 줄인다. 고정·이동 둘 다 같다.',
     고름:'인선반줄임' },
   { 갈래:'재단·부품표', 사이:'결 ↔ 부속', 말:'측판·문짝·뒷판은 결이 세로, 상판·하판·선반·걸레받이는 가로다.', 값:() => '세로 3 · 가로 4' },
+  { 갈래:'재단·부품표', 사이:'부품표 ↔ 선반', 말:'고정 선반과 이동 선반은 따로 센다. 두께도 따로 고른다.',
+    값:(m,s) => `고정 ${s.shelves}단 · 이동 ${s.shelvesM}단`, 어디:'보드선택·내부·전면' },
   { 갈래:'재단·부품표', 사이:'재단 치수 ↔ 부속', 말:'길이 × 폭 × 두께로 낸다. 두께는 부속마다 보드선택에서 고른다. 재단 여유는 넣지 않는다.',
     값:m => `${m.parts.length}조각`, 어디:'보드선택' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 부속', 말:'이름과 재단 치수가 똑같은 것끼리 한 줄로 묶어 수량을 센다.',
