@@ -308,7 +308,7 @@ const $ = s => document.querySelector(s);
 /* ───────── 부속끼리 맞물리는 규칙 ─────────
    여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
    그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
-const 규칙기본 = { 이름:'', 이동좌우:1, 이동깊이:10, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
@@ -363,10 +363,11 @@ function buildModel(s){
   for (let i = 0; i < 단수; i++){
     const 이동 = i >= shelves;
     const t = 이동 ? Tshelf2 : Tshelf;
-    const 옆 = 이동 ? 규칙.이동좌우 : 0, 깊 = 선반깊이 - (이동 ? 규칙.이동깊이 : 0);
+    const 옆 = 이동 ? 규칙.이동좌우 : 0, 앞 = 이동 ? 규칙.이동앞뒤 : 0;
     선반z += pitch;
-    add(이동 ? '이동선반' : '고정선반', Tside + 옆, 도어물림, 선반z,
-        W - 2*Tside - 2*옆, 깊, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:깊, T:t, grain:'가로'});
+    // 앞쪽에서 뺀다 — 뒤는 뒷판에 붙고 앞이 트여야 손으로 들어낼 수 있다
+    add(이동 ? '이동선반' : '고정선반', Tside + 옆, 도어물림 + 앞, 선반z,
+        W - 2*Tside - 2*옆, 선반깊이 - 앞, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:선반깊이 - 앞, T:t, grain:'가로'});
     선반z += t;
   }
   if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
@@ -521,9 +522,9 @@ function buildDrawing(s, m){
     text(값, bx + lw + 20, y - rh2/2, 크기 || 24, 'TITLE', 'ML');
     if (i) line(bx, y, bx + tw, y, 'TITLE');
   });
-  line(bx, ty, bx + tw, ty, 'OUTLINE');
-  line(bx, ty - tH, bx + tw, ty - tH, 'OUTLINE');
-  line(bx, ty, bx, ty - tH, 'OUTLINE'); line(bx + tw, ty, bx + tw, ty - tH, 'OUTLINE');
+  line(bx, ty, bx + tw, ty, 'TITLE', '강');
+  line(bx, ty - tH, bx + tw, ty - tH, 'TITLE', '강');
+  line(bx, ty, bx, ty - tH, 'TITLE', '강'); line(bx + tw, ty, bx + tw, ty - tH, 'TITLE', '강');
   line(bx + lw, ty, bx + lw, ty - tH, 'TITLE');
   쪽 = 0;
 
@@ -543,8 +544,9 @@ function buildDrawing(s, m){
   const 여백 = 200;
   b.minx -= 여백; b.miny -= 여백; b.maxx += 여백; b.maxy += 여백;
   쪽 = 1;
-  line(b.minx, b.miny, b.maxx, b.miny, 'OUTLINE'); line(b.maxx, b.miny, b.maxx, b.maxy, 'OUTLINE');
-  line(b.maxx, b.maxy, b.minx, b.maxy, 'OUTLINE'); line(b.minx, b.maxy, b.minx, b.miny, 'OUTLINE');
+  // 층은 TITLE 이다 — OUTLINE 은 가구 외곽선 자리라 종이 테두리가 섞이면 안 된다. 굵기만 따로 준다.
+  line(b.minx, b.miny, b.maxx, b.miny, 'TITLE', '강'); line(b.maxx, b.miny, b.maxx, b.maxy, 'TITLE', '강');
+  line(b.maxx, b.maxy, b.minx, b.maxy, 'TITLE', '강'); line(b.minx, b.maxy, b.minx, b.miny, 'TITLE', '강');
   쪽 = 0;
   return { P, hits, bbox:b, bboxDxf, 세로칸:m.pitch };   // 세로칸 = 선반 사이 — 세로 치수 글자를 얼마나 키울지 정한다
 }
@@ -1258,8 +1260,8 @@ const 관계표 = [
     값:(m,s) => `${s.shelvesM}장`, 어디:'내부·전면 「이동 선반」 단수' },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'넣고 뺄 여유가 있어야 하므로 측판 안쪽면에서 한 쪽씩 뗀다. 폭은 그만큼 두 배로 작아진다.',
     규칙:'이동좌우', 최소:0, 최대:20, 걸음:0.5 },
-  { 갈래:'몸통', 사이:'이동 선반 ↔ 뒷판', 말:'고정 선반보다 뒤로 물려 얕게 짠다. 뒤가 꽉 차면 들어 올릴 수 없다.',
-    규칙:'이동깊이', 최소:0, 최대:100, 걸음:1 },
+  { 갈래:'몸통', 사이:'이동 선반 ↔ 몸통', 말:'뒤는 뒷판에 붙이고 앞쪽에서 그만큼 뺀다. 앞이 트여야 손으로 들어낼 수 있다.',
+    규칙:'이동앞뒤', 최소:0, 최대:100, 걸음:1 },
   { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'고정 선반과 이동 선반을 한데 세어 하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
     값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「고정 선반」·「이동 선반」 단수' },
   { 갈래:'몸통', 사이:'걸레받이 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 걸레받이 값이다. 걸레받이를 0 으로 두면 아예 안 짠다.',
