@@ -91,10 +91,10 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap{flex:1;min-height:0;padding:10px;overflow:auto}
 .svgwrap svg{width:100%;height:100%;display:block}
 .svgwrap .OUTLINE{stroke:var(--ink);stroke-width:1.4px}
-.svgwrap .HIDDEN{stroke:var(--hidden);stroke-width:1px;stroke-dasharray:8 5}
-.svgwrap .DIM{stroke:var(--dim);stroke-width:.9px}
-.svgwrap .HATCH{stroke:var(--hatch);stroke-width:.7px}
-.svgwrap .TITLE{stroke:var(--ink2);stroke-width:1px}
+.svgwrap .HIDDEN{stroke:var(--hidden);stroke-width:.85px;stroke-dasharray:9 6}
+.svgwrap .DIM{stroke:var(--dim);stroke-width:.7px}
+.svgwrap .HATCH{stroke:var(--hatch);stroke-width:.5px}
+.svgwrap .TITLE{stroke:var(--ink3);stroke-width:.8px}
 .svgwrap text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2)}
 .svgwrap text.DIM{fill:var(--dim)}
 .svgwrap text.TEXT{fill:var(--accent)}
@@ -415,6 +415,8 @@ function buildDrawing(s, m){
       if (pts.length >= 2) line(pts[0][0],pts[0][1],pts[1][0],pts[1][1],'HATCH');
     }
   };
+  // 뷰 제목 — 글자 아래에 짧은 줄을 그어 그림과 가른다 (스펙시트에서 흔한 꼴)
+  const 제목 = (str, cx, y, w) => { text(str, cx, y, 46); line(cx - w/2, y - 36, cx + w/2, y - 36, 'TITLE'); };
   const tick = (x,y) => line(x-9,y-9,x+9,y+9,'DIM');
   const dimH = (x1,x2,y,off) => {
     const sg = Math.sign(off)||1, yl = y+off;
@@ -443,7 +445,7 @@ function buildDrawing(s, m){
   목록.filter(p => p.name === '고정선반' || p.name === '이동선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + p.h; });
   dimV(prev, H - Ttop, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
-  text('정면도  FRONT VIEW', W/2, -270, 46);
+  제목('정면도  FRONT VIEW', W/2, -270, W);
 
   // 측면 단면도 — 절단면 x = W/4 (문짝·선반 관통)
   const ox = W + 520, xc = W/4;
@@ -454,7 +456,7 @@ function buildDrawing(s, m){
   dimH(ox + m.CD, ox + D, H, 120);
   if (doors.length){ const dy0 = doors[0].y; dimH(ox + dy0, ox + dy0 + Tdoor, H, 120); }
   dimV(0, H, ox + D, 120);
-  text('측면 단면도  SIDE SECTION', ox + D/2, -270, 46);
+  제목('측면 단면도  SIDE SECTION', ox + D/2, -270, D);
 
   // 평면 단면도 — 절단면 z = 상판 아래 100
   const oy = H + 620, zc = H - Ttop - 100;
@@ -464,36 +466,59 @@ function buildDrawing(s, m){
   dimH(0, W, oy - m.앞으로, -120);
   dimV(oy, oy + D, W, 120);
   dimV(oy + m.CD, oy + D, 0, -120);
-  text('평면 단면도  TOP SECTION', W/2, oy - 270 - m.앞으로, 46);
+  제목('평면 단면도  TOP SECTION', W/2, oy - 270 - m.앞으로, W);
 
   // 부품표 + 표제란
   const bom = bomRows(m);
   const bx = ox + D + 420, by = H, cols = [0, 300, 420, 600, 780, 900, 1020], rh = 70;
-  text('부품표  BOM', bx + cols[6]/2, by + 90, 46);
+  제목('부품표  BOM', bx + cols[6]/2, by + 90, cols[6]);
   const rows = [['부품명','수량','결길이','결폭','두께','결'], ...bom.map(r => [r.name, String(r.qty), fmt(r.L), fmt(r.W), String(r.T), r.grain])];
   rows.forEach((row, i) => {
     const y = by - i*rh;
     row.forEach((v, c) => text(v, bx + (cols[c]+cols[c+1])/2, y - rh/2, 28, 'TITLE'));
-    line(bx, y, bx + cols[6], y, 'TITLE');
+    // 머리줄 위아래만 굵게 — 표가 한눈에 잡힌다
+    line(bx, y, bx + cols[6], y, i <= 1 ? 'OUTLINE' : 'TITLE');
   });
   const yEnd = by - rows.length*rh;
-  line(bx, yEnd, bx + cols[6], yEnd, 'TITLE');
-  cols.forEach(c => line(bx + c, by, bx + c, yEnd, 'TITLE'));
-  const ty = yEnd - 160;
-  rect(bx, ty - 300, cols[6], 300, 'TITLE');
-  line(bx, ty - 110, bx + cols[6], ty - 110, 'TITLE');
-  text(`수납장  W${W} × D${D} × H${H}`, bx + cols[6]/2, ty - 55, 46, 'TITLE');
-  // 두께가 일곱이라 한 줄에 안 들어간다 — 표제란 칸(폭 1020) 안에 들도록 세 줄로 나눠 적는다
-  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + cols[6]/2, ty - 150, 26, 'TITLE');
-  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + cols[6]/2, ty - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + cols[6]/2, ty - 234, 26, 'TITLE');
-  text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + cols[6]/2, ty - 276, 26, 'TITLE');
+  line(bx, yEnd, bx + cols[6], yEnd, 'OUTLINE');
+  cols.forEach((c, i) => line(bx + c, by, bx + c, yEnd, (i === 0 || i === 6) ? 'OUTLINE' : 'TITLE'));
+  // 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
+  // 가운데로 몰아 적던 것보다 눈이 훨씬 덜 헤맨다.
+  // 값 칸 폭은 780 이다. 한글은 글자당 24 쯤 먹으므로 한 줄에 서른 자를 넘기지 않게 끊어 적는다.
+  const ty = yEnd - 160, tw = cols[6], lw = 240, rh2 = 58;
+  const 표제 = [
+    ['품명',        규칙.이름 || '수납장', 36],
+    ['치수',        `W${W} × D${D} × H${H}`],
+    ['재질·두께',   `상판 ${Ttop}T · 측판 ${Tside}T · 도어 ${Tdoor}T`],
+    ['',            `고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
+    ['',            `하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T · 뒷판 ${TB}T`],
+    ['구성',        `고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단`],
+    ['',            `문짝 ${s.doors}짝 · ${s.doorMode === 'in' ? '인도어' : '아웃도어'}`],
+    ['투상법·단위', '제3각법 · mm'],
+    ['날짜',        new Date().toISOString().slice(0,10)]
+  ];
+  const tH = 표제.length * rh2;
+  표제.forEach(([이름, 값, 크기], i) => {
+    const y = ty - i*rh2;
+    if (이름) text(이름, bx + 20, y - rh2/2, 22, 'TITLE', 'ML');
+    text(값, bx + lw + 20, y - rh2/2, 크기 || 24, 'TITLE', 'ML');
+    if (i) line(bx, y, bx + tw, y, 'TITLE');
+  });
+  line(bx, ty, bx + tw, ty, 'OUTLINE');
+  line(bx, ty - tH, bx + tw, ty - tH, 'OUTLINE');
+  line(bx, ty, bx, ty - tH, 'OUTLINE'); line(bx + tw, ty, bx + tw, ty - tH, 'OUTLINE');
+  line(bx + lw, ty, bx + lw, ty - tH, 'TITLE');
 
   let minx=Infinity, miny=Infinity, maxx=-Infinity, maxy=-Infinity;
   P.forEach(p => {
     if (p.t === 'line'){ minx=Math.min(minx,p.x1,p.x2); maxx=Math.max(maxx,p.x1,p.x2); miny=Math.min(miny,p.y1,p.y2); maxy=Math.max(maxy,p.y1,p.y2); }
     else { const hw = p.str.length*p.h*0.6/2; minx=Math.min(minx,p.x-hw); maxx=Math.max(maxx,p.x+hw); miny=Math.min(miny,p.y-p.h); maxy=Math.max(maxy,p.y+p.h); }
   });
+  // 도면 테두리 — 종이 한 장처럼 보이게 마지막에 두른다
+  const 여백 = 200;
+  minx -= 여백; miny -= 여백; maxx += 여백; maxy += 여백;
+  line(minx, miny, maxx, miny, 'OUTLINE'); line(maxx, miny, maxx, maxy, 'OUTLINE');
+  line(maxx, maxy, minx, maxy, 'OUTLINE'); line(minx, maxy, minx, miny, 'OUTLINE');
   return { P, hits, bbox:{minx,miny,maxx,maxy} };
 }
 
@@ -530,7 +555,7 @@ const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','
 
 // 저장용 SVG: 테마 변수 대신 고정 색 (검정 선, 빨강 치수)
 function svgForFile(d){
-  const css = `<style>line{stroke:#000;stroke-width:0.35}.HIDDEN{stroke:#666;stroke-dasharray:6 3;stroke-width:0.25}.DIM{stroke:#c0392b;stroke-width:0.2}.HATCH{stroke:#777;stroke-width:0.15}text{font-family:'IBM Plex Mono','Apple SD Gothic Neo','Malgun Gothic',monospace;fill:#333}text.DIM{fill:#c0392b}text.TEXT{fill:#1F5FA8}</style>`;
+  const css = `<style>line{stroke:#000;stroke-width:0.4}.HIDDEN{stroke:#666;stroke-dasharray:7 4;stroke-width:0.2}.DIM{stroke:#c0392b;stroke-width:0.16}.HATCH{stroke:#777;stroke-width:0.12}.TITLE{stroke:#888;stroke-width:0.18}text{font-family:'IBM Plex Mono','Apple SD Gothic Neo','Malgun Gothic',monospace;fill:#333}text.DIM{fill:#c0392b}text.TEXT{fill:#1F5FA8}</style>`;
   return renderSVG(d).replace('<svg ', '<svg width="' + (d.bbox.maxx-d.bbox.minx+280) + 'mm" ').replace('>', '>' + css);
 }
 
