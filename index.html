@@ -589,6 +589,9 @@ function selMat(base){
   }
   return selMats[base.uuid];
 }
+// 그려야 할 것이 있을 때만 그린다. 아래 함수들이 장면을 바꾸면 반드시 표를 세운다.
+let 그릴까 = true;
+const 그리자 = () => { 그릴까 = true; };
 // 고른 것은 언제나 하나 — 부속 번호(pid). 3D·2D·부품표가 그 하나를 같이 본다.
 let selPid = null, pidKey = [];
 function applySel(){
@@ -599,6 +602,7 @@ function applySel(){
   });
   document.querySelectorAll('#svgwrap [data-pid]').forEach(el =>  // 2D 도면
     el.classList.toggle('sel', Number(el.dataset.pid) === selPid));
+  그리자();                                                      // 고른 것이 바뀌면 다시 그린다
   const key = selPid === null ? null : pidKey[selPid];
   document.querySelectorAll('#bomBody tr').forEach(tr =>          // 부품표
     tr.classList.toggle('on', !!key && tr.dataset.key === key));
@@ -611,6 +615,7 @@ function makeGrid(){
   grid = new THREE.GridHelper(size, Math.round(size/100), new THREE.Color(cssVar('--grid')), new THREE.Color(cssVar('--grid2')));
   grid.position.y = -state.H/2 - 1;
   scene.add(grid);
+  그리자();                            // 바탕 격자가 새로 섰다 (테마가 바뀔 때도 온다)
 }
 // SketchUp 축: X 빨강, Y 초록(깊이), Z 파랑(위) — 음의 방향은 점선. 원점 = 가구 앞·왼쪽·바닥 모서리
 function makeAxes(){
@@ -627,6 +632,7 @@ function makeAxes(){
     ln.computeLineDistances(); axes.add(ln);
   });
   scene.add(axes);
+  그리자();
 }
 function setTool(t){
   tool = t;
@@ -649,7 +655,7 @@ function init3D(){
   group = new THREE.Group(); scene.add(group);
   makeGrid();
   const wrap = cv.parentElement;
-  const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); };
+  const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); 그리자(); };
   new ResizeObserver(resize).observe(wrap); resize();
 
   // 좌우(tTheta)는 그대로. 상하만 뒤집는다 — 끄는 손을 모델이 따라와야 한다.
@@ -701,6 +707,9 @@ function init3D(){
     select(조각.userData.pid);
     메뉴열기(e.clientX, e.clientY, selPid);
   });
+  // 가운데 버튼은 mousedown 에서 막아야 브라우저 자동 스크롤이 안 뜬다. pointerdown 으로는 안 막힌다.
+  cv.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
+  cv.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
   cv.addEventListener('pointerdown', e => {
     const touch = e.pointerType === 'touch';
     let mode = null;
@@ -754,14 +763,29 @@ function init3D(){
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', makeGrid);
   new MutationObserver(makeGrid).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
-  (function loop(){
+  // 따라붙는 빠르기는 프레임 수가 아니라 시간으로 잰다. 60프레임이든 30프레임이든 같은 시간에 같은 만큼 온다.
+  // (60프레임에서는 예전과 똑같이 0.16 씩 온다.)
+  // 그리고 카메라가 다 닿고 바뀐 것이 없으면 그리지 않는다 — 가만히 둘 때 폰이 달지 않게.
+  let 지난때 = 0;
+  (function loop(now){
     requestAnimationFrame(loop);
-    const k = reduced ? 1 : 0.16;
-    cam.theta += (cam.tTheta-cam.theta)*k; cam.phi += (cam.tPhi-cam.phi)*k; cam.r += (cam.tR-cam.r)*k; cam.tgt.lerp(cam.tTgt, k);
+    const dt = 지난때 ? Math.min(100, now - 지난때) : 1000/60; 지난때 = now;
+    const k = reduced ? 1 : 1 - Math.pow(1 - 0.16, dt / (1000/60));
+    const 멀다 = Math.abs(cam.tTheta-cam.theta) > 1e-4 || Math.abs(cam.tPhi-cam.phi) > 1e-4
+              || Math.abs(cam.tR-cam.r) > 0.05 || cam.tgt.distanceToSquared(cam.tTgt) > 0.0025;
+    if (멀다){
+      cam.theta += (cam.tTheta-cam.theta)*k; cam.phi += (cam.tPhi-cam.phi)*k; cam.r += (cam.tR-cam.r)*k; cam.tgt.lerp(cam.tTgt, k);
+      그릴까 = true;
+    } else if (cam.theta !== cam.tTheta || cam.phi !== cam.tPhi || cam.r !== cam.tR || !cam.tgt.equals(cam.tTgt)){
+      cam.theta = cam.tTheta; cam.phi = cam.tPhi; cam.r = cam.tR; cam.tgt.copy(cam.tTgt);   // 마지막 한 번은 딱 맞춰 그린다
+      그릴까 = true;
+    }
+    if (!그릴까) return;
+    그릴까 = false;
     camera.position.set(cam.tgt.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta), cam.tgt.y + cam.r*Math.cos(cam.phi), cam.tgt.z + cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
     camera.lookAt(cam.tgt);
     renderer.render(scene, camera);
-  })();
+  })(performance.now());
 }
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
@@ -779,6 +803,7 @@ function rebuild3D(m){
   });
   applyExplode();
   makeGrid(); makeAxes();
+  그리자();                            // 치수를 바꿔 조각이 새로 섰다
   // 세팅을 바꿀 때마다 보시던 시각이 처음으로 돌아가지 않게, 맞추기는 첫 판에서만 한다.
   // 다시 맞추고 싶으시면 도구줄의 「전체」 나 Shift+Z 를 쓰시면 된다.
   if (첫판){ zoomExtents(); 첫판 = false; }
@@ -786,6 +811,7 @@ function rebuild3D(m){
 function applyExplode(){
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
   group.children.forEach(c => { const {base,dir} = c.userData; c.position.set(base[0]+dir[0]*e, base[1]+dir[1]*e, base[2]+dir[2]*e); });
+  그리자();
 }
 function setPressed(v){ document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
 
