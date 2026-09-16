@@ -106,6 +106,23 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap .pick{fill:transparent;stroke:transparent;stroke-width:22px;pointer-events:all;cursor:pointer}
 .svgwrap line.sel{stroke:var(--dim)}
 .svgwrap rect.pick.sel{fill:rgba(255,59,48,.18)}
+/* 도면 칸은 A4 여러 쪽이 위아래로 이어진 곳이다. 1쪽은 전체도면, 2쪽부터는 부속 하나하나.
+   쪽 하나가 A4 한 장(210×297mm) 비율이라 인쇄하면 그대로 종이 한 장이 된다. */
+.svgwrap .page{position:relative;width:100%;aspect-ratio:210/297;margin:0 auto 12px;border:1px solid var(--line);background:var(--surface)}
+.svgwrap .page:last-child{margin-bottom:0}
+.svgwrap .pnum{position:absolute;right:9px;bottom:5px;font-size:11px;color:var(--ink3)}
+/* 부속 쪽(.pg)은 mm 를 그대로 단위로 쓴다. 글자는 화면과 종이에서 크기가 달라야 한다 —
+   폰에서는 A4 한 장이 355px 로 눌려 종이 크기 글자가 4px 이 된다. */
+.pg text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2);dominant-baseline:central}
+.pg .ln{stroke:var(--ink);stroke-width:.35px;fill:none}
+.pg .ln2{stroke:var(--ink3);stroke-width:.2px}
+.pg .dim{stroke:var(--dim);stroke-width:.18px}
+.pg .gr{stroke:var(--accent);stroke-width:.22px}
+.pg .t1{font-size:5px;fill:var(--head);font-weight:700}
+.pg .t2{font-size:3.6px;fill:var(--ink)}
+.pg .t3{font-size:3px;fill:var(--dim)}
+.pg .t4{font-size:2.9px;fill:var(--ink3)}
+@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}}
 .bom{grid-area:bom;display:flex;flex-direction:column}
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
@@ -178,6 +195,19 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 @media (max-width:1100px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(380px,60vh) minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "draw" "bom"}
   .params{padding-bottom:18px}.stats{margin-top:4px}
+}
+/* 인쇄 — 도면 칸만 나간다. 쪽 하나가 A4 한 장이다. */
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{height:auto;background:#fff}
+  .app{display:block;background:#fff;gap:0;min-height:0}
+  .app>*:not(.draw){display:none}
+  .draw{display:block;min-height:0}
+  .draw .panelhead{display:none}
+  .svgwrap{overflow:visible;padding:0;flex:none}
+  .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
+  .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
+  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
@@ -705,6 +735,86 @@ function svgForFile(d){
   return renderSVG(d).replace('<svg ', '<svg width="' + (d.bbox.maxx-d.bbox.minx+280) + 'mm" ').replace('>', '>' + css);
 }
 
+/* ───────── 부속 도면 — A4 한 장씩 ─────────
+   도면 칸은 A4 여러 쪽이 위아래로 이어진 곳이다. 1쪽은 여태 쓰던 전체도면 그대로,
+   2쪽부터는 부속 하나하나의 도면과 치수다. 한 쪽에 세 부속씩 넣고, 부속이 늘면 쪽이 는다.
+   여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
+   내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
+const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
+const n2 = n => String(Math.round(n*100)/100);
+
+// 부속 도면에 실을 줄. 부품표와 같은 규칙으로 묶되 숨긴 부속은 뺀다
+// (숨기기는 3D·도면 둘 다에서 빼고 부품표에만 남긴다).
+function 부속행들(m){
+  const map = new Map();
+  m.parts.filter(p => !p.숨김).forEach(p => {
+    const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
+    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut});
+    map.get(k).qty += 1 + (p.더 || 0);
+  });
+  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 홈:false}));
+  return [...map.values()];
+}
+
+// 부속 한 쪽 = A4 한 장. 단위는 mm 그대로다(viewBox 0 0 210 297).
+function 부속쪽SVG(행들, m){
+  const M = A4.여백, x0 = M, x1 = A4.W - M, o = [];
+  const 선 = (ax,ay,bx,by,c) => o.push(`<line class="${c}" x1="${n2(ax)}" y1="${n2(ay)}" x2="${n2(bx)}" y2="${n2(by)}"/>`);
+  const 글 = (str,x,y,c,a) => o.push(`<text class="${c}" x="${n2(x)}" y="${n2(y)}" text-anchor="${a || 'middle'}">${esc(String(str))}</text>`);
+  const 가로치수 = (ax,bx,y,str) => { 선(ax,y-2.6,ax,y+1,'dim'); 선(bx,y-2.6,bx,y+1,'dim'); 선(ax,y,bx,y,'dim'); 글(str,(ax+bx)/2,y+3.4,'t3'); };
+  const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
+    o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
+  글('부속 도면 · 재단 치수 mm', x0, M+2, 't2', 'start');
+  글('가로 = 결 길이 · 세로 = 결 폭', x1, M+2, 't4', 'end');
+  선(x0, M+5, x1, M+5, 'ln2');
+  const 위 = M + 8, 칸높 = ((A4.H - M - 4) - 위) / 행들.length;   // 한 쪽에 든 만큼 나눠 쓴다 — 적게 들면 크게 그린다
+  행들.forEach((r, i) => {
+    const ty = 위 + i*칸높;
+    if (i) 선(x0, ty, x1, ty, 'ln2');
+    const ix = x1 - A4.정보;                                  // 정보 칸 왼쪽 끝
+    const dx = x0 + 13, dy = ty + 6;                          // 왼쪽 13 은 세로 치수 자리
+    const dw = (ix - 10) - dx, dh = 칸높 - 6 - 14;             // 아래 14 는 가로 치수 자리
+    // 겉면과 두께(측면)를 나란히 놓는다. 두 개가 같은 배율로 들어가게 배율을 잡는다.
+    const k = Math.min((dw - 1.5) / (r.L + r.T), dh / r.W);
+    const w = r.L*k, h = r.W*k, tw = r.T*k;
+    const fx = dx + (dw - (w + 1.5 + tw))/2, fy = dy + (dh - h)/2;
+    o.push(`<rect class="ln" x="${n2(fx)}" y="${n2(fy)}" width="${n2(w)}" height="${n2(h)}"/>`);
+    o.push(`<rect class="ln" x="${n2(fx+w+1.5)}" y="${n2(fy)}" width="${n2(tw)}" height="${n2(h)}"/>`);
+    // 결은 언제나 「결 길이」 쪽으로 간다 — 부품표의 결 길이·결 폭과 같은 뜻이다.
+    const my = fy + h/2, a = fx + w*0.30, b = fx + w*0.70;
+    선(a,my,b,my,'gr'); 선(a,my,a+2.2,my-1.1,'gr'); 선(a,my,a+2.2,my+1.1,'gr');
+    선(b,my,b-2.2,my-1.1,'gr'); 선(b,my,b-2.2,my+1.1,'gr');
+    글(`결 ${r.grain}`, (a+b)/2, my - 3, 't4');
+    // 끼우기에서 뒷판이 물리는 홈. 뒤 끝에서 홈뒤살 만큼 들어와 홈 폭만큼 판다.
+    if (r.홈 && m.홈){
+      const g1 = fy + h - 규칙.홈뒤살*k, g0 = g1 - m.홈.폭*k;
+      선(fx,g0,fx+w,g0,'ln2'); 선(fx,g1,fx+w,g1,'ln2');
+      글('앞', fx + 4, fy + 4.2, 't4'); 글('뒤', fx + 4, fy + h - 4.2, 't4');
+      선(fx + w*0.5, g0, fx + w*0.5, g0 - 1, 'ln2');     // 홈은 실제 비례로는 가늘다 — 어디인지 가리켜 준다
+      글('홈', fx + w*0.5, g0 - 2.4, 't4');
+    }
+    가로치수(fx, fx+w, fy + h + 4.5, fmt(r.L));
+    가로치수(fx+w+1.5, fx+w+1.5+tw, fy + h + 4.5, fmt(r.T));
+    세로치수(fy, fy+h, fx - 4.5, fmt(r.W));
+    // 정보 칸 — 사이즈 정보를 글자로도 적는다.
+    const 줄 = [['수량', r.qty], ['가로', fmt(r.L)], ['세로', fmt(r.W)], ['두께', fmt(r.T)], ['결', r.grain]];
+    if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(규칙.홈뒤살)}`]);
+    글(r.name, ix, ty + 8, 't1', 'start');
+    선(ix, ty + 11, x1, ty + 11, 'ln2');
+    줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
+  });
+  return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
+}
+// 한 쪽에 세 부속까지. 쪽 수를 먼저 정하고 부속을 고르게 나눠 담는다 —
+// 마지막 쪽만 덩그러니 한 칸 쓰는 일이 없고, 적게 든 쪽은 그만큼 크게 그린다.
+function 부속쪽들(m){
+  const 행 = 부속행들(m);
+  if (!행.length) return [];
+  const 장 = Math.ceil(행.length / A4.칸수), 쪽 = [];
+  for (let i = 0; i < 장; i++) 쪽.push(부속쪽SVG(행.splice(0, Math.ceil(행.length / (장 - i))), m));
+  return 쪽;
+}
+
 /* ───────── DXF 작성 (R12 / AC1009) ───────── */
 const dxfText = s => Array.from(s).map(ch => ch.charCodeAt(0) > 127 ? '\\U+' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0') : ch).join('');
 const fx = n => String(Math.round(n*1000)/1000);
@@ -1037,16 +1147,21 @@ function update(){
 }
 
 // 도면 칸 너비가 바뀌면 글자배도 달라진다 — 다시 그린다(모델은 그대로).
+// 전체도면은 이제 A4 한 장(210×297) 안에 들어가므로, 세로로도 잘려 줄어든다. 둘 중 작은 쪽으로 잰다.
 function 글자배(){
   if (!drawing) return 1;
-  const 칸 = $('#svgwrap').clientWidth || 1;
+  const 칸 = Math.max(1, ($('#svgwrap').clientWidth || 1) - 22);   // 좌우 여백 10 + 테두리 1
+  const 높 = 칸 * A4.H / A4.W;
   const 폭 = (drawing.bbox.maxx - drawing.bbox.minx) + 280;
-  const px칸 = 칸 / 폭;                                   // 도면 1mm 이 화면에서 몇 px 인가
+  const 키 = (drawing.bbox.maxy - drawing.bbox.miny) + 280;
+  const px칸 = Math.min(칸 / 폭, 높 / 키);                 // 도면 1mm 이 화면에서 몇 px 인가
   return Math.min(3, Math.max(1, 9 / (30 * px칸)));       // 치수 숫자(30)가 9px 은 되게
 }
 function 도면그리기(){
   if (!drawing) return;
-  $('#svgwrap').innerHTML = renderSVG(drawing, true, 글자배());
+  const 쪽들 = [renderSVG(drawing, true, 글자배()), ...부속쪽들(모델 || buildModel(state))];
+  $('#svgwrap').innerHTML = 쪽들.map((g, i) =>
+    `<div class="page">${g}<span class="pnum mono">${i+1} / ${쪽들.length}</span></div>`).join('');
   applySel();
 }
 let 도면칸폭 = 0;
