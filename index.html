@@ -493,6 +493,15 @@ function buildModel(s){
     for (let k = 0; k < n; k++)
       add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
+  // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」.
+  // 몸통 뒷판 위로 덧대는 보호대다. 측판과 측판 사이에 정사이즈로 들어가고,
+  // 높이는 측판 바닥부터 하판이 끝나는 곳(걸레받이 + 하판)까지다.
+  // 기본값(W800 · 측판 18T · 걸레받이 80 · 하판 18T)에서 764 × 98 이 된다.
+  만든부속.forEach(c => {
+    if (c.이름 !== '밴드') return;
+    const 밴드폭 = W - 2*Tside, 밴드높 = bz + Tbot;
+    add('밴드', Tside, 선반끝 - c.T, 0, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'});
+  });
   // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
   // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
   const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
@@ -715,6 +724,8 @@ function buildDrawing(s, m){
 
 // 홈을 파는 부속 — 사장님 말씀의 「양측판, 상판, 맨바닥선반」. 이 모델에서 뒷판이 닿는 맨 아래 것은 하판이라 하판으로 본다.
 const 홈부속 = ['측판','상판','하판'];
+// 자리 규칙이 있어 buildModel 이 직접 세우는 만든 부속 — 부품표에서 두 번 세지 않는다.
+const 자리있는부속 = ['밴드'];
 function bomRows(m){
   const map = new Map();
   const 홈글 = m.홈 ? `홈 ${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}` : '';
@@ -724,7 +735,7 @@ function bomRows(m){
     map.get(k).qty += 1 + (p.더 || 0);
   });
   // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
-  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 비고:''}));
+  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 비고:''}); });
   return [...map.values()];
 }
 
@@ -768,7 +779,7 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
-const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','걸레받이','뒷판'];
+const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','걸레받이','뒷판','밴드'];
 const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
@@ -786,7 +797,7 @@ function 부속행들(m){
     if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut});
     map.get(k).qty += 1 + (p.더 || 0);
   });
-  만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 홈:false}));
+  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 홈:false}); });
   // 자주 보는 것이 앞에 온다 — 몸통 → 문짝 → 선반 → 걸레받이 → 뒷판, 만든 부속은 맨 뒤.
   // 부품표(bomRows)의 차례는 건드리지 않는다.
   const 순 = n => { const i = 부속차례.indexOf(n); return i < 0 ? 부속차례.length : i; };
