@@ -833,8 +833,12 @@ function 부속쪽SVG(행들, m){
     const ix = x1 - A4.정보;                                  // 정보 칸 왼쪽 끝
     const dx = x0 + 13, dy = ty + 6;                          // 왼쪽 13 은 세로 치수 자리
     // 홈 파는 부속은 칸 아래쪽을 홈 가공도에 내준다 — 그 부속 정보가 있는 자리에 그 부속 홈이 붙는다.
-    const 홈칸 = (r.홈 && m.홈) ? Math.min(46, (칸높 - 20)*0.45) : 0;
-    const dw = (ix - 10) - dx, dh = 칸높 - 6 - 14 - 홈칸;      // 아래 14 는 가로 치수 자리
+    // 홈 가공도 배율은 칸 너비가 정한다. 그러니 그만큼만 자리를 떼고 나머지는 겉면 그림에 준다.
+    const dw = (ix - 10) - dx;
+    const 보임 = 규칙.홈뒤살 + (m.홈 ? m.홈.폭 : 0) + 8;        // 뒤 끝에서 이만큼만 잘라 본다
+    const 배 = (r.홈 && m.홈) ? Math.min(dw*0.95 / 보임, 12) : 0;
+    const 홈칸 = (r.홈 && m.홈) ? Math.min((칸높 - 20)*0.72, r.T*배 + 30.5) : 0;
+    const dh = 칸높 - 6 - 14 - 홈칸;                           // 아래 14 는 가로 치수 자리
     // 겉면과 두께(측면)를 나란히 놓는다. 두 개가 같은 배율로 들어가게 배율을 잡는다.
     const k = Math.min((dw - 1.5) / (r.L + r.T), dh / r.W);
     const w = r.L*k, h = r.W*k, tw = r.T*k;
@@ -865,8 +869,8 @@ function 부속쪽SVG(행들, m){
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
     // ── 이 부속의 홈 가공도 (끼우기에서 홈 파는 부속만) ──────────────
     if (홈칸){
-      const sh = 홈칸 - 6, 보임 = 규칙.홈뒤살 + m.홈.폭 + 14;   // 뒤 끝에서 이만큼만 잘라 본다
-      const 배 = Math.min(dw*0.5 / 보임, sh / r.T);
+      // 치수가 제자리에 들어갈 만큼 키운다 — 캐드에서 좁은 자리를 재는 법은 상세도를 키우는 것이다.
+      // 위 22 는 이름표·치수선·숫자 자리, 아래 8.5 는 앞·뒤 글자 자리다.
       const sw = 보임*배, st = r.T*배;
       const sx = dx, sy = ty + 칸높 - 8.5 - st;
       const gx = sx + sw - (규칙.홈뒤살 + m.홈.폭)*배, gw = m.홈.폭*배, gd = m.홈.깊이*배;
@@ -894,9 +898,8 @@ function 부속쪽SVG(행들, m){
       const vx = gx + gw + 2.4;                             // 깊이 — 홈 옆 살 안에 세로로
       선(vx, sy, vx, sy + gd, 'dim'); 자국(vx, sy); 자국(vx, sy + gd);
       선(gx + gw, sy + gd, vx + 1.2, sy + gd, 'dim');
-      글(fmt(m.홈.깊이), vx + 1.8, sy + gd/2, 't3', 'start');
-      글(`홈 가공도 ${배.toFixed(1)}배`, sx + sw + 7, sy + st - 6, 't5', 'start');   // 이름표(치수가 아니다)
-      글(`${r.name} ${홈면[r.name] || ''}`, sx + sw + 7, sy + st, 't5', 'start');
+      o.push(`<text class="t3" x="${n2(vx - 1.6)}" y="${n2(sy + gd/2)}" text-anchor="middle" transform="rotate(-90 ${n2(vx - 1.6)} ${n2(sy + gd/2)})">${esc(fmt(m.홈.깊이))}</text>`);
+      글(`홈 가공도 ${배.toFixed(1)}배 · ${r.name} ${홈면[r.name] || ''}`, sx, sy - 13, 't5', 'start');
       세로치수(sy, sy + st, sx - 4.5, fmt(r.T));
     }
   });
@@ -907,7 +910,7 @@ function 부속쪽SVG(행들, m){
 function 부속쪽들(m){
   const 행 = 부속행들(m);
   if (!행.length) return [];
-  const 무게 = r => (r.홈 && m.홈) ? 1.5 : 1;          // 홈 가공도까지 드는 부속은 자리를 한 칸 반 쓴다
+  const 무게 = r => (r.홈 && m.홈) ? A4.칸수 : 1;      // 홈 파는 부속은 홈 가공도가 커야 해서 한 쪽을 통째로 쓴다
   const 무게합 = 칸 => 칸.reduce((a, r) => a + 무게(r), 0);
   const 쪽 = [];
   let 칸 = [];
