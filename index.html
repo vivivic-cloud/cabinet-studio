@@ -1040,8 +1040,12 @@ function applySel(){
 }
 function select(pid){ selPid = (pid === null || pid === undefined) ? null : Number(pid); applySel(); }
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+// 바닥 격자는 안 보이게 해 두었다 — 사장님 말씀(09-16 「3D 도면의 바닥 경계그물이 안 보이게」).
+// 자리는 그대로 두고 보이기만 끈다. 도로 켜려면 `바닥격자` 를 true 로 두면 된다.
+const 바닥격자 = false;
 function makeGrid(){
-  if (grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  if (grid){ scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); grid = null; }
+  if (!바닥격자){ 그리자(); return; }
   const size = Math.max(state.W, state.D) * 3;
   grid = new THREE.GridHelper(size, Math.round(size/100), new THREE.Color(cssVar('--grid')), new THREE.Color(cssVar('--grid2')));
   grid.position.y = -state.H/2 - 1;
