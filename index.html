@@ -863,10 +863,18 @@ function 부속쪽SVG(행들, m){
       선(gx, sy, gx, sy+gd, 'ln'); 선(gx, sy+gd, gx+gw, sy+gd, 'ln'); 선(gx+gw, sy+gd, gx+gw, sy, 'ln');
       빗금(sx, sy, gx-sx, st); 빗금(gx, sy+gd, gw, st-gd); 빗금(gx+gw, sy, sx+sw-(gx+gw), st);
       글('앞', sx + 3, sy + st + 3.2, 't5'); 글('뒤', sx + sw - 3, sy + st + 3.2, 't5');
-      const lx = sx + sw + 5, ly = sy + st/2;
-      [`홈 가공도 · ${배.toFixed(1)}배`, `${r.name} · ${홈면[r.name] || ''}`,
-       `폭 ${fmt(m.홈.폭)} · 깊이 ${fmt(m.홈.깊이)}`, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`]
-        .forEach((str, j) => 글(str, lx, ly - 8.4 + j*5.6, 't5', 'start'));
+      // 홈 치수는 그림에 찍는다. 홈이 3.5mm 라 숫자가 제 치수선보다 넓다 —
+      // 그래서 가리키는 곳에서 지시선을 그어 옆으로 빼서 적는다(1쪽 홈 가공도에서 쓰던 방법이다).
+      const lx = sx + sw + 7, ly0 = sy + 2;
+      const 빼서적기 = (px, py, ly, str) => {
+        선(px, py, lx - 3, ly, 'dim'); 선(lx - 3, ly, lx - 0.8, ly, 'dim');
+        글(str, lx, ly, 't3', 'start');
+      };
+      글(`홈 가공도 · ${배.toFixed(1)}배 · ${홈면[r.name] || ''}`, lx, ly0, 't5', 'start');
+      빼서적기(gx + gw/2, sy + gd, ly0 + 6.2, `폭 ${fmt(m.홈.폭)}`);
+      빼서적기(gx + gw, sy + gd/2, ly0 + 12.4, `깊이 ${fmt(m.홈.깊이)}`);
+      빼서적기((gx + gw + sx + sw)/2, sy, ly0 + 18.6, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
+      세로치수(sy, sy + st, sx - 4.5, fmt(r.T));
     }
   });
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
