@@ -210,7 +210,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 @media (max-width:1100px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(380px,60vh) minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "draw" "bom"}
   .params{padding-bottom:18px}.stats{margin-top:4px}
+  /* 폰에서 3D 를 만지고 손을 떼면 설정 칸이 접히고 3D 가 커진다. 다시 펴는 단추는 접힌 자리에 선다. */
+  .app.집중{grid-template-rows:auto auto minmax(380px,84vh) minmax(380px,60vh) auto}
+  .params.접힘{padding:0;gap:0;overflow:hidden}
+  .params.접힘>*:not(.파람바){display:none}
+  .params.접힘 .파람바{display:flex}
 }
+.파람바{display:none;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;
+  border:0;border-radius:0;border-bottom:1px solid var(--line2);background:var(--surface);
+  font-weight:700;color:var(--ink2);letter-spacing:.02em}
+.파람바:hover{background:var(--surface2)}
+.파람바::after{content:"▾"}
 /* 인쇄 — 도면 칸만 나간다. 쪽 하나가 A4 한 장이다. */
 @media print{
   @page{size:A4 portrait;margin:0}
@@ -249,6 +259,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </header>
 
   <aside class="params" aria-label="치수 설정">
+    <button type="button" id="btnParams" class="파람바">설정 펴기</button>
     <div class="group">
       <h2>외형 치수</h2>
       <div class="field"><label for="W">폭 <small>Width</small></label><div class="num"><input id="W" data-key="W" type="number" min="300" max="2400" step="1" value="800"><span>mm</span></div></div>
@@ -1441,6 +1452,51 @@ addEventListener('pointerdown', e => {
 addEventListener('keydown', e => { if (e.key === 'Escape'){ 메뉴닫기(); 숨김목록닫기(); } });
 addEventListener('scroll', () => { if (메뉴짚음) 메뉴닫기(); if (숨김열림) 숨김목록닫기(); }, true);
 addEventListener('resize', () => { if (메뉴짚음) 메뉴닫기(); if (숨김열림) 숨김목록닫기(); });
+
+/* ───────── 폰에서 3D 에 집중하기 ─────────
+   사장님 말씀 — 「모바일에서 3D 를 만지고 손을 떼면 조용히 설정부가 사라져 도면에 집중하게」.
+   ① 접는 때는 **손을 뗀 뒤**다. 만지는 중에 접으면 손가락 밑에서 화면이 튄다.
+   ② 한 번 접히면 그대로 둔다. 만질 때마다 폈다 접었다 하면 어지럽다.
+   ③ **다시 펴는 길은 언제나 있다** — 접힌 자리에 「설정 펴기」 단추가 선다(높이 44px).
+   ④ 움직임은 자바스크립트로 준다. 아이폰에서 CSS 움직임이 멎는 일이 있다.
+   ⑤ 길게 누르기(지시 손잡이)는 건드리지 않는다 — pointerup 만 듣고 아무것도 막지 않는다. */
+(function(){
+  const 판 = $('.params'), 틀 = $('.app'), 단추 = $('#btnParams');
+  const 폰 = () => matchMedia('(max-width:1100px)').matches;
+  let 접힘 = false, 몰이 = 0;
+  const 몰기 = (처음, 끝, 뒤에) => {
+    cancelAnimationFrame(몰이);
+    const 시작 = performance.now(), 길이 = 220;
+    판.style.overflow = 'hidden';
+    const 걸음 = t => {
+      const q = Math.min(1, (t - 시작)/길이), e = 1 - Math.pow(1 - q, 3);
+      판.style.maxHeight = (처음 + (끝 - 처음)*e) + 'px';
+      if (q < 1) 몰이 = requestAnimationFrame(걸음);
+      else { 판.style.maxHeight = ''; 판.style.overflow = ''; if (뒤에) 뒤에(); }
+    };
+    몰이 = requestAnimationFrame(걸음);
+  };
+  const 접기 = () => {
+    if (접힘 || !폰()) return;
+    const h0 = 판.getBoundingClientRect().height;
+    접힘 = true;
+    몰기(h0, 44, () => { 판.classList.add('접힘'); 틀.classList.add('집중'); });
+  };
+  const 펴기 = () => {
+    if (!접힘) return;
+    접힘 = false;
+    판.classList.remove('접힘'); 틀.classList.remove('집중');
+    판.style.maxHeight = 'none';
+    const h1 = 판.scrollHeight;
+    몰기(44, h1);
+  };
+  단추.addEventListener('click', 펴기);
+  // 3D 를 만지고 손을 뗀 그때 접는다. 끌었든 톡 쳤든 마찬가지다.
+  const 캔 = $('#c3d');
+  if (캔){ ['pointerup','pointercancel'].forEach(n => 캔.addEventListener(n, 접기)); }
+  // 넓은 화면으로 돌아가면 접힘을 푼다 — 거기서는 나란히 놓여 불편이 없다.
+  addEventListener('resize', () => { if (접힘 && !폰()) 펴기(); });
+})();
 
 /* ───────── 2D 도면에서 부속 고르기 ─────────
    3D 와 같은 규칙이다. 짧게 톡 치면 고르고, 끌면(쪽 넘기기) 고르지 않고,
