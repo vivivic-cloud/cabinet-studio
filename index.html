@@ -1320,8 +1320,12 @@ function 밴드살피기(){
   });
 }
 // 그 자리로 다가가 등각으로 돌리고, 밴드를 붉게 여러 번 깜박인다.
+// **끝나면 보시던 자리로 카메라를 돌려놓는다.** 안 돌려놓으면 가구 뒤 밴드에 붙은 채 서 있어
+// 앞면 문짝이 화면 밖으로 나간다 — 「3D 도면 도어 사라짐」 이라 하신 것이 이 자리였다.
 function 밴드깜박(조각, 끝나면){
   if (!조각 || !camera){ 끝나면(); return; }           // 3D 가 못 뜬 판에서는 조정만 하고 넘어간다
+  const 본자리 = { theta:cam.tTheta, phi:cam.tPhi, r:cam.tR, tgt:cam.tTgt.clone() };
+  const 되돌리기 = () => { cam.tTheta = 본자리.theta; cam.tPhi = 본자리.phi; cam.tR = 본자리.r; cam.tTgt.copy(본자리.tgt); };
   const [t, ph] = VIEWS.iso; cam.tTheta = t; cam.tPhi = ph;
   const b = 조각.userData.base;
   cam.tTgt.set(b[0], b[1], b[2]);                      // 밴드 한가운데를 본다
@@ -1329,17 +1333,23 @@ function 밴드깜박(조각, 끝나면){
   그리자();
   if (!밴드붉음) 밴드붉음 = new THREE.MeshStandardMaterial({ color:0xFF3B30, emissive:0xFF3B30, emissiveIntensity:0.55, roughness:0.6, metalness:0 });
   let n = 0;
+  const 마무리 = () => {
+    깜박타이머 = 0;
+    조각.material = 조각.userData.baseMat; 조각.children[0].material = edgeMat;
+    되돌리기(); 그리자(); 끝나면();
+  };
   const 깜박 = () => {
+    if (!조각.parent){ 마무리(); return; }              // 그 사이 모델이 새로 섰다 — 옛 조각을 놓는다
     const 켬 = n % 2 === 0;
     조각.material = 켬 ? 밴드붉음 : 조각.userData.baseMat;
     조각.children[0].material = 켬 ? selEdgeMat : edgeMat;
     그리자();
-    if (++n < 8) setTimeout(깜박, 230);
-    else { 조각.material = 조각.userData.baseMat; 조각.children[0].material = edgeMat; 그리자(); 끝나면(); }
+    if (++n < 8) 깜박타이머 = setTimeout(깜박, 230);
+    else 마무리();
   };
-  setTimeout(깜박, 420);                               // 카메라가 그 자리로 간 뒤에 깜박인다
+  깜박타이머 = setTimeout(깜박, 420);                   // 카메라가 그 자리로 간 뒤에 깜박인다
 }
-let 밴드붉음 = null;
+let 밴드붉음 = null, 깜박타이머 = 0;
 
 // 도면 칸 너비가 바뀌면 글자배도 달라진다 — 다시 그린다(모델은 그대로).
 // 전체도면은 이제 A4 한 장(210×297) 안에 들어가므로, 세로로도 잘려 줄어든다. 둘 중 작은 쪽으로 잰다.
