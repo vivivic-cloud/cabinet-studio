@@ -207,6 +207,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 .dlg p{margin:0;color:var(--ink2);font-size:13px}
 .dlg textarea{width:100%;height:240px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;background:var(--surface2);color:var(--ink);border:1px solid var(--line);border-radius:13px;padding:12px 14px;resize:vertical}
 .dlg .row{display:flex;gap:8px;justify-content:flex-end}
+#warnDlg{width:min(420px,92vw)}
+#warnDlg .row button{min-height:44px;padding:11px 24px}
+#warnDlg p{font-size:14px;line-height:1.55;color:var(--ink)}
 @media (max-width:1100px){
   .app{grid-template-columns:1fr;grid-template-rows:auto auto minmax(380px,60vh) minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "draw" "bom"}
   .params{padding-bottom:18px}.stats{margin-top:4px}
@@ -351,6 +354,13 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </section>
 </div>
 
+<dialog id="warnDlg" aria-labelledby="warnTitle">
+  <div class="dlg">
+    <h3 id="warnTitle">밴드가 측판보다 튀어나옵니다</h3>
+    <p id="warnMsg"></p>
+    <div class="row"><button type="button" id="warnOk" class="primary">확인</button></div>
+  </div>
+</dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg"><div class="dlg">
   <h3 id="dlgTitle">DXF 내용</h3>
@@ -447,11 +457,6 @@ function buildModel(s){
   // 선반은 뒷판 앞면에서 멈춘다. 덮기면 몸통 깊이가 곧 뒷판 앞면이고,
   // 끼우기면 뒷판이 홈 뒤쪽 벽에 붙어 있으므로 그 앞면(홈뒤 − 뒷판 두께)이 끝이다.
   const 선반끝 = 끼움 ? 홈뒤 - TB : CD;
-  // 밴드가 있으면 덮기에서 하판이 그만큼 짧아진다 — 밴드가 하판 끝을 타고 덮는다(사장님 말씀).
-  // 끼우기는 사장님이 아직 안 짚으셨다. 건드리지 않는다.
-  const 밴드부속 = 만든부속.find(c => c.이름 === '밴드');
-  const 밴드탐 = (!끼움 && 밴드부속
-      && !손질.지움.includes(`밴드@${Math.round(Tside)},${Math.round(선반끝 - 밴드부속.T)},0`)) ? 밴드부속.T : 0;
   const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
   const parts = [];
@@ -460,7 +465,7 @@ function buildModel(s){
   add('측판', W-Tside, 0, 0, Tside, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
   const tx = topStyle === 'overlay' ? 0 : Tside, tw = topStyle === 'overlay' ? W : W - 2*Tside;
   add('상판', tx, 0, H-Ttop, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
-  add('하판', Tside, 0, bz, W-2*Tside, CD - 밴드탐, Tbot, [0,0,-1], {L:W-2*Tside, W:CD - 밴드탐, T:Tbot, grain:'가로'});
+  add('하판', Tside, 0, bz, W-2*Tside, CD, Tbot, [0,0,-1], {L:W-2*Tside, W:CD, T:Tbot, grain:'가로'});
   const innerH = (H - Ttop) - (bz + Tbot);
   // 선반은 두 갈래다. 고정 선반은 측판에 체결해 박히고, 이동 선반은 체결 없이 철물 위에 얹힌다.
   // 얹히는 것이라 좌우로 조금 작게 짜는 집이 있어 그 값을 규칙에 두었다(기본 0 — 안 건드리면 예전과 같다).
@@ -509,20 +514,24 @@ function buildModel(s){
     for (let k = 0; k < n; k++)
       add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
   }
-  // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」.
-  // 몸통 뒷판 위로 덧대는 보호대다. 측판과 측판 사이에 정사이즈로 들어가고,
-  // 높이는 측판 바닥부터 하판이 끝나는 곳(걸레받이 + 하판)까지다.
-  // 기본값(W800 · 측판 18T · 걸레받이 80 · 하판 18T)에서 764 × 98 이 된다.
+  // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」 (09-16 고쳐 주신 규칙).
+  // 측판과 측판 사이에 정사이즈로 들어가고, **하판 위로 올라탄다**.
+  // 재단은 두 방식 모두 같다 — 가로 = 내부 폭, 세로 = 걸레받이 + 하판 두께(기본값 764 × 98).
+  //   덮기   — 가구 안쪽에서 뒷판과 맞닿는다(측판 안쪽 끝선과 맞춤)
+  //   끼우기 — 뒷판 바깥(뒤)에 올라탄다. 두꺼우면 측판 뒤끝을 넘어 튀어나온다.
+  let 밴드넘침 = 0;
   만든부속.forEach(c => {
     if (c.이름 !== '밴드') return;
     const 밴드폭 = W - 2*Tside, 밴드높 = bz + Tbot;
-    add('밴드', Tside, 선반끝 - c.T, 0, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'});
+    const 밴드y = 끼움 ? 홈뒤 : CD - c.T;
+    밴드넘침 = Math.max(0, (밴드y + c.T) - CD);          // 측판 뒤끝(CD)을 넘어 나온 길이
+    add('밴드', Tside, 밴드y, 밴드높, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'});
   });
   // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
   // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
   const 산것 = parts.filter(p => !손질.지움.includes(자리(p)));
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
-  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈 };
+  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈, 밴드넘침 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -1272,7 +1281,61 @@ function update(){
   표값갱신();
   $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
   if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.홈뒤살;
+  밴드살피기();
 }
+
+/* ───────── 밴드가 측판보다 튀어나오는 것을 경고한다 ─────────
+   사장님 말씀 — 「밴드 두께를 15mm 이상 선택시 측판을 넘어 튀어 나오는 것을 경고.
+   3D 가 그 자리로 확대되고 등각 시선으로 보이며 밴드가 붉게 여러 번 깜박인다.
+   무시할 수 없으므로 두께를 15mm 로 자동조정한 뒤 바뀌었음을 알린다.」
+
+   두 가지는 관리자가 정해 사장님께 말씀드린 것이다 —
+   ① **15 는 그냥 두고 15 를 넘을 때만** 경고한다. 15 에서 경고하고 다시 15 로 맞추면 끝없이 돈다.
+   ② **정말 튀어나올 때만** 경고한다. 덮기는 밴드가 가구 안쪽에 있어 아무리 두꺼워도 안 나온다 —
+      거기서 「튀어나왔다」 고 하면 거짓이 된다. 그래서 `m.밴드넘침 > 0` 일 때만 (= 끼우기) 뜬다. */
+const 밴드한계 = 15;
+let 경고중 = false;
+function 밴드살피기(){
+  if (경고중) return;
+  const c = 만든부속.find(x => x.이름 === '밴드');
+  if (!c || !(c.T > 밴드한계)) return;                 // 15 이하는 여기서 끝 — 아래는 아예 안 돈다
+  const m = 모델;
+  if (!m || !(m.밴드넘침 > 0)) return;                 // 안 튀어나오면 경고하지 않는다(덮기가 여기서 걸린다)
+  const 넘침 = m.밴드넘침, 두께 = c.T;
+  경고중 = true;
+  const 밴드부속 = m.parts.find(p => p.name === '밴드' && !p.숨김);
+  const 조각 = (group && 밴드부속) ? group.children.find(x => x.userData.pid === 밴드부속.pid) : null;
+  밴드깜박(조각, () => {
+    c.T = 밴드한계; 담기(); 부속그리기(); update();     // 자동 조정
+    경고중 = false;
+    $('#warnMsg').textContent =
+      `밴드 두께 ${fmt(두께)}mm 는 측판 뒤끝보다 ${fmt(넘침)}mm 뒤로 튀어나옵니다. `
+      + `두께를 ${밴드한계}mm 로 맞췄습니다.`;
+    const dlg = $('#warnDlg');
+    if (dlg.showModal && !dlg.open) dlg.showModal(); else toast(`밴드 두께를 ${밴드한계}mm 로 맞췄습니다`);
+  });
+}
+// 그 자리로 다가가 등각으로 돌리고, 밴드를 붉게 여러 번 깜박인다.
+function 밴드깜박(조각, 끝나면){
+  if (!조각 || !camera){ 끝나면(); return; }           // 3D 가 못 뜬 판에서는 조정만 하고 넘어간다
+  const [t, ph] = VIEWS.iso; cam.tTheta = t; cam.tPhi = ph;
+  const b = 조각.userData.base;
+  cam.tTgt.set(b[0], b[1], b[2]);                      // 밴드 한가운데를 본다
+  cam.tR = Math.max(420, state.W * 0.85);              // 그만큼 다가간다
+  그리자();
+  if (!밴드붉음) 밴드붉음 = new THREE.MeshStandardMaterial({ color:0xFF3B30, emissive:0xFF3B30, emissiveIntensity:0.55, roughness:0.6, metalness:0 });
+  let n = 0;
+  const 깜박 = () => {
+    const 켬 = n % 2 === 0;
+    조각.material = 켬 ? 밴드붉음 : 조각.userData.baseMat;
+    조각.children[0].material = 켬 ? selEdgeMat : edgeMat;
+    그리자();
+    if (++n < 8) setTimeout(깜박, 230);
+    else { 조각.material = 조각.userData.baseMat; 조각.children[0].material = edgeMat; 그리자(); 끝나면(); }
+  };
+  setTimeout(깜박, 420);                               // 카메라가 그 자리로 간 뒤에 깜박인다
+}
+let 밴드붉음 = null;
 
 // 도면 칸 너비가 바뀌면 글자배도 달라진다 — 다시 그린다(모델은 그대로).
 // 전체도면은 이제 A4 한 장(210×297) 안에 들어가므로, 세로로도 잘려 줄어든다. 둘 중 작은 쪽으로 잰다.
@@ -1654,6 +1717,7 @@ $('#btnSvg').addEventListener('click', async () => {
   await save(fileBase() + '.svg', svg, () => showFallback('SVG 내용', '이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 .svg 파일로 저장하세요.', svg));
 });
 $('#dlgClose').addEventListener('click', () => $('#dlg').close());
+$('#warnOk').addEventListener('click', () => $('#warnDlg').close());
 $('#dlgCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#dlgText').value); toast('복사됨'); } catch { $('#dlgText').select(); toast('Ctrl/Cmd+C 로 복사하세요'); } });
 
 /* ───────── 바이글 손잡이가 3D 화면 위에서도 먹게 ─────────
