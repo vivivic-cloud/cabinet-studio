@@ -447,6 +447,11 @@ function buildModel(s){
   // 선반은 뒷판 앞면에서 멈춘다. 덮기면 몸통 깊이가 곧 뒷판 앞면이고,
   // 끼우기면 뒷판이 홈 뒤쪽 벽에 붙어 있으므로 그 앞면(홈뒤 − 뒷판 두께)이 끝이다.
   const 선반끝 = 끼움 ? 홈뒤 - TB : CD;
+  // 밴드가 있으면 덮기에서 하판이 그만큼 짧아진다 — 밴드가 하판 끝을 타고 덮는다(사장님 말씀).
+  // 끼우기는 사장님이 아직 안 짚으셨다. 건드리지 않는다.
+  const 밴드부속 = 만든부속.find(c => c.이름 === '밴드');
+  const 밴드탐 = (!끼움 && 밴드부속
+      && !손질.지움.includes(`밴드@${Math.round(Tside)},${Math.round(선반끝 - 밴드부속.T)},0`)) ? 밴드부속.T : 0;
   const sideH = topStyle === 'overlay' ? H - Ttop : H;
   const bz = plinth;                         // 하판 밑면 높이
   const parts = [];
@@ -455,7 +460,7 @@ function buildModel(s){
   add('측판', W-Tside, 0, 0, Tside, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
   const tx = topStyle === 'overlay' ? 0 : Tside, tw = topStyle === 'overlay' ? W : W - 2*Tside;
   add('상판', tx, 0, H-Ttop, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
-  add('하판', Tside, 0, bz, W-2*Tside, CD, Tbot, [0,0,-1], {L:W-2*Tside, W:CD, T:Tbot, grain:'가로'});
+  add('하판', Tside, 0, bz, W-2*Tside, CD - 밴드탐, Tbot, [0,0,-1], {L:W-2*Tside, W:CD - 밴드탐, T:Tbot, grain:'가로'});
   const innerH = (H - Ttop) - (bz + Tbot);
   // 선반은 두 갈래다. 고정 선반은 측판에 체결해 박히고, 이동 선반은 체결 없이 철물 위에 얹힌다.
   // 얹히는 것이라 좌우로 조금 작게 짜는 집이 있어 그 값을 규칙에 두었다(기본 0 — 안 건드리면 예전과 같다).
