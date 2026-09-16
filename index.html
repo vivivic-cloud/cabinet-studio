@@ -130,7 +130,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .pg .t2{font-size:3.6px;fill:var(--ink)}
 .pg .t3{font-size:3px;fill:var(--dim)}
 .pg .t4{font-size:2.9px;fill:var(--ink3)}
-@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}}
+.pg .t5{font-size:2.5px;fill:var(--ink3)}
+@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}.pg .t5{font-size:4.2px}}
 .bom{grid-area:bom;display:flex;flex-direction:column}
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
@@ -215,7 +216,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .svgwrap{overflow:visible;padding:0;flex:none}
   .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
-  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}
+  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}
   .svgwrap .toc b{font-size:8pt}.svgwrap .toc>div{font-size:9.5pt}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
@@ -577,9 +578,13 @@ function buildDrawing(s, m){
   // 홈은 6mm 안팎이라 1:1 로는 선 하나로 뭉갠다. 여섯 배로 키워 부속마다 한 칸씩 그린다.
   // 뒤 끝을 오른쪽에 두고 그 면을 잘라 본 그림이다 — 현장에서 이 그림만 보고 홈을 팔 수 있어야 한다.
   if (m.홈){
+    // 사장님 말씀 — 홈 가공도는 「메인」 이 아니라 그 부속 정보가 있는 곳에 붙는다.
+    // 그래서 화면·저장 SVG 에서는 뺐다(부속 쪽마다 제 홈 가공도가 붙는다). 쪽 2 = DXF 만.
+    // CAD 자료는 그대로 둔다 — 여기서 지우면 끼우기 DXF 108,233 바이트가 달라진다.
+    쪽 = 2;
     const M = 10, 보임 = 90, 간격 = 1100, gy = -1150;   // 10배 · 뒤 끝에서 90mm 만큼만 보인다
     const 칸들 = [['측판 2장', '안쪽면', Tside], ['상판', '아랫면', Ttop], ['하판', '윗면', Tbot]];
-    제목(`홈 가공도  GROOVE DETAIL · 10배`, (칸들.length-1)*간격/2 + 보임*M/2, gy + 760, 칸들.length*간격 - 200);
+    text(`홈 가공도  GROOVE DETAIL · 10배`, (칸들.length-1)*간격/2 + 보임*M/2, gy + 760, 46);
     칸들.forEach(([이름, 면, T], i) => {
       const x0 = i*간격, w = 보임*M, h = T*M, y0 = gy - h;
       const gx = x0 + w - (규칙.홈뒤살 + m.홈.폭)*M, gw = m.홈.폭*M, gd = m.홈.깊이*M;
@@ -613,6 +618,7 @@ function buildDrawing(s, m){
       text('뒤', x0 + w - 40, y0 - 80, TH, 'DIM');
       text(`${이름} · ${면}`, x0 + w/2, y0 - 200, 46);
     });
+    쪽 = 0;
   }
 
   // 부품표 + 표제란
@@ -751,6 +757,7 @@ function svgForFile(d){
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
 const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','걸레받이','뒷판'];
+const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
 const 줄여서 = (str, em, 넓이) => { let t = str;
@@ -780,6 +787,16 @@ function 부속쪽SVG(행들, m){
   const 선 = (ax,ay,bx,by,c) => o.push(`<line class="${c}" x1="${n2(ax)}" y1="${n2(ay)}" x2="${n2(bx)}" y2="${n2(by)}"/>`);
   const 글 = (str,x,y,c,a) => o.push(`<text class="${c}" x="${n2(x)}" y="${n2(y)}" text-anchor="${a || 'middle'}">${esc(String(str))}</text>`);
   const 가로치수 = (ax,bx,y,str) => { 선(ax,y-2.6,ax,y+1,'dim'); 선(bx,y-2.6,bx,y+1,'dim'); 선(ax,y,bx,y,'dim'); 글(str,(ax+bx)/2,y+3.4,'t3'); };
+  // 45° 빗금 — 잘린 자리를 나타낸다
+  const 빗금 = (bx,by,bw,bh) => { const sp = 1.6;
+    for (let c = Math.ceil((by - (bx+bw))/sp)*sp; c <= by + bh - bx; c += sp){
+      const pts = []; let v;
+      v = bx + c;      if (v >= by && v <= by+bh) pts.push([bx, v]);
+      v = bx + bw + c; if (v >= by && v <= by+bh) pts.push([bx+bw, v]);
+      v = by - c;      if (v >= bx && v <= bx+bw) pts.push([v, by]);
+      v = by + bh - c; if (v >= bx && v <= bx+bw) pts.push([v, by+bh]);
+      if (pts.length >= 2) 선(pts[0][0], pts[0][1], pts[1][0], pts[1][1], 'ln2');
+    } };
   const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
     o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
   // 머리글에 이 쪽에 든 부속 이름을 적는다 — 훑어 내리다 눈에 걸려야 한다.
@@ -792,7 +809,9 @@ function 부속쪽SVG(행들, m){
     if (i) 선(x0, ty, x1, ty, 'ln2');
     const ix = x1 - A4.정보;                                  // 정보 칸 왼쪽 끝
     const dx = x0 + 13, dy = ty + 6;                          // 왼쪽 13 은 세로 치수 자리
-    const dw = (ix - 10) - dx, dh = 칸높 - 6 - 14;             // 아래 14 는 가로 치수 자리
+    // 홈 파는 부속은 칸 아래쪽을 홈 가공도에 내준다 — 그 부속 정보가 있는 자리에 그 부속 홈이 붙는다.
+    const 홈칸 = (r.홈 && m.홈) ? Math.min(32, (칸높 - 20)*0.42) : 0;
+    const dw = (ix - 10) - dx, dh = 칸높 - 6 - 14 - 홈칸;      // 아래 14 는 가로 치수 자리
     // 겉면과 두께(측면)를 나란히 놓는다. 두 개가 같은 배율로 들어가게 배율을 잡는다.
     const k = Math.min((dw - 1.5) / (r.L + r.T), dh / r.W);
     const w = r.L*k, h = r.W*k, tw = r.T*k;
@@ -821,6 +840,24 @@ function 부속쪽SVG(행들, m){
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
+    // ── 이 부속의 홈 가공도 (끼우기에서 홈 파는 부속만) ──────────────
+    if (홈칸){
+      const sh = 홈칸 - 6, 보임 = 규칙.홈뒤살 + m.홈.폭 + 14;   // 뒤 끝에서 이만큼만 잘라 본다
+      const 배 = Math.min(dw*0.5 / 보임, sh / r.T);
+      const sw = 보임*배, st = r.T*배;
+      const sx = dx, sy = ty + 칸높 - 8.5 - st;
+      const gx = sx + sw - (규칙.홈뒤살 + m.홈.폭)*배, gw = m.홈.폭*배, gd = m.홈.깊이*배;
+      // 홈 파인 면이 위, 뒤 끝이 오른쪽이다
+      선(sx, sy+st, sx+sw, sy+st, 'ln'); 선(sx, sy, sx, sy+st, 'ln'); 선(sx+sw, sy, sx+sw, sy+st, 'ln');
+      선(sx, sy, gx, sy, 'ln'); 선(gx+gw, sy, sx+sw, sy, 'ln');
+      선(gx, sy, gx, sy+gd, 'ln'); 선(gx, sy+gd, gx+gw, sy+gd, 'ln'); 선(gx+gw, sy+gd, gx+gw, sy, 'ln');
+      빗금(sx, sy, gx-sx, st); 빗금(gx, sy+gd, gw, st-gd); 빗금(gx+gw, sy, sx+sw-(gx+gw), st);
+      글('앞', sx + 3, sy + st + 3.2, 't5'); 글('뒤', sx + sw - 3, sy + st + 3.2, 't5');
+      const lx = sx + sw + 5, ly = sy + st/2;
+      [`홈 가공도 · ${배.toFixed(1)}배`, `${r.name} · ${홈면[r.name] || ''}`,
+       `폭 ${fmt(m.홈.폭)} · 깊이 ${fmt(m.홈.깊이)}`, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`]
+        .forEach((str, j) => 글(str, lx, ly - 8.4 + j*5.6, 't5', 'start'));
+    }
   });
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
 }
