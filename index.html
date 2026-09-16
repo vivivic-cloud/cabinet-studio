@@ -57,7 +57,9 @@ select:focus{border-color:var(--head)}
 /* 뒷판 줄 — 덮기·끼우기를 이름과 두께 사이 빈자리에 작게 넣는다 */
 .field.back{grid-template-columns:auto minmax(0,1fr) 112px;gap:8px}
 .seg.mini{padding:2px;gap:2px}
-.seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap}
+.seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
+/* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
+.seg.mini label::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
 input[type=range]{width:100%;accent-color:var(--head)}
 .stats{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding-top:14px;border-top:1px solid var(--line2)}
 .stat{display:flex;flex-direction:column;gap:1px}
@@ -820,7 +822,7 @@ function 부속쪽SVG(행들, m){
     const ix = x1 - A4.정보;                                  // 정보 칸 왼쪽 끝
     const dx = x0 + 13, dy = ty + 6;                          // 왼쪽 13 은 세로 치수 자리
     // 홈 파는 부속은 칸 아래쪽을 홈 가공도에 내준다 — 그 부속 정보가 있는 자리에 그 부속 홈이 붙는다.
-    const 홈칸 = (r.홈 && m.홈) ? Math.min(32, (칸높 - 20)*0.42) : 0;
+    const 홈칸 = (r.홈 && m.홈) ? Math.min(46, (칸높 - 20)*0.45) : 0;
     const dw = (ix - 10) - dx, dh = 칸높 - 6 - 14 - 홈칸;      // 아래 14 는 가로 치수 자리
     // 겉면과 두께(측면)를 나란히 놓는다. 두 개가 같은 배율로 들어가게 배율을 잡는다.
     const k = Math.min((dw - 1.5) / (r.L + r.T), dh / r.W);
@@ -863,33 +865,52 @@ function 부속쪽SVG(행들, m){
       선(gx, sy, gx, sy+gd, 'ln'); 선(gx, sy+gd, gx+gw, sy+gd, 'ln'); 선(gx+gw, sy+gd, gx+gw, sy, 'ln');
       빗금(sx, sy, gx-sx, st); 빗금(gx, sy+gd, gw, st-gd); 빗금(gx+gw, sy, sx+sw-(gx+gw), st);
       글('앞', sx + 3, sy + st + 3.2, 't5'); 글('뒤', sx + sw - 3, sy + st + 3.2, 't5');
-      // 홈 치수는 그림에 찍는다. 홈이 3.5mm 라 숫자가 제 치수선보다 넓다 —
-      // 그래서 가리키는 곳에서 지시선을 그어 옆으로 빼서 적는다(1쪽 홈 가공도에서 쓰던 방법이다).
-      const lx = sx + sw + 7, ly0 = sy + 2;
+      // 홈 치수는 그림에 치수선으로 찍는다 — 1쪽 홈 가공도에서 쓰던 방법 그대로다.
+      // 홈이 3.5mm 라 숫자가 제 치수선보다 넓다. 그래서 치수선은 글자 없이 긋고,
+      // 숫자는 가리키는 곳에서 지시선을 빼어 옆에 적는다.
+      const 자국 = (tx, tyy) => 선(tx - 0.9, tyy + 0.9, tx + 0.9, tyy - 0.9, 'dim');
+      const 치수선 = (ax, bx, yy) => { 선(ax, yy, ax, yy + 2.6, 'dim'); 선(bx, yy, bx, yy + 2.6, 'dim');
+        선(ax, yy, bx, yy, 'dim'); 자국(ax, yy); 자국(bx, yy); };
+      const lx = sx + sw + 7, ly0 = sy + 2, dyy = sy - 3.4;
       const 빼서적기 = (px, py, ly, str) => {
         선(px, py, lx - 3, ly, 'dim'); 선(lx - 3, ly, lx - 0.8, ly, 'dim');
         글(str, lx, ly, 't3', 'start');
       };
-      글(`홈 가공도 · ${배.toFixed(1)}배 · ${홈면[r.name] || ''}`, lx, ly0, 't5', 'start');
-      빼서적기(gx + gw/2, sy + gd, ly0 + 6.2, `폭 ${fmt(m.홈.폭)}`);
-      빼서적기(gx + gw, sy + gd/2, ly0 + 12.4, `깊이 ${fmt(m.홈.깊이)}`);
-      빼서적기((gx + gw + sx + sw)/2, sy, ly0 + 18.6, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
+      치수선(gx, gx + gw, dyy);                       // 홈 폭
+      치수선(gx + gw, sx + sw, dyy);                  // 홈에서 뒤 끝까지
+      const vx = gx + gw + 2.4;                       // 깊이 — 홈 옆 살 안에 세로로
+      선(vx, sy, vx, sy + gd, 'dim'); 자국(vx, sy); 자국(vx, sy + gd);
+      선(gx + gw, sy + gd, vx + 1.2, sy + gd, 'dim');
+      // 가리키는 곳이 높은 것부터 위에 적는다 — 그래야 지시선끼리 엇갈리지 않는다.
+      글(`홈 가공도 · ${배.toFixed(1)}배 · ${홈면[r.name] || ''}`, lx, sy - 4, 't5', 'start');
+      빼서적기((gx + gw + sx + sw)/2, dyy, ly0 + 1.4, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
+      빼서적기((gx + gx + gw)/2, dyy, ly0 + 7.8, `폭 ${fmt(m.홈.폭)}`);
+      빼서적기(vx, sy + gd/2, ly0 + 14.2, `깊이 ${fmt(m.홈.깊이)}`);
       세로치수(sy, sy + st, sx - 4.5, fmt(r.T));
     }
   });
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
 }
-// 한 쪽에 세 부속까지. 쪽 수를 먼저 정하고 부속을 고르게 나눠 담는다 —
-// 마지막 쪽만 덩그러니 한 칸 쓰는 일이 없고, 적게 든 쪽은 그만큼 크게 그린다.
+// 한 쪽에 세 자리. 홈 파는 부속은 홈 가공도까지 들어가므로 한 자리 반을 쓴다 —
+// 그래서 그 부속은 한 쪽에 둘까지만 들어가고 그림이 그만큼 커진다.
 function 부속쪽들(m){
   const 행 = 부속행들(m);
   if (!행.length) return [];
-  const 장 = Math.ceil(행.length / A4.칸수), 쪽 = [];
-  for (let i = 0; i < 장; i++){
-    const 칸 = 행.splice(0, Math.ceil(행.length / (장 - i)));
-    쪽.push({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) });   // 이름은 1쪽 차례가 쓴다
-  }
-  return 쪽;
+  const 무게 = r => (r.홈 && m.홈) ? 1.5 : 1;          // 홈 가공도까지 드는 부속은 자리를 한 칸 반 쓴다
+  const 무게합 = 칸 => 칸.reduce((a, r) => a + 무게(r), 0);
+  const 쪽 = [];
+  let 칸 = [];
+  행.forEach(r => {                                     // 먼저 꽉꽉 담는다 — 쪽 수가 가장 적게 나온다
+    if (칸.length && 무게합(칸) + 무게(r) > A4.칸수){ 쪽.push(칸); 칸 = []; }
+    칸.push(r);
+  });
+  if (칸.length) 쪽.push(칸);
+  // 뒤쪽 쪽이 헐렁하면 앞에서 한 칸씩 물려 준다 — 마지막 쪽만 덩그러니 한 칸 쓰는 일이 없다.
+  for (let i = 쪽.length - 1; i > 0; i--)
+    while (쪽[i-1].length > 1
+           && 무게합(쪽[i]) + 무게(쪽[i-1][쪽[i-1].length-1]) <= Math.min(A4.칸수, 무게합(쪽[i-1])))
+      쪽[i].unshift(쪽[i-1].pop());
+  return 쪽.map(칸 => ({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) }));   // 이름은 1쪽 차례가 쓴다
 }
 
 /* ───────── DXF 작성 (R12 / AC1009) ───────── */
