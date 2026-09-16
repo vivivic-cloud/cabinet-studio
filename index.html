@@ -89,7 +89,7 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .panelhead{display:flex;align-items:baseline;gap:10px;padding:12px 18px 8px;border-bottom:1px solid var(--line2)}
 .panelhead h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .panelhead .eyebrow{margin-left:auto}
-.svgwrap{flex:1;min-height:0;padding:10px;overflow:auto}
+.svgwrap{flex:1;min-height:0;padding:10px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .svgwrap svg{width:100%;height:100%;display:block}
 .svgwrap .OUTLINE{stroke:var(--ink);stroke-width:1.4px}
 .svgwrap .HIDDEN{stroke:var(--hidden);stroke-width:.85px;stroke-dasharray:9 6}
@@ -218,6 +218,14 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
   .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}
   .svgwrap .toc b{font-size:8pt}.svgwrap .toc>div{font-size:9.5pt}
+}
+/* 넓은 화면에서는 한 화면 안에 다 넣는다. 칸마다 제 안에서 굴린다 —
+   왼쪽 설정이나 오른쪽 도면이 길어져도 3D 칸이 따라 늘어나지 않는다. */
+@media (min-width:1101px){
+  .app{height:100vh}
+  .app>*{min-height:0}
+  .draw,.bom{min-height:0}
+  .bom .tablewrap{overflow:auto;overscroll-behavior:contain}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
