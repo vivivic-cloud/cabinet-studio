@@ -54,6 +54,10 @@ select:focus{border-color:var(--head)}
 .seg label:has(input:checked){background:#fff;color:var(--head);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .seg label:has(input:focus-visible){outline:2px solid var(--head);outline-offset:-2px}
 .field.wide{grid-template-columns:1fr}
+/* 뒷판 줄 — 덮기·끼우기를 이름과 두께 사이 빈자리에 작게 넣는다 */
+.field.back{grid-template-columns:auto minmax(0,1fr) 112px;gap:8px}
+.seg.mini{padding:2px;gap:2px}
+.seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap}
 input[type=range]{width:100%;accent-color:var(--head)}
 .stats{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding-top:14px;border-top:1px solid var(--line2)}
 .stat{display:flex;flex-direction:column;gap:1px}
@@ -258,9 +262,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="TB">뒷판</label><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field wide"><label>뒷판 조립</label>
-        <div class="seg"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div></div>
+      <div class="field back"><label for="TB">뒷판</label><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><select id="TB" data-key="TB"><option>2.7</option><option>3</option><option>5</option><option>6</option><option selected>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
@@ -1632,9 +1634,9 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'걸레받이 높이만큼 띄워 앉는다. 걸레받이가 없으면 바닥에 붙는다.',
     값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「걸레받이」' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 뒷판이 뒤에 붙으므로 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
-    값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'보드선택 「뒷판 조립」' },
+    값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'보드선택 「뒷판」 줄' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (끼우기)', 말:'뒷판이 통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다. 뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.',
-    값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'보드선택 「뒷판 조립」' },
+    값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'보드선택 「뒷판」 줄' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 홈 (끼우기)', 말:'통 내부보다 가로·세로로 이만큼 크게 짠다. 홈 깊이의 두 배보다 조금 작게 잡아야 바닥에 닿지 않는다.',
     규칙:'뒷판키움', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'뒷판', 사이:'측판·상판·하판 ↔ 홈 (끼우기)', 말:'뒷판이 닿는 세 부속 안쪽면에 이 깊이로 홈을 판다.',
