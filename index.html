@@ -879,24 +879,24 @@ function 부속쪽SVG(행들, m){
       // 홈 치수는 그림에 치수선으로 찍는다 — 1쪽 홈 가공도에서 쓰던 방법 그대로다.
       // 홈이 3.5mm 라 숫자가 제 치수선보다 넓다. 그래서 치수선은 글자 없이 긋고,
       // 숫자는 가리키는 곳에서 지시선을 빼어 옆에 적는다.
+      // 숫자는 제 치수선 위에 적는다. 치수선보다 숫자가 넓으면 치수선 바로 옆에 붙여 적는다 —
+      // 도면에서 좁은 자리를 적는 법이다. 멀리 빼내지 않는다.
       const 자국 = (tx, tyy) => 선(tx - 0.9, tyy + 0.9, tx + 0.9, tyy - 0.9, 'dim');
-      const 치수선 = (ax, bx, yy) => { 선(ax, yy, ax, yy + 2.6, 'dim'); 선(bx, yy, bx, yy + 2.6, 'dim');
-        선(ax, yy, bx, yy, 'dim'); 자국(ax, yy); 자국(bx, yy); };
-      const lx = sx + sw + 7, ly0 = sy + 2, dyy = sy - 3.4;
-      const 빼서적기 = (px, py, ly, str) => {
-        선(px, py, lx - 3, ly, 'dim'); 선(lx - 3, ly, lx - 0.8, ly, 'dim');
-        글(str, lx, ly, 't3', 'start');
+      const 치수선 = (ax, bx, yy, str) => {
+        선(ax, yy, ax, yy + 2.6, 'dim'); 선(bx, yy, bx, yy + 2.6, 'dim');
+        선(ax, yy, bx, yy, 'dim'); 자국(ax, yy); 자국(bx, yy);
+        if (글자폭(str, 5.2) + 1.5 <= bx - ax) 글(str, (ax + bx)/2, yy - 3.2, 't3');
+        else { 선(ax - 3.2, yy, ax, yy, 'dim'); 글(str, ax - 4, yy, 't3', 'end'); }
       };
-      치수선(gx, gx + gw, dyy);                       // 홈 폭
-      치수선(gx + gw, sx + sw, dyy);                  // 홈에서 뒤 끝까지
-      const vx = gx + gw + 2.4;                       // 깊이 — 홈 옆 살 안에 세로로
+      const dyy = sy - 3.6;
+      치수선(gx, gx + gw, dyy, fmt(m.홈.폭));               // 홈 폭
+      치수선(gx + gw, sx + sw, dyy, fmt(규칙.홈뒤살));       // 홈에서 뒤 끝까지
+      const vx = gx + gw + 2.4;                             // 깊이 — 홈 옆 살 안에 세로로
       선(vx, sy, vx, sy + gd, 'dim'); 자국(vx, sy); 자국(vx, sy + gd);
       선(gx + gw, sy + gd, vx + 1.2, sy + gd, 'dim');
-      // 가리키는 곳이 높은 것부터 위에 적는다 — 그래야 지시선끼리 엇갈리지 않는다.
-      글(`홈 가공도 · ${배.toFixed(1)}배 · ${홈면[r.name] || ''}`, lx, sy - 4, 't5', 'start');
-      빼서적기((gx + gw + sx + sw)/2, dyy, ly0 + 1.4, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
-      빼서적기((gx + gx + gw)/2, dyy, ly0 + 7.8, `폭 ${fmt(m.홈.폭)}`);
-      빼서적기(vx, sy + gd/2, ly0 + 14.2, `깊이 ${fmt(m.홈.깊이)}`);
+      글(fmt(m.홈.깊이), vx + 1.8, sy + gd/2, 't3', 'start');
+      글(`홈 가공도 ${배.toFixed(1)}배`, sx + sw + 7, sy + st - 6, 't5', 'start');   // 이름표(치수가 아니다)
+      글(`${r.name} ${홈면[r.name] || ''}`, sx + sw + 7, sy + st, 't5', 'start');
       세로치수(sy, sy + st, sx - 4.5, fmt(r.T));
     }
   });
