@@ -111,6 +111,14 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap .page{position:relative;width:100%;aspect-ratio:210/297;margin:0 auto 12px;border:1px solid var(--line);background:var(--surface)}
 .svgwrap .page:last-child{margin-bottom:0}
 .svgwrap .pnum{position:absolute;right:9px;bottom:5px;font-size:11px;color:var(--ink3)}
+/* 1쪽은 도면 아래에 차례가 붙는다. 도면은 남는 만큼 쓰고 차례는 제 높이만 쓴다. */
+.svgwrap .page.p1{display:flex;flex-direction:column}
+.svgwrap .page.p1>svg{flex:1;min-height:0;height:auto}
+.svgwrap .toc{flex:none;padding:0 4.8% 3.4%;display:flex;flex-direction:column;gap:2px}
+.svgwrap .toc b{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--ink3)}
+.svgwrap .toc>div{font-size:11.5px;color:var(--ink2);line-height:1.35}
+.svgwrap .toc>div>span{display:inline-block;min-width:32px;font-weight:700;color:var(--head)}
+@media (max-width:760px){.svgwrap .toc b{font-size:11px}.svgwrap .toc>div{font-size:13px}.svgwrap .pnum{font-size:13px;font-weight:700;color:var(--ink2)}}
 /* 부속 쪽(.pg)은 mm 를 그대로 단위로 쓴다. 글자는 화면과 종이에서 크기가 달라야 한다 —
    폰에서는 A4 한 장이 355px 로 눌려 종이 크기 글자가 4px 이 된다. */
 .pg text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2);dominant-baseline:central}
@@ -208,6 +216,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
   .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}
+  .svgwrap .toc b{font-size:8pt}.svgwrap .toc>div{font-size:9.5pt}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
@@ -741,6 +750,12 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
+const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','걸레받이','뒷판'];
+// 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
+const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
+const 줄여서 = (str, em, 넓이) => { let t = str;
+  while (t.length > 1 && 글자폭(t + '…', em, 넓이) > 넓이) t = t.slice(0, -1);
+  return t === str ? str : t + '…'; };
 const n2 = n => String(Math.round(n*100)/100);
 
 // 부속 도면에 실을 줄. 부품표와 같은 규칙으로 묶되 숨긴 부속은 뺀다
@@ -753,7 +768,10 @@ function 부속행들(m){
     map.get(k).qty += 1 + (p.더 || 0);
   });
   만든부속.forEach(c => map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 홈:false}));
-  return [...map.values()];
+  // 자주 보는 것이 앞에 온다 — 몸통 → 문짝 → 선반 → 걸레받이 → 뒷판, 만든 부속은 맨 뒤.
+  // 부품표(bomRows)의 차례는 건드리지 않는다.
+  const 순 = n => { const i = 부속차례.indexOf(n); return i < 0 ? 부속차례.length : i; };
+  return [...map.values()].sort((a, b) => 순(a.name) - 순(b.name));
 }
 
 // 부속 한 쪽 = A4 한 장. 단위는 mm 그대로다(viewBox 0 0 210 297).
@@ -764,10 +782,11 @@ function 부속쪽SVG(행들, m){
   const 가로치수 = (ax,bx,y,str) => { 선(ax,y-2.6,ax,y+1,'dim'); 선(bx,y-2.6,bx,y+1,'dim'); 선(ax,y,bx,y,'dim'); 글(str,(ax+bx)/2,y+3.4,'t3'); };
   const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
     o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
-  글('부속 도면 · 재단 치수 mm', x0, M+2, 't2', 'start');
-  글('가로 = 결 길이 · 세로 = 결 폭', x1, M+2, 't4', 'end');
-  선(x0, M+5, x1, M+5, 'ln2');
-  const 위 = M + 8, 칸높 = ((A4.H - M - 4) - 위) / 행들.length;   // 한 쪽에 든 만큼 나눠 쓴다 — 적게 들면 크게 그린다
+  // 머리글에 이 쪽에 든 부속 이름을 적는다 — 훑어 내리다 눈에 걸려야 한다.
+  글(줄여서(`부속 도면 — ${행들.map(r => r.name).join(' · ')}`, 6, x1 - x0), x0, M+2, 't2', 'start');
+  글('재단 치수 mm · 가로 = 결 길이 · 세로 = 결 폭', x1, M+9, 't4', 'end');
+  선(x0, M+12, x1, M+12, 'ln2');
+  const 위 = M + 14.5, 칸높 = ((A4.H - M - 4) - 위) / 행들.length;  // 한 쪽에 든 만큼 나눠 쓴다 — 적게 들면 크게 그린다
   행들.forEach((r, i) => {
     const ty = 위 + i*칸높;
     if (i) 선(x0, ty, x1, ty, 'ln2');
@@ -811,7 +830,10 @@ function 부속쪽들(m){
   const 행 = 부속행들(m);
   if (!행.length) return [];
   const 장 = Math.ceil(행.length / A4.칸수), 쪽 = [];
-  for (let i = 0; i < 장; i++) 쪽.push(부속쪽SVG(행.splice(0, Math.ceil(행.length / (장 - i))), m));
+  for (let i = 0; i < 장; i++){
+    const 칸 = 행.splice(0, Math.ceil(행.length / (장 - i)));
+    쪽.push({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) });   // 이름은 1쪽 차례가 쓴다
+  }
   return 쪽;
 }
 
@@ -1151,17 +1173,24 @@ function update(){
 function 글자배(){
   if (!drawing) return 1;
   const 칸 = Math.max(1, ($('#svgwrap').clientWidth || 1) - 22);   // 좌우 여백 10 + 테두리 1
-  const 높 = 칸 * A4.H / A4.W;
+  const 높 = 칸 * A4.H / A4.W * 0.86;                             // 1쪽은 아래 차례에 자리를 내준다
   const 폭 = (drawing.bbox.maxx - drawing.bbox.minx) + 280;
   const 키 = (drawing.bbox.maxy - drawing.bbox.miny) + 280;
   const px칸 = Math.min(칸 / 폭, 높 / 키);                 // 도면 1mm 이 화면에서 몇 px 인가
   return Math.min(3, Math.max(1, 9 / (30 * px칸)));       // 치수 숫자(30)가 9px 은 되게
 }
+// 1쪽 맨 아래에 「이 도면에 든 것」 을 붙인다 — 첫 쪽만 봐도 어느 부속이 몇 쪽인지 알게.
+// 도면이 아니라 화면 글자(HTML)라서 buildDrawing 의 P 도, 내보내는 SVG·DXF 도 모른다.
 function 도면그리기(){
   if (!drawing) return;
-  const 쪽들 = [renderSVG(drawing, true, 글자배()), ...부속쪽들(모델 || buildModel(state))];
-  $('#svgwrap').innerHTML = 쪽들.map((g, i) =>
-    `<div class="page">${g}<span class="pnum mono">${i+1} / ${쪽들.length}</span></div>`).join('');
+  const 쪽 = 부속쪽들(모델 || buildModel(state)), 총 = 1 + 쪽.length;
+  const 차례 = `<div class="toc"><b>이 도면에 든 것 · 모두 ${총}쪽</b>`
+    + `<div><span>1쪽</span>전체 도면</div>`
+    + 쪽.map((z, i) => `<div><span>${i+2}쪽</span>${esc(z.이름들.join(' · '))}</div>`).join('')
+    + `</div>`;
+  $('#svgwrap').innerHTML =
+    `<div class="page p1">${renderSVG(drawing, true, 글자배())}${차례}<span class="pnum mono">1 / ${총}</span></div>`
+    + 쪽.map((z, i) => `<div class="page">${z.svg}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
   applySel();
 }
 let 도면칸폭 = 0;
