@@ -178,19 +178,12 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .addrow input{flex:1;min-width:0;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;padding:9px 12px}
 .addrow input:focus{outline:none;border-color:var(--head)}
 .addrow button{flex:none}
-.two{display:flex;gap:6px;align-items:center}
+.two{display:flex;gap:10px;align-items:center}   /* 두께 칸과 × 를 띄운다 — 잘못 눌리지 않게 */
 .two select{flex:1;min-width:0}
-.two .x{flex:none;width:32px;height:32px;padding:0;border-radius:50%;line-height:1;font-size:16px;color:var(--ink3)}
-/* 부속 목록 — 붙박이든 만든 것이든 줄마다 × 하나 (사장님 말씀 09-17) */
-#partList{display:flex;flex-direction:column;gap:4px}
-#partList .prow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;
-  border:1px solid var(--line);border-radius:13px;padding:2px 4px 2px 12px;background:var(--surface)}
-#partList .prow span{font-size:13px;color:var(--ink);min-height:40px;display:flex;align-items:center;gap:6px}
-#partList .prow small{color:var(--ink3);font-size:11.5px}
-#partList .prow button{width:44px;height:44px;padding:0;border:0;background:transparent;border-radius:50%;
-  font-size:17px;line-height:1;color:var(--ink3)}
-#partList .prow button:hover{background:var(--fill2);color:var(--head)}
-#partList .none{margin:0;color:var(--ink3);font-size:13px}
+.two .x{flex:none;width:32px;height:32px;padding:0;border-radius:50%;line-height:1;font-size:16px;color:var(--ink3);position:relative}
+/* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
+.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px}
+.two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지웠던 부속을 되살리는 고르개 — 「부속 만들기」 칸을 누르면 열린다 */
 .picklist{margin-top:6px;border:1px solid var(--line);border-radius:13px;background:var(--surface);
   overflow:hidden;max-height:232px;overflow-y:auto}
@@ -320,19 +313,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     </div>
     <div class="group">
       <h2>보드선택</h2>
-      <div class="field"><label for="Ttop">상판</label><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tside">측판</label><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tshelf">고정 선반</label><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tshelf2">이동 선반</label><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tplinth">전면밴드</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field back"><label for="TB">뒷판</label><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><select id="TB" data-key="TB"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Ttop">상판</label><div class="two"><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="상판" aria-label="상판 지우기">×</button></div></div>
+      <div class="field"><label for="Tside">측판</label><div class="two"><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="측판" aria-label="측판 지우기">×</button></div></div>
+      <div class="field"><label for="Tshelf">고정 선반</label><div class="two"><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="고정선반" aria-label="고정선반 지우기">×</button></div></div>
+      <div class="field"><label for="Tshelf2">이동 선반</label><div class="two"><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="이동선반" aria-label="이동선반 지우기">×</button></div></div>
+      <div class="field"><label for="Tdoor">도어</label><div class="two"><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="문짝" aria-label="문짝 지우기">×</button></div></div>
+      <div class="field"><label for="Tbot">하판</label><div class="two"><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div></div>
+      <div class="field"><label for="Tplinth">전면밴드</label><div class="two"><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div></div>
+      <div class="field back"><label for="TB">뒷판</label><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><div class="two"><select id="TB" data-key="TB"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div></div>
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
-      <div class="field wide"><label>부속 <small>× 를 누르면 도면에서 빠집니다</small></label>
-        <div id="partList"></div></div>
       <div class="field wide"><label for="newPart">부속 만들기 <small>칸을 누르면 지웠던 부속이 나옵니다</small></label>
         <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"><button id="btnAdd" type="button">추가</button></div>
         <div id="partPick" class="picklist" hidden></div>
@@ -1553,7 +1544,7 @@ function update(){
   applySel();
   숨김바();
   표값갱신();
-  부속목록그리기();                                                // 부속 줄마다 × (사장님 말씀 09-17)
+  지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
   $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
   if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.홈뒤살;
   밴드살피기();
@@ -2181,8 +2172,9 @@ function 부속그리기(){
       c.단 = 밴드단값.filter(v => 단.includes(v));      // 차례는 언제나 상·중·하
       담기(); update();
     }));
+  // 만든 부속의 × 도 같은 길로 보낸다 — 그래야 `지난부속` 에 적혀 고르개로 되살아난다.
   $('#customList').querySelectorAll('button[data-del]').forEach(el =>
-    el.addEventListener('click', () => { 만든부속.splice(+el.dataset.del, 1); 담기(); 부속그리기(); update(); }));
+    el.addEventListener('click', () => 부속지우기(만든부속[+el.dataset.del].이름)));
 }
 /* ───────── 부속 목록 · 지웠던 부속 되살리기 (사장님 말씀 09-17) ─────────
    「부속을 삭제하는 버튼을 모든 부속에 적용. 되살리려면 부속만들기 칸을 클릭하면
@@ -2193,18 +2185,16 @@ function 부속그리기(){
 function 선단(이름){                       // 도면에 지금 서 있는 그 이름의 조각들
   return (모델 && 모델.parts) ? 모델.parts.filter(p => p.name === 이름) : [];
 }
-function 부속목록그리기(){
-  const 칸 = $('#partList'); if (!칸) return;
-  const 이름들 = [];
-  (모델 && 모델.parts ? 모델.parts : []).forEach(p => { if (!이름들.includes(p.name)) 이름들.push(p.name); });
-  칸.innerHTML = 이름들.length
-    ? 이름들.map(n => { const 수 = 선단(n).length, 만든 = 만든부속.some(c => c.이름 === n);
-        return `<div class="prow"><span>${esc(n)}${수 > 1 ? ` <small>${수}개</small>` : ''}` +
-               `${만든 ? ' <small>만든 것</small>' : ''}</span>` +
-               `<button type="button" data-kill="${esc(n)}" aria-label="${esc(n)} 지우기">×</button></div>`; }).join('')
-    : '<p class="none">도면에 선 부속이 없습니다.</p>';
-  칸.querySelectorAll('button[data-kill]').forEach(el => el.addEventListener('click', () => 부속지우기(el.dataset.kill)));
+// 두께 설정 줄마다 붙은 × — 도면에 없는 것은 흐리게 둔다(사장님 말씀 09-17: 삭제는 두께 줄에).
+function 지우기단추갱신(){
+  const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
+  document.querySelectorAll('.params .two .x[data-kill]').forEach(el =>
+    el.classList.toggle('없음', !선것.has(el.dataset.kill)));
 }
+document.querySelectorAll('.params .two .x[data-kill]').forEach(el => el.addEventListener('click', () => {
+  if (el.classList.contains('없음')){ toast(`${el.dataset.kill} 은 이미 빠져 있습니다 — 「부속 만들기」 칸을 누르면 되살립니다`); return; }
+  부속지우기(el.dataset.kill);
+}));
 function 부속지우기(이름){
   const i = 만든부속.findIndex(c => c.이름 === 이름);
   if (i >= 0){                                    // 만든 부속 — 두께·단까지 적어 두고 뺀다
