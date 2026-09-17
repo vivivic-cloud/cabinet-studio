@@ -184,15 +184,7 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
 .two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px}
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
-/* 지웠던 부속을 되살리는 고르개 — 「부속 만들기」 칸을 누르면 열린다 */
-.picklist{margin-top:6px;border:1px solid var(--line);border-radius:13px;background:var(--surface);
-  overflow:hidden;max-height:232px;overflow-y:auto}
-.picklist[hidden]{display:none}
-.picklist button{display:block;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:0;
-  background:transparent;text-align:left;font-size:13px;color:var(--ink)}
-.picklist button+button{border-top:1px solid var(--line)}
-.picklist button:hover{background:var(--fill2)}
-.picklist .none{margin:0;padding:12px;color:var(--ink3);font-size:13px}
+
 .two .x:hover{background:var(--surface2);color:var(--dim)}
 .linkbtn{background:none;border:0;padding:4px 0;font-size:12px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:0}
 .linkbtn:hover{background:none;color:var(--head)}
@@ -324,9 +316,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
-      <div class="field wide"><label for="newPart">부속 만들기 <small>칸을 누르면 지웠던 부속이 나옵니다</small></label>
-        <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"><button id="btnAdd" type="button">추가</button></div>
-        <div id="partPick" class="picklist" hidden></div>
+      <div class="field wide"><label for="newPart">부속 만들기 <small>칸에서 지웠던 부속을 고르거나 새 이름을 적습니다</small></label>
+        <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off" list="partNames"><button id="btnAdd" type="button">추가</button></div>
+        <datalist id="partNames"></datalist>
         <small id="addWarn" class="warn"></small></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
       <div class="field wide"><label>상판 결합</label>
@@ -1545,6 +1537,7 @@ function update(){
   숨김바();
   표값갱신();
   지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
+  이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
   $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
   if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.홈뒤살;
   밴드살피기();
@@ -2226,26 +2219,20 @@ function 되살리기(것){
   } else {
     손질.지움 = 손질.지움.filter(k => k.split('@')[0] !== 것.이름);
   }
-  담기(); 고르개닫기(); 부속그리기(); update();
+  담기(); 부속그리기(); update();
   toast(`${것.이름} 되살렸습니다`);
 }
-function 고르개그리기(){
-  const 칸 = $('#partPick'); if (!칸) return;
-  const 목록 = 되살릴것();
-  칸.innerHTML = 목록.length
-    ? 목록.map((x,i) => `<button type="button" data-back="${i}">${esc(x.이름)} <small>· ${esc(x.쪽지)}</small></button>`).join('')
-    : '<p class="none">되살릴 부속이 없습니다 — 새 이름을 적어 주세요.</p>';
-  칸.querySelectorAll('button[data-back]').forEach(el =>
-    el.addEventListener('mousedown', e => e.preventDefault()));   // 칸에서 초점이 빠지지 않게
-  칸.querySelectorAll('button[data-back]').forEach(el =>
-    el.addEventListener('click', () => 되살리기(목록[+el.dataset.back])));
-  칸.hidden = false;
+// 칸 안의 드롭다운 — 사장님 말씀(09-17): 「지금까지 만든 부속이름을 칸 안에 드롭다운 목록으로,
+// 이미 도면에 있으면 목록에 안 나타나게.」 따로 판을 띄우지 말고 칸에 붙는 목록이라야 한다.
+function 이름목록갱신(){
+  const 칸 = $('#partNames'); if (!칸) return;
+  칸.innerHTML = 되살릴것().map(x => `<option value="${esc(x.이름)}"></option>`).join('');
 }
-function 고르개닫기(){ const 칸 = $('#partPick'); if (칸) 칸.hidden = true; }
-$('#newPart').addEventListener('focus', 고르개그리기);
-$('#newPart').addEventListener('click', 고르개그리기);
-document.addEventListener('pointerdown', e => {
-  if (!e.target.closest('#partPick') && !e.target.closest('#newPart')) 고르개닫기();
+// 목록에서 이름을 고르면 (또는 그 이름을 다 적으면) 그 자리에서 되살린다.
+$('#newPart').addEventListener('input', () => {
+  const v = $('#newPart').value.trim(); if (!v) return;
+  const 것 = 되살릴것().find(x => x.이름 === v);
+  if (것){ $('#newPart').value = ''; $('#addWarn').textContent = ''; 되살리기(것); }
 });
 $('#btnAdd').addEventListener('click', () => {
   const 이름 = $('#newPart').value.trim(), 알림 = $('#addWarn');
@@ -2255,9 +2242,8 @@ $('#btnAdd').addEventListener('click', () => {
   const 지난 = 지난부속.find(x => x.이름 === 이름);      // 전에 만들었던 것이면 두께·단을 그대로 살린다
   지난부속 = 지난부속.filter(x => x.이름 !== 이름);
   만든부속.push(지난 ? { ...지난 } : { 이름, T:18 }); $('#newPart').value = ''; 알림.textContent = '';
-  고르개닫기(); 담기(); 부속그리기(); update();
+  담기(); 부속그리기(); update();
 });
-$('#newPart').addEventListener('input', () => { $('#addWarn').textContent = ''; });
 $('#newPart').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
 
 /* ───────── 관계표 — 이 도면이 서는 규칙 전부 ─────────
