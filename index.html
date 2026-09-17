@@ -522,6 +522,7 @@ function buildModel(s){
   // 이동 선반은 넣고 뺄 여유가 있어야 하므로 좌우로 한 쪽씩, 뒤로 한 번 물려 짠다.
   let 선반z = bz + Tbot;
   const 고정센터 = [];                       // 밴드 「중」 이 이 높이에 맞춰 선다
+  const 고정선반자리 = [];                   // [아랫면, 윗면] — 밴드를 끌 때 걸리는 자리가 된다
   for (let i = 0; i < 단수; i++){
     const 이동 = i >= shelves;
     const t = 이동 ? Tshelf2 : Tshelf;
@@ -530,7 +531,7 @@ function buildModel(s){
     // 앞쪽에서 뺀다 — 뒤는 뒷판에 붙고 앞이 트여야 손으로 들어낼 수 있다
     add(이동 ? '이동선반' : '고정선반', Tside + 옆, 도어물림 + 앞, 선반z,
         W - 2*Tside - 2*옆, 선반깊이 - 앞, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:선반깊이 - 앞, T:t, grain:'가로'});
-    if (!이동) 고정센터.push(선반z + t/2);
+    if (!이동){ 고정센터.push(선반z + t/2); 고정선반자리.push([선반z, 선반z + t]); }
     선반z += t;
   }
   if (plinth > 0) add('전면밴드', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
@@ -582,19 +583,33 @@ function buildModel(s){
     넘침들['보호대'] = Math.max(0, (y + c.T) - CD);
     add('보호대', Tside, y, 0, 폭, c.T, 키, [0,-1,0], {L:폭, W:키, T:c.T, grain:'가로'});
   });
+  // 밴드가 오르내릴 수 있는 칸과, 「걸리는」 자리 (밴드 아랫끝 기준).
+  // 사장님 말씀(09-17): 덮기에서 뒷판 라인을 따라 위아래로 자유롭게, 단 하판·상판을 벗어나지 않게.
+  const 밴드키 = bz + Tbot;
+  const 밴드바닥 = 밴드키, 밴드천장 = (H - Ttop) - 밴드키;   // 하판 위 ~ 상판 아래
+  const 걸림 = [밴드바닥, 밴드천장];                          // 하판 윗면 · 상판 밑면
+  고정선반자리.forEach(([z0, z1]) => { 걸림.push(z1); 걸림.push(z0 - 밴드키); });  // 선반 위에 얹기 · 선반 밑에 달기
+  const 걸림자리 = [...new Set(걸림.filter(z => z >= 밴드바닥 - 0.01 && z <= 밴드천장 + 0.01)
+                                  .map(z => +z.toFixed(3)))].sort((a,b) => a-b);
   만든부속.forEach(c => {
     if (c.이름 !== '밴드') return;
-    const 밴드폭 = W - 2*Tside, 밴드높 = bz + Tbot;
+    const 밴드폭 = W - 2*Tside, 밴드높 = 밴드키;
     const 밴드y = 끼움 ? 홈뒤 : CD - c.T;
     const 넘침 = Math.max(0, (밴드y + c.T) - CD);        // 측판 뒤끝(CD)을 넘어 나온 길이
-    const 놓기 = z => { 밴드넘침 = 넘침; 넘침들['밴드'] = 넘침;
-      add('밴드', Tside, 밴드y, z, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'}); };
+    const 놓기 = (z, 단이름) => { 밴드넘침 = 넘침; 넘침들['밴드'] = 넘침;
+      add('밴드', Tside, 밴드y, z, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'});
+      parts[parts.length-1].단 = 단이름; };
+    // 끌어 옮긴 자리는 `c.옮김[단]` 에 담긴다 — 덮기에서만이다. 끼우기는 말씀에 없어 그대로 둔다.
+    const 옮긴z = (단이름, 기본z) => {
+      const v = (!끼움 && c.옮김) ? c.옮김[단이름] : undefined;
+      return (typeof v === 'number' && isFinite(v)) ? Math.min(밴드천장, Math.max(밴드바닥, v)) : 기본z;
+    };
     const 단 = 밴드단(c);
-    if (단.includes('하')) 놓기(밴드높);                  // 여태 있던 그 자리 — 하판 위로 올라탄다
+    if (단.includes('하')) 놓기(옮긴z('하', 밴드바닥), '하');   // 여태 있던 그 자리 — 하판 위로 올라탄다
     // 「중」 은 뒷판 끼우기일 때만이다 (09-17 사장님 말씀). 덮기에서는 밴드가 가구 안쪽(CD−두께)에
     // 앉아 선반 깊이와 그대로 겹쳤다. 끼우기는 뒷판 바깥(홈뒤)이라 선반이 거기까지 안 나온다.
-    if (단.includes('중') && 끼움) 고정센터.forEach(z => 놓기(z - 밴드높/2));   // 고정선반 센터 높이에 맞춘다
-    if (단.includes('상')) 놓기((H - Ttop) - 밴드높);     // 상판 바로 아래에 붙는다
+    if (단.includes('중') && 끼움) 고정센터.forEach(z => 놓기(z - 밴드높/2, '중'));   // 고정선반 센터 높이
+    if (단.includes('상')) 놓기(옮긴z('상', 밴드천장), '상');   // 상판 바로 아래에 붙는다
   });
   // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
   // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
@@ -604,7 +619,7 @@ function buildModel(s){
   if (밴드넘침 && !산것.some(p => p.name === '밴드')) 밴드넘침 = 0;
   Object.keys(넘침들).forEach(n => { if (!산것.some(p => p.name === n)) 넘침들[n] = 0; });
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
-  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈, 밴드넘침, 넘침들 };
+  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 걸림자리 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -1280,6 +1295,62 @@ function init3D(){
     return h ? h.object : null;
   };
 
+  /* ── 고른 밴드를 마우스로 끌어 올리고 내리기 (사장님 말씀 09-17) ──────────────
+     뒷판이 **덮기**일 때만이다. 뒷판 라인(y)은 그대로 두고 위아래(z)로만 간다.
+     하판 윗면 아래로도, 상판 밑면 위로도 못 간다. 하판·고정선반·상판 끝점에서 걸린다.
+     고른 그 조각을 짚었을 때만 끌기가 된다 — 그래야 빈 데를 끄는 예전 「이동」 이 안 죽는다. */
+  // 걸리는 자(mm)는 화면 배율을 따라간다 — 14px 쯤 움직인 만큼. 고정으로 14mm 를 쓰면
+  // 기본 배율에서 4px 밖에 안 되어 손에 걸리는 느낌이 안 난다.
+  const 옮김판 = new THREE.Plane(), 옮김선 = new THREE.Raycaster(), 옮김점 = new THREE.Vector3();
+  const 판위 = (px, py) => {
+    const r = cv.getBoundingClientRect();
+    옮김선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
+    return 옮김선.ray.intersectPlane(옮김판, 옮김점) ? 옮김점.y : null;
+  };
+  const 끌밴드 = (px, py) => {              // 고른 밴드를 짚었나
+    if (state.backMode === 'insert' || selPid === null || !모델 || !group) return null;
+    const p = 모델.parts.find(q => q.pid === selPid);
+    if (!p || p.name !== '밴드' || !p.단) return null;
+    const c = 만든부속.find(x => x.이름 === '밴드');
+    if (!c) return null;
+    const 조각 = group.children.find(x => x.userData.pid === selPid);
+    if (!조각) return null;
+    // **고른 그 조각만** 겨눈다 — 앞에 선반이나 상판이 가려도 잡힌다.
+    // 안 그러면 밴드가 선반 뒤로 들어간 순간 다시 잡을 길이 없어진다(한 번 그렇게 막혔다).
+    const r = cv.getBoundingClientRect();
+    광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
+    if (!광선.intersectObject(조각, false).length) return null;
+    return { p, c, 조각 };
+  };
+  const 끌시작 = (것, px, py) => {
+    const n = new THREE.Vector3(); camera.getWorldDirection(n); n.y = 0;
+    if (n.lengthSq() < 1e-6) n.set(0,0,1);
+    n.normalize();
+    옮김판.setFromNormalAndCoplanarPoint(n, 것.조각.position.clone());
+    const y0 = 판위(px, py), y1 = 판위(px, py + 14);
+    const 자 = (y0 !== null && y1 !== null) ? Math.max(8, Math.abs(y0 - y1)) : 14;
+    return { ...것, y0: y0 === null ? 0 : y0, z0: 것.p.z, 잰다: y0 !== null, 자 };
+  };
+  const 끌기 = (끌, px, py) => {
+    if (!끌.잰다) return;
+    const y = 판위(px, py); if (y === null) return;
+    let z = 끌.z0 + (y - 끌.y0);
+    z = Math.min(모델.밴드천장, Math.max(모델.밴드바닥, z));
+    for (const g of 모델.걸림자리) if (Math.abs(z - g) <= 끌.자){ z = g; break; }   // 끝점에 걸린다
+    끌.z = z;
+    const 움 = z - 끌.p.z;                  // 조각만 먼저 옮긴다 — 손을 뗄 때 모델에 담는다
+    끌.조각.userData.base[1] += 움;
+    끌.p.z += 움;
+    applyExplode();
+  };
+  const 끌끝 = 끌 => {
+    if (끌.z === undefined) return;
+    끌.c.옮김 = { ...(끌.c.옮김 || {}), [끌.p.단]: 끌.z };
+    const 단 = 끌.p.단;
+    담기(); update();
+    const 다시 = (모델.parts || []).find(q => q.name === '밴드' && q.단 === 단);   // 고른 것을 되살린다
+    if (다시) select(다시.pid);
+  };
   let drag = null;
   cv.addEventListener('contextmenu', e => {
     e.preventDefault();                                  // 브라우저 차림표는 전과 같이 막는다
@@ -1293,13 +1364,20 @@ function init3D(){
   cv.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
   cv.addEventListener('pointerdown', e => {
     const touch = e.pointerType === 'touch';
-    let mode = null;
-    if (touch) mode = tool === 'select' ? null : tool;                 // 손가락: 도구 단추가 정한 것
+    let mode = null, 끌 = null;
+    // 고른 밴드를 짚었으면 그 밴드를 끈다. 마우스는 왼쪽 버튼, 손가락은 「선택」 연장일 때만 —
+    // 「선택」 은 지금도 화면을 안 움직이므로 뺏는 것이 없다.
+    if ((!touch && e.button === 0) || (touch && tool === 'select')){
+      const 것 = 끌밴드(e.clientX, e.clientY);
+      if (것){ 끌 = 끌시작(것, e.clientX, e.clientY); mode = '밴드'; }
+    }
+    if (mode);                                                         // 밴드 끌기로 정해졌다
+    else if (touch) mode = tool === 'select' ? null : tool;            // 손가락: 도구 단추가 정한 것
     else if (e.button === 1) mode = e.shiftKey ? 'pan' : 'orbit';      // 가운데(스크롤) 버튼: 360도 돌리기
     else if (e.button === 0) mode = 'pan';                             // 왼쪽 버튼: 상하·좌우 이동만
     else return;                                                       // 오른쪽 버튼 등은 그대로 둔다
     // mode 가 없어도(선택 도구) 자국은 남긴다 — 짧게 떼면 '고르기' 로 봐야 하니까.
-    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, touch, held:touch && !!mode };
+    drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, touch, held:touch && !!mode, 끌 };
     // 손가락은 곧바로 붙잡지 않는다. 가만히 누르면 길게 누르기(짚어서 지시)가 되도록 10px 만큼 길을 터 둔다.
     if (!touch && mode){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
@@ -1310,13 +1388,21 @@ function init3D(){
       drag.held = false; cv.setPointerCapture(drag.id); cv.classList.add('dragging');
     }
     const dx = e.clientX-drag.x, dy = e.clientY-drag.y; drag.x = e.clientX; drag.y = e.clientY;
-    if (drag.mode === 'orbit') orbit(dx,dy);
+    if (drag.mode === '밴드') 끌기(drag.끌, e.clientX, e.clientY);
+    else if (drag.mode === 'orbit') orbit(dx,dy);
     else if (drag.mode === 'pan') pan(dx,dy);
     else if (drag.mode === 'zoom') zoomBy(Math.exp(dy*0.006), drag.x0, drag.y0);   // 위로 드래그 = 확대, 짚기 시작한 자리가 기준
   });
   // 짧게 누르기(탭/클릭) = 부속 고르기. 끌었으면 조작이고, 지시창이 떠 있으면 길게 누르기다.
   // 손가락은 잘 흔들리므로 10px 까지 봐 준다(손잡이의 자와 같은 값). 마우스는 5px.
   const end = e => {
+    if (drag && drag.끌 && drag.mode === '밴드'){
+      const 잰 = e ? Math.max(Math.abs(e.clientX-drag.x0), Math.abs(e.clientY-drag.y0)) : 0;
+      if (잰 > (drag.touch ? 10 : 5)){      // 정말 끌었을 때만 옮긴다
+        끌끝(drag.끌); drag = null; cv.classList.remove('dragging'); return;
+      }
+      drag.mode = null;                     // 톡 친 것이면 예전처럼 고르기·손질 차림표로 간다
+    }
     if (drag && e && e.type === 'pointerup'){
       const 자 = drag.touch ? 10 : 5;
       const 끌었나 = Math.abs(e.clientX-drag.x0) > 자 || Math.abs(e.clientY-drag.y0) > 자;
