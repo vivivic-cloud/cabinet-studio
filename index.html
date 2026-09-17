@@ -581,8 +581,9 @@ function buildDrawing(s, m){
     tick(xl,y1); tick(xl,y2);
     text(글 || fmt(Math.abs(y2-y1)), xl - sg*(TH/2+8), (y1+y2)/2, TH, 'DIM', 'MC', 90);
   };
-  // 숨긴 부속은 도면에 안 그린다 — 가린 것을 들여다보라는 것이다. 부품표에는 그대로 남는다.
-  const 목록 = m.parts.filter(p => !p.숨김);
+  // 숨기기는 3D 에서만이다 — 도면에는 숨긴 부속도 다 그린다(사장님 말씀 09-17).
+  // 가려서 보시려는 것은 3D 이고, 도면은 짜는 사람이 보는 것이라 하나도 빠지면 안 된다.
+  const 목록 = m.parts;
   const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
   const doors = 목록.filter(p => p.name === '문짝');
 
@@ -820,11 +821,11 @@ const 줄여서 = (str, em, 넓이) => { let t = str;
   return t === str ? str : t + '…'; };
 const n2 = n => String(Math.round(n*100)/100);
 
-// 부속 도면에 실을 줄. 부품표와 같은 규칙으로 묶되 숨긴 부속은 뺀다
-// (숨기기는 3D·도면 둘 다에서 빼고 부품표에만 남긴다).
+// 부속 도면에 실을 줄. 부품표와 같은 규칙으로 묶는다.
+// 숨긴 부속도 그대로 실는다 — 숨기기는 3D 에서만이다(사장님 말씀 09-17).
 function 부속행들(m){
   const map = new Map();
-  m.parts.filter(p => !p.숨김).forEach(p => {
+  m.parts.forEach(p => {
     const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
     if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut});
     map.get(k).qty += 1 + (p.더 || 0);
@@ -1234,7 +1235,7 @@ function rebuild3D(m){
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
-    if (p.숨김) return;                // 숨긴 부속은 3D 에도 안 선다 (부품표에는 남는다)
+    if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 다 나온다)
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
     const base = mat(p.cut.T, p.name === '문짝');
     const mesh = new THREE.Mesh(geo, base);
