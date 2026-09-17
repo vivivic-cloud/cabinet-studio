@@ -568,13 +568,26 @@ function buildModel(s){
   // 재단은 두 방식 모두 같다 — 가로 = 내부 폭, 세로 = 전면밴드 + 하판 두께(기본값 764 × 98).
   //   덮기   — 가구 안쪽에서 뒷판과 맞닿는다(측판 안쪽 끝선과 맞춤)
   //   끼우기 — 뒷판 바깥(뒤)에 올라탄다. 두꺼우면 측판 뒤끝을 넘어 튀어나온다.
+  const 넘침들 = {};                          // 자리있는부속 이름 → 측판 뒤끝을 넘어 나온 길이
   let 밴드넘침 = 0;
+  // 보호대 — 사장님 말씀(09-17): 「측판의 바닥에서 하판까지 위치에 채워지는 부속.
+  // 사이즈는 측판 바닥에서 하판 **바닥**까지로 조절된다.」 그래서 키가 `bz` 다(하판 두께를 안 먹는다).
+  // 밴드 「하」 는 `bz + Tbot` 이라 하판 두께까지 먹는다 — 그 한 가지가 다르다.
+  // 앞뒤(y) 자리는 사장님이 「밴드와 비슷한 개념」 이라고만 하셨다 — 우선 밴드와 같은 규칙으로 둔다.
+  만든부속.forEach(c => {
+    if (c.이름 !== '보호대') return;
+    const 폭 = W - 2*Tside, 키 = bz;          // 측판 바닥(0) ~ 하판 바닥(bz)
+    if (!(키 > 0)) return;                     // 전면밴드 0 이면 설 자리가 없다
+    const y = 끼움 ? 홈뒤 : CD - c.T;
+    넘침들['보호대'] = Math.max(0, (y + c.T) - CD);
+    add('보호대', Tside, y, 0, 폭, c.T, 키, [0,-1,0], {L:폭, W:키, T:c.T, grain:'가로'});
+  });
   만든부속.forEach(c => {
     if (c.이름 !== '밴드') return;
     const 밴드폭 = W - 2*Tside, 밴드높 = bz + Tbot;
     const 밴드y = 끼움 ? 홈뒤 : CD - c.T;
     const 넘침 = Math.max(0, (밴드y + c.T) - CD);        // 측판 뒤끝(CD)을 넘어 나온 길이
-    const 놓기 = z => { 밴드넘침 = 넘침;
+    const 놓기 = z => { 밴드넘침 = 넘침; 넘침들['밴드'] = 넘침;
       add('밴드', Tside, 밴드y, z, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'}); };
     const 단 = 밴드단(c);
     if (단.includes('하')) 놓기(밴드높);                  // 여태 있던 그 자리 — 하판 위로 올라탄다
@@ -589,8 +602,9 @@ function buildModel(s){
   // 지운 밴드는 튀어나올 것도 없다 — 넘침을 셈한 뒤에 지움을 거르므로 여기서 다시 0 으로 돌린다.
   // (숨긴 밴드는 산것에 남는다. 숨겼어도 실제로 만드는 부속이라 경고는 그대로 떠야 한다.)
   if (밴드넘침 && !산것.some(p => p.name === '밴드')) 밴드넘침 = 0;
+  Object.keys(넘침들).forEach(n => { if (!산것.some(p => p.name === n)) 넘침들[n] = 0; });
   산것.forEach((p, i) => { p.pid = i; p.자리 = 자리(p); p.숨김 = 손질.숨김.includes(p.자리); p.더 = 손질.복제[p.자리] || 0; });
-  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈, 밴드넘침 };
+  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: W-2*Tside, 앞으로, 홈, 밴드넘침, 넘침들 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -814,7 +828,7 @@ function buildDrawing(s, m, 치수배 = 1){
 // 홈을 파는 부속 — 사장님 말씀의 「양측판, 상판, 맨바닥선반」. 이 모델에서 뒷판이 닿는 맨 아래 것은 하판이라 하판으로 본다.
 const 홈부속 = ['측판','상판','하판'];
 // 자리 규칙이 있어 buildModel 이 직접 세우는 만든 부속 — 부품표에서 두 번 세지 않는다.
-const 자리있는부속 = ['밴드'];
+const 자리있는부속 = ['밴드','보호대'];
 // 밴드가 설 단 — 사장님 말씀(09-17). 「상 · 중 · 하」 를 여러 개 켤 수 있고 다 끌 수도 있다.
 //   하 = 여태 있던 그 자리(하판 위) · 중 = 고정선반 센터마다 하나 · 상 = 상판 바로 아래 하나
 // 예전에 만들어 둔 밴드에는 이 값이 없다 — 그때는 「하」 하나뿐이었으므로 그렇게 읽는다.
@@ -1433,23 +1447,30 @@ const 밴드한계 = 15;
 let 경고중 = false;
 function 밴드살피기(){
   if (경고중) return;
-  const c = 만든부속.find(x => x.이름 === '밴드');
-  if (!c || !(c.T > 밴드한계)) return;                 // 15 이하는 여기서 끝 — 아래는 아예 안 돈다
   const m = 모델;
-  if (!m || !(m.밴드넘침 > 0)) return;                 // 안 튀어나오면 경고하지 않는다(덮기가 여기서 걸린다)
-  const 넘침 = m.밴드넘침, 두께 = c.T;
-  경고중 = true;
-  const 밴드부속 = m.parts.find(p => p.name === '밴드' && !p.숨김);
-  const 조각 = (group && 밴드부속) ? group.children.find(x => x.userData.pid === 밴드부속.pid) : null;
-  밴드깜박(조각, () => {
-    c.T = 밴드한계; 담기(); 부속그리기(); update();     // 자동 조정
-    경고중 = false;
-    $('#warnMsg').textContent =
-      `밴드 두께 ${fmt(두께)}mm 는 측판 뒤끝보다 ${fmt(넘침)}mm 뒤로 튀어나옵니다. `
-      + `두께를 ${밴드한계}mm 로 맞췄습니다.`;
-    const dlg = $('#warnDlg');
-    if (dlg.showModal && !dlg.open) dlg.showModal(); else toast(`밴드 두께를 ${밴드한계}mm 로 맞췄습니다`);
-  });
+  if (!m) return;
+  // 자리있는부속(밴드·보호대)에 같은 규칙을 건다 — 둘 다 뒷판 바깥에 올라타 측판 뒤끝을 넘을 수 있다.
+  for (const 이름 of 자리있는부속){
+    const c = 만든부속.find(x => x.이름 === 이름);
+    if (!c || !(c.T > 밴드한계)) continue;             // 15 이하는 여기서 끝 — 아래는 아예 안 돈다
+    const 넘침 = (m.넘침들 || {})[이름] || 0;
+    if (!(넘침 > 0)) continue;                         // 안 튀어나오면 경고하지 않는다(덮기가 여기서 걸린다)
+    const 두께 = c.T;
+    경고중 = true;
+    const 그부속 = m.parts.find(p => p.name === 이름 && !p.숨김);
+    const 조각 = (group && 그부속) ? group.children.find(x => x.userData.pid === 그부속.pid) : null;
+    밴드깜박(조각, () => {
+      c.T = 밴드한계; 담기(); 부속그리기(); update();   // 자동 조정
+      경고중 = false;
+      $('#warnTitle').textContent = `${이름}가 측판보다 튀어나옵니다`;
+      $('#warnMsg').textContent =
+        `${이름} 두께 ${fmt(두께)}mm 는 측판 뒤끝보다 ${fmt(넘침)}mm 뒤로 튀어나옵니다. `
+        + `두께를 ${밴드한계}mm 로 맞췄습니다.`;
+      const dlg = $('#warnDlg');
+      if (dlg.showModal && !dlg.open) dlg.showModal(); else toast(`${이름} 두께를 ${밴드한계}mm 로 맞췄습니다`);
+    });
+    return;                                            // 한 번에 하나만 알린다
+  }
 }
 // 그 자리로 다가가 등각으로 돌리고, 밴드를 붉게 여러 번 깜박인다.
 // **끝나면 보시던 자리로 카메라를 돌려놓는다.** 안 돌려놓으면 가구 뒤 밴드에 붙은 채 서 있어
