@@ -55,7 +55,7 @@ select:focus{border-color:var(--head)}
 .seg label:has(input:focus-visible){outline:2px solid var(--head);outline-offset:-2px}
 .field.wide{grid-template-columns:1fr}
 /* 뒷판 줄 — 덮기·끼우기를 이름과 두께 사이 빈자리에 작게 넣는다 */
-.field.back{grid-template-columns:auto minmax(0,1fr) 112px;gap:8px}
+.field.back,.field.band{grid-template-columns:auto minmax(0,1fr) 112px;gap:8px}
 .seg.mini{padding:2px;gap:2px}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
@@ -122,6 +122,30 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap .page{position:relative;width:100%;aspect-ratio:210/297;margin:0 auto 12px;border:1px solid var(--line);background:var(--surface)}
 .svgwrap .page:last-child{margin-bottom:0}
 .svgwrap .pnum{position:absolute;right:9px;bottom:5px;font-size:11px;color:var(--ink3)}
+/* 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 본다. 누르는 자리 44px 이상. */
+.svgwrap .page .big{position:absolute;right:8px;top:8px;min-width:56px;min-height:44px;padding:0 12px;
+  font-size:13px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);color:var(--ink);z-index:2}
+.svgwrap .page .big:hover{background:var(--fill2)}
+/* 큰 그림 창 — 화면을 가득 덮는다. 손가락 하나로 밀고, 둘로 벌려 키운다. */
+dialog.zoom{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;padding:0;border:0;border-radius:0;
+  background:var(--surface);color:var(--ink);overflow:hidden}
+/* 머리줄은 폰에서 두 줄로 접힌다. 그래서 높이를 박아 두지 않고 남는 자리를 그림이 다 쓰게 한다 —
+   61px 로 박아 두었더니 375px 에서 그림이 단추 밑으로 파고들었다. */
+dialog.zoom[open]{display:flex;flex-direction:column}
+dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
+.zoomhead{flex:none;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;
+  padding:8px 10px;border-bottom:1px solid var(--line);background:var(--surface)}
+.zoomhead>b{font-size:12px;color:var(--ink2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zoombtns{display:flex;align-items:center;gap:6px;flex:none}
+.zoombtns button{min-width:44px;min-height:44px;padding:0 12px;font-size:14px;border-radius:12px}
+.zoombtns #zoomPct{min-width:52px;text-align:center;font-size:12px;color:var(--ink3)}
+.zoomwrap{position:relative;flex:1 1 auto;min-height:0;padding:0;overflow:hidden;
+  touch-action:none;background:var(--fill2);display:block;cursor:grab}
+.zoomwrap.끄는중{cursor:grabbing}
+.zoomwrap .zoombox{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.zoomwrap .page{margin:0;width:100%}
+.zoomwrap .pick{pointer-events:none}          /* 큰 그림에서는 부속을 짚지 않는다 — 밀고 키우는 자리다 */
+.zoomwrap .big{display:none}                  /* 큰 그림 안에 또 「크게」 를 두지 않는다 */
 /* 1쪽은 도면 아래에 차례가 붙는다. 도면은 남는 만큼 쓰고 차례는 제 높이만 쓴다. */
 .svgwrap .page.p1{display:flex;flex-direction:column}
 .svgwrap .page.p1>svg{flex:1;min-height:0;height:auto}
@@ -359,6 +383,19 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </section>
 </div>
 
+<dialog id="zoomDlg" class="zoom" aria-label="도면 크게 보기">
+  <div class="zoomhead">
+    <b id="zoomTitle" class="mono">도면</b>
+    <div class="zoombtns">
+      <button type="button" id="zoomOut" aria-label="작게">−</button>
+      <span id="zoomPct" class="mono">100%</span>
+      <button type="button" id="zoomIn" aria-label="크게">＋</button>
+      <button type="button" id="zoomFit">맞춤</button>
+      <button type="button" id="zoomClose" class="primary">닫기</button>
+    </div>
+  </div>
+  <div class="zoomwrap svgwrap" id="zoomWrap"><div class="zoombox" id="zoomBox"></div></div>
+</dialog>
 <dialog id="warnDlg" aria-labelledby="warnTitle">
   <div class="dlg">
     <h3 id="warnTitle">밴드가 측판보다 튀어나옵니다</h3>
@@ -483,6 +520,7 @@ function buildModel(s){
   // 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 칸 높이는 다 같게 나눈다.
   // 이동 선반은 넣고 뺄 여유가 있어야 하므로 좌우로 한 쪽씩, 뒤로 한 번 물려 짠다.
   let 선반z = bz + Tbot;
+  const 고정센터 = [];                       // 밴드 「중」 이 이 높이에 맞춰 선다
   for (let i = 0; i < 단수; i++){
     const 이동 = i >= shelves;
     const t = 이동 ? Tshelf2 : Tshelf;
@@ -491,6 +529,7 @@ function buildModel(s){
     // 앞쪽에서 뺀다 — 뒤는 뒷판에 붙고 앞이 트여야 손으로 들어낼 수 있다
     add(이동 ? '이동선반' : '고정선반', Tside + 옆, 도어물림 + 앞, 선반z,
         W - 2*Tside - 2*옆, 선반깊이 - 앞, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:선반깊이 - 앞, T:t, grain:'가로'});
+    if (!이동) 고정센터.push(선반z + t/2);
     선반z += t;
   }
   if (plinth > 0) add('전면밴드', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
@@ -533,8 +572,13 @@ function buildModel(s){
     if (c.이름 !== '밴드') return;
     const 밴드폭 = W - 2*Tside, 밴드높 = bz + Tbot;
     const 밴드y = 끼움 ? 홈뒤 : CD - c.T;
-    밴드넘침 = Math.max(0, (밴드y + c.T) - CD);          // 측판 뒤끝(CD)을 넘어 나온 길이
-    add('밴드', Tside, 밴드y, 밴드높, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'});
+    const 넘침 = Math.max(0, (밴드y + c.T) - CD);        // 측판 뒤끝(CD)을 넘어 나온 길이
+    const 놓기 = z => { 밴드넘침 = 넘침;
+      add('밴드', Tside, 밴드y, z, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'}); };
+    const 단 = 밴드단(c);
+    if (단.includes('하')) 놓기(밴드높);                  // 여태 있던 그 자리 — 하판 위로 올라탄다
+    if (단.includes('중')) 고정센터.forEach(z => 놓기(z - 밴드높/2));   // 고정선반 센터 높이에 맞춘다
+    if (단.includes('상')) 놓기((H - Ttop) - 밴드높);     // 상판 바로 아래에 붙는다
   });
   // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
   // 복제한 것은 부품표 수량만 는다(자리가 겹치므로 새로 안 선다).
@@ -768,6 +812,11 @@ function buildDrawing(s, m, 치수배 = 1){
 const 홈부속 = ['측판','상판','하판'];
 // 자리 규칙이 있어 buildModel 이 직접 세우는 만든 부속 — 부품표에서 두 번 세지 않는다.
 const 자리있는부속 = ['밴드'];
+// 밴드가 설 단 — 사장님 말씀(09-17). 「상 · 중 · 하」 를 여러 개 켤 수 있고 다 끌 수도 있다.
+//   하 = 여태 있던 그 자리(하판 위) · 중 = 고정선반 센터마다 하나 · 상 = 상판 바로 아래 하나
+// 예전에 만들어 둔 밴드에는 이 값이 없다 — 그때는 「하」 하나뿐이었으므로 그렇게 읽는다.
+const 밴드단 = c => Array.isArray(c.단) ? c.단 : ['하'];
+const 밴드단값 = ['상','중','하'];
 function bomRows(m){
   const map = new Map();
   const 홈글 = m.홈 ? `홈 ${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}` : '';
@@ -1455,9 +1504,12 @@ function 도면그리기(){
     + `<div><span>1쪽</span>전체 도면</div>`
     + 쪽.map((z, i) => `<div><span>${i+2}쪽</span>${esc(z.이름들.join(' · '))}</div>`).join('')
     + `</div>`;
+  // 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 펼쳐 본다 (사장님 말씀 09-17).
+  // 도면 위를 그냥 톡 치는 것은 예전처럼 부속 고르기다. 그걸 뺏으면 안 되어 단추를 따로 두었다.
+  const 크게 = (i, 이름) => `<button type="button" class="big" data-pg="${i}" data-nm="${esc(이름)}">크게</button>`;
   $('#svgwrap').innerHTML =
-    `<div class="page p1">${renderSVG(화면도면, true, 배)}${차례}<span class="pnum mono">1 / ${총}</span></div>`
-    + 쪽.map((z, i) => `<div class="page">${z.svg}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
+    `<div class="page p1">${renderSVG(화면도면, true, 배)}${차례}${크게(0, '1쪽 · 전체 도면')}<span class="pnum mono">1 / ${총}</span></div>`
+    + 쪽.map((z, i) => `<div class="page">${z.svg}${크게(i+1, `${i+2}쪽 · ${z.이름들.join(' · ')}`)}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
   applySel();
 }
 let 도면칸폭 = 0;
@@ -1862,18 +1914,114 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
   }, true);
 }
 
+/* ───────── 도면 한 쪽을 화면 가득 보기 ─────────
+   사장님 말씀(09-17 「여기 클릭하면 확대해서 페이지 볼 수 있는 기능」). 폰에서 도면 글자가 작아 안 보이신다.
+   도면 위를 그냥 톡 치는 것은 **예전 그대로 부속 고르기**다 — 그걸 뺏으면 안 되어 쪽마다 「크게」 단추를 두었다.
+   손가락 하나로 밀고, 두 개로 벌려 키운다(여기는 핀치가 있다). 닫으면 원래 화면 그대로 돌아온다 —
+   도면 칸은 손대지 않고 그 쪽을 베껴 와 창 안에서만 굴린다. */
+(function(){
+  const dlg = $('#zoomDlg'), wrap = $('#zoomWrap'), box = $('#zoomBox');
+  if (!dlg) return;
+  let 배 = 1, 맞춤배 = 1, ox = 0, oy = 0, 폭 = 0, 높 = 0;
+  const 칠 = () => {
+    box.style.transform = `translate(${ox}px, ${oy}px) scale(${배})`;
+    $('#zoomPct').textContent = Math.round(배 / 맞춤배 * 100) + '%';
+  };
+  const 가두기 = () => {                      // 쪽이 화면보다 작으면 가운데, 크면 가장자리까지만
+    const cw = wrap.clientWidth, ch = wrap.clientHeight, w = 폭*배, h = 높*배;
+    ox = w <= cw ? (cw - w)/2 : Math.min(0, Math.max(cw - w, ox));
+    oy = h <= ch ? (ch - h)/2 : Math.min(0, Math.max(ch - h, oy));
+  };
+  const 맞추기 = () => {
+    const cw = wrap.clientWidth, ch = wrap.clientHeight;
+    폭 = Math.max(240, Math.min(cw, ch * 210/297));      // A4 한 쪽이 통째로 들어오는 크기
+    높 = 폭 * 297/210;
+    box.style.width = 폭 + 'px';
+    맞춤배 = Math.min(cw/폭, ch/높);
+    배 = 맞춤배; 가두기(); 칠();
+  };
+  const 키우기 = (새배, px, py) => {          // 짚은 자리를 제자리에 두고 키운다
+    const n = Math.min(맞춤배*8, Math.max(맞춤배*0.9, 새배));
+    const r = wrap.getBoundingClientRect(), cx = (px === undefined ? r.width/2 : px - r.left), cy = (py === undefined ? r.height/2 : py - r.top);
+    ox = cx - (cx - ox) * (n/배); oy = cy - (cy - oy) * (n/배);
+    배 = n; 가두기(); 칠();
+  };
+  window.큰그림열기 = (쪽번호, 이름) => {
+    const 쪽 = $('#svgwrap').children[쪽번호];
+    if (!쪽) return;
+    box.innerHTML = '';
+    box.appendChild(쪽.cloneNode(true));       // 베껴 온다 — 원래 도면 칸은 한 점도 안 건드린다
+    $('#zoomTitle').textContent = 이름 || '도면';
+    if (dlg.showModal && !dlg.open) dlg.showModal(); else dlg.setAttribute('open','');
+    requestAnimationFrame(맞추기);
+  };
+  const 닫기 = () => { if (dlg.open) dlg.close(); else dlg.removeAttribute('open'); box.innerHTML = ''; };
+  $('#zoomClose').addEventListener('click', 닫기);
+  dlg.addEventListener('close', () => { box.innerHTML = ''; });
+  dlg.addEventListener('click', e => { if (e.target === dlg) 닫기(); });   // 바깥을 누르면 닫힌다
+  $('#zoomIn').addEventListener('click', () => 키우기(배*1.4));
+  $('#zoomOut').addEventListener('click', () => 키우기(배/1.4));
+  $('#zoomFit').addEventListener('click', 맞추기);
+  // 손가락 하나 = 밀기, 둘 = 벌려 키우기. 마우스 휠도 받는다.
+  const 손 = new Map();
+  let 짝 = null;
+  wrap.addEventListener('pointerdown', e => {
+    손.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    wrap.setPointerCapture(e.pointerId); wrap.classList.add('끄는중');
+    if (손.size === 2) 짝 = 벌림();
+  });
+  const 벌림 = () => {
+    const [a,b] = [...손.values()];
+    return { d:Math.hypot(a.x-b.x, a.y-b.y) || 1, x:(a.x+b.x)/2, y:(a.y+b.y)/2, 배 };
+  };
+  wrap.addEventListener('pointermove', e => {
+    const 이 = 손.get(e.pointerId); if (!이) return;
+    const dx = e.clientX - 이.x, dy = e.clientY - 이.y;
+    이.x = e.clientX; 이.y = e.clientY;
+    if (손.size >= 2){
+      if (!짝) 짝 = 벌림();
+      const 지금 = 벌림();
+      키우기(짝.배 * (지금.d / 짝.d), 지금.x, 지금.y);
+    } else { ox += dx; oy += dy; 가두기(); 칠(); }
+  });
+  const 뗌 = e => { 손.delete(e.pointerId); if (손.size < 2) 짝 = null;
+    if (!손.size) wrap.classList.remove('끄는중'); };
+  wrap.addEventListener('pointerup', 뗌); wrap.addEventListener('pointercancel', 뗌);
+  wrap.addEventListener('wheel', e => { e.preventDefault(); 키우기(배 * Math.exp(-e.deltaY*0.0016), e.clientX, e.clientY); }, {passive:false});
+  addEventListener('resize', () => { if (dlg.open) 맞추기(); });
+  // 「크게」 단추는 도면이 다시 그려질 때마다 새로 생긴다 — 칸에 한 번만 걸어 둔다.
+  $('#svgwrap').addEventListener('click', e => {
+    const b = e.target.closest('.big'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    큰그림열기(Number(b.dataset.pg), b.dataset.nm);
+  });
+})();
+
 /* ───────── 부속 만들기 · 관계제어판 ─────────
    만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
    제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
 const 붙박이 = ['상판','측판','선반','고정선반','이동선반','도어','하판','전면밴드','뒷판','문짝'];
 const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
+  // 밴드는 이름 칸과 두께 칸 사이에 「상 · 중 · 하」 단추가 든다 (사장님 말씀 09-17).
+  // 여러 개 켤 수 있고, 다시 누르면 꺼지고, 셋 다 끌 수도 있다 — 그래서 라디오가 아니라 체크다.
+  const 단추 = (c,i) => c.이름 !== '밴드' ? '' :
+    `<div class="seg mini" role="group" aria-label="밴드 단">` +
+    밴드단값.map(v => `<label><input type="checkbox" data-bi="${i}" value="${v}"${밴드단(c).includes(v)?' checked':''}>${v}</label>`).join('') +
+    `</div>`;
   $('#customList').innerHTML = 만든부속.map((c,i) =>
-    `<div class="field"><label>${esc(c.이름)}</label><div class="two">` +
+    `<div class="field${c.이름 === '밴드' ? ' band' : ''}"><label>${esc(c.이름)}</label>${단추(c,i)}<div class="two">` +
     `<select data-ci="${i}">${두께값.map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
     `<button type="button" class="x" data-del="${i}" aria-label="지우기">×</button></div></div>`).join('');
   $('#customList').querySelectorAll('select[data-ci]').forEach(el =>
     el.addEventListener('change', () => { 만든부속[+el.dataset.ci].T = Number(el.value); 담기(); update(); }));
+  $('#customList').querySelectorAll('input[data-bi]').forEach(el =>
+    el.addEventListener('change', () => {
+      const c = 만든부속[+el.dataset.bi], 단 = 밴드단(c).filter(v => v !== el.value);
+      if (el.checked) 단.push(el.value);
+      c.단 = 밴드단값.filter(v => 단.includes(v));      // 차례는 언제나 상·중·하
+      담기(); update();
+    }));
   $('#customList').querySelectorAll('button[data-del]').forEach(el =>
     el.addEventListener('click', () => { 만든부속.splice(+el.dataset.del, 1); 담기(); 부속그리기(); update(); }));
 }
