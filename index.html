@@ -88,6 +88,11 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
 .view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
 .view3d canvas.dragging{cursor:grabbing}
+/* 도구줄(선택·궤도·이동·줌·전체)은 마우스 있는 곳에서는 감춘다 — 사장님 말씀(09-17 「마우스로 다 된다」).
+   마우스는 이 단추를 아예 안 본다: 왼쪽 끌기=이동 · 휠 끌기=궤도 · 스크롤=줌 · Shift+Z=전체.
+   손가락은 이 단추가 유일한 길이다(핀치가 없다) — 폰에서는 그대로 둔다. */
+.mouseonly{display:none}
+@media (hover:hover) and (pointer:fine){ .hud .tools{display:none} .mouseonly{display:inline} }
 .explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;max-width:360px;margin-left:auto}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
 .viewtag{position:absolute;left:14px;bottom:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
@@ -332,7 +337,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <button id="btnHidAll" type="button">모두 보이기</button>
       </div>
     </div>
-    <div class="hint mono">왼쪽 드래그 이동 · 휠 드래그 궤도 · 스크롤 줌</div>
+    <div class="hint mono">왼쪽 드래그 이동 · 휠 드래그 궤도 · 스크롤 줌<span class="mouseonly"> · Shift+Z 전체</span></div>
     <div class="explode">
       <label for="explode">분해도</label>
       <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해 정도">
