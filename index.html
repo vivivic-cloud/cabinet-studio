@@ -181,6 +181,25 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .two{display:flex;gap:6px;align-items:center}
 .two select{flex:1;min-width:0}
 .two .x{flex:none;width:32px;height:32px;padding:0;border-radius:50%;line-height:1;font-size:16px;color:var(--ink3)}
+/* 부속 목록 — 붙박이든 만든 것이든 줄마다 × 하나 (사장님 말씀 09-17) */
+#partList{display:flex;flex-direction:column;gap:4px}
+#partList .prow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:13px;padding:2px 4px 2px 12px;background:var(--surface)}
+#partList .prow span{font-size:13px;color:var(--ink);min-height:40px;display:flex;align-items:center;gap:6px}
+#partList .prow small{color:var(--ink3);font-size:11.5px}
+#partList .prow button{width:44px;height:44px;padding:0;border:0;background:transparent;border-radius:50%;
+  font-size:17px;line-height:1;color:var(--ink3)}
+#partList .prow button:hover{background:var(--fill2);color:var(--head)}
+#partList .none{margin:0;color:var(--ink3);font-size:13px}
+/* 지웠던 부속을 되살리는 고르개 — 「부속 만들기」 칸을 누르면 열린다 */
+.picklist{margin-top:6px;border:1px solid var(--line);border-radius:13px;background:var(--surface);
+  overflow:hidden;max-height:232px;overflow-y:auto}
+.picklist[hidden]{display:none}
+.picklist button{display:block;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:0;
+  background:transparent;text-align:left;font-size:13px;color:var(--ink)}
+.picklist button+button{border-top:1px solid var(--line)}
+.picklist button:hover{background:var(--fill2)}
+.picklist .none{margin:0;padding:12px;color:var(--ink3);font-size:13px}
 .two .x:hover{background:var(--surface2);color:var(--dim)}
 .linkbtn{background:none;border:0;padding:4px 0;font-size:12px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:0}
 .linkbtn:hover{background:none;color:var(--head)}
@@ -312,8 +331,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
-      <div class="field wide"><label for="newPart">부속 만들기</label>
-        <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름"><button id="btnAdd" type="button">추가</button></div>
+      <div class="field wide"><label>부속 <small>× 를 누르면 도면에서 빠집니다</small></label>
+        <div id="partList"></div></div>
+      <div class="field wide"><label for="newPart">부속 만들기 <small>칸을 누르면 지웠던 부속이 나옵니다</small></label>
+        <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"><button id="btnAdd" type="button">추가</button></div>
+        <div id="partPick" class="picklist" hidden></div>
         <small id="addWarn" class="warn"></small></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
       <div class="field wide"><label>상판 결합</label>
@@ -464,12 +486,16 @@ const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
 // 도면에서 부속을 골라 손질한 것. 자리(이름+좌표)로 짚는다 — 치수를 바꿔 그 자리가 없어지면 저절로 풀린다.
 let 손질 = { 숨김:[], 지움:[], 복제:{} };
+// 만들었다가 지운 부속을 기억해 둔다 — 「부속 만들기」 칸을 누르면 이 목록에서 되살린다(사장님 말씀 09-17).
+let 지난부속 = [];
 const 자리 = p => `${p.name}@${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}`;
 try {
   const r = JSON.parse(localStorage.getItem(곳간 + '.규칙') || 'null');
   if (r && typeof r === 'object') 규칙 = { ...규칙기본, ...r };
   const c = JSON.parse(localStorage.getItem(곳간 + '.부속') || 'null');
   if (Array.isArray(c)) 만든부속 = c.filter(x => x && typeof x.이름 === 'string');
+  const 지 = JSON.parse(localStorage.getItem(곳간 + '.지난부속') || 'null');
+  if (Array.isArray(지)) 지난부속 = 지.filter(x => x && typeof x.이름 === 'string');
   const h = JSON.parse(localStorage.getItem(곳간 + '.손질') || 'null');
   if (h && typeof h === 'object') 손질 = { 숨김:Array.isArray(h.숨김) ? h.숨김 : [],
                                            지움:Array.isArray(h.지움) ? h.지움 : [],
@@ -479,6 +505,7 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.규칙', JSON.stringify(규칙));
   localStorage.setItem(곳간 + '.부속', JSON.stringify(만든부속));
   localStorage.setItem(곳간 + '.손질', JSON.stringify(손질));
+  localStorage.setItem(곳간 + '.지난부속', JSON.stringify(지난부속));
 } catch (e) {} }
 
 const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', backMode:'cover', doors:2, doorMode:'out', hinge:'left', explode:0 };
@@ -1515,6 +1542,7 @@ function update(){
   applySel();
   숨김바();
   표값갱신();
+  부속목록그리기();                                                // 부속 줄마다 × (사장님 말씀 09-17)
   $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
   if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.홈뒤살;
   밴드살피기();
@@ -2142,13 +2170,88 @@ function 부속그리기(){
   $('#customList').querySelectorAll('button[data-del]').forEach(el =>
     el.addEventListener('click', () => { 만든부속.splice(+el.dataset.del, 1); 담기(); 부속그리기(); update(); }));
 }
+/* ───────── 부속 목록 · 지웠던 부속 되살리기 (사장님 말씀 09-17) ─────────
+   「부속을 삭제하는 버튼을 모든 부속에 적용. 되살리려면 부속만들기 칸을 클릭하면
+    지금까지 설정한 모든 부속이 드롭다운으로 나오고, 이미 도면에 반영된 부속은 목록에 안 보이게.」
+   지우는 길이 둘이라 갈래마다 맞는 것을 쓴다 —
+     만든 부속  : `만든부속` 에서 빼고 `지난부속` 에 적어 둔다(두께·단까지 기억한다)
+     붙박이 부속 : 그 이름의 조각들을 `손질.지움` 에 넣는다(3D 차림표의 삭제와 같은 길이다) */
+function 선단(이름){                       // 도면에 지금 서 있는 그 이름의 조각들
+  return (모델 && 모델.parts) ? 모델.parts.filter(p => p.name === 이름) : [];
+}
+function 부속목록그리기(){
+  const 칸 = $('#partList'); if (!칸) return;
+  const 이름들 = [];
+  (모델 && 모델.parts ? 모델.parts : []).forEach(p => { if (!이름들.includes(p.name)) 이름들.push(p.name); });
+  칸.innerHTML = 이름들.length
+    ? 이름들.map(n => { const 수 = 선단(n).length, 만든 = 만든부속.some(c => c.이름 === n);
+        return `<div class="prow"><span>${esc(n)}${수 > 1 ? ` <small>${수}개</small>` : ''}` +
+               `${만든 ? ' <small>만든 것</small>' : ''}</span>` +
+               `<button type="button" data-kill="${esc(n)}" aria-label="${esc(n)} 지우기">×</button></div>`; }).join('')
+    : '<p class="none">도면에 선 부속이 없습니다.</p>';
+  칸.querySelectorAll('button[data-kill]').forEach(el => el.addEventListener('click', () => 부속지우기(el.dataset.kill)));
+}
+function 부속지우기(이름){
+  const i = 만든부속.findIndex(c => c.이름 === 이름);
+  if (i >= 0){                                    // 만든 부속 — 두께·단까지 적어 두고 뺀다
+    const c = 만든부속[i];
+    지난부속 = [...지난부속.filter(x => x.이름 !== 이름), { ...c }];
+    만든부속.splice(i, 1);
+  } else {                                        // 붙박이 부속 — 그 이름의 조각을 다 지운다
+    선단(이름).forEach(p => { if (!손질.지움.includes(p.자리)) 손질.지움.push(p.자리); });
+  }
+  담기(); 부속그리기(); update();
+  toast(`${이름} 지웠습니다 — 「부속 만들기」 칸을 누르면 되살립니다`);
+}
+function 되살릴것(){                              // 도면에 없는 것만 나온다
+  const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
+  const 목록 = [];
+  지난부속.forEach(c => { if (!선것.has(c.이름) && !만든부속.some(x => x.이름 === c.이름))
+    목록.push({ 이름:c.이름, 갈래:'만든', 쪽지:`두께 ${c.T}mm` }); });
+  const 지운이름 = [];
+  손질.지움.forEach(k => { const n = k.split('@')[0]; if (!지운이름.includes(n)) 지운이름.push(n); });
+  지운이름.forEach(n => { if (!선것.has(n) && !목록.some(x => x.이름 === n))
+    목록.push({ 이름:n, 갈래:'붙박이', 쪽지:'지운 것 되돌리기' }); });
+  return 목록;
+}
+function 되살리기(것){
+  if (것.갈래 === '만든'){
+    const c = 지난부속.find(x => x.이름 === 것.이름);
+    지난부속 = 지난부속.filter(x => x.이름 !== 것.이름);
+    만든부속.push(c ? { ...c } : { 이름:것.이름, T:18 });
+  } else {
+    손질.지움 = 손질.지움.filter(k => k.split('@')[0] !== 것.이름);
+  }
+  담기(); 고르개닫기(); 부속그리기(); update();
+  toast(`${것.이름} 되살렸습니다`);
+}
+function 고르개그리기(){
+  const 칸 = $('#partPick'); if (!칸) return;
+  const 목록 = 되살릴것();
+  칸.innerHTML = 목록.length
+    ? 목록.map((x,i) => `<button type="button" data-back="${i}">${esc(x.이름)} <small>· ${esc(x.쪽지)}</small></button>`).join('')
+    : '<p class="none">되살릴 부속이 없습니다 — 새 이름을 적어 주세요.</p>';
+  칸.querySelectorAll('button[data-back]').forEach(el =>
+    el.addEventListener('mousedown', e => e.preventDefault()));   // 칸에서 초점이 빠지지 않게
+  칸.querySelectorAll('button[data-back]').forEach(el =>
+    el.addEventListener('click', () => 되살리기(목록[+el.dataset.back])));
+  칸.hidden = false;
+}
+function 고르개닫기(){ const 칸 = $('#partPick'); if (칸) 칸.hidden = true; }
+$('#newPart').addEventListener('focus', 고르개그리기);
+$('#newPart').addEventListener('click', 고르개그리기);
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#partPick') && !e.target.closest('#newPart')) 고르개닫기();
+});
 $('#btnAdd').addEventListener('click', () => {
   const 이름 = $('#newPart').value.trim(), 알림 = $('#addWarn');
   if (!이름){ 알림.textContent = '이름을 적어 주세요'; return; }
   if (붙박이.includes(이름) || 만든부속.some(c => c.이름 === 이름)){
     알림.textContent = `이미 있는 이름입니다 — ${이름}`; return; }
-  만든부속.push({ 이름, T:18 }); $('#newPart').value = ''; 알림.textContent = '';
-  담기(); 부속그리기(); update();
+  const 지난 = 지난부속.find(x => x.이름 === 이름);      // 전에 만들었던 것이면 두께·단을 그대로 살린다
+  지난부속 = 지난부속.filter(x => x.이름 !== 이름);
+  만든부속.push(지난 ? { ...지난 } : { 이름, T:18 }); $('#newPart').value = ''; 알림.textContent = '';
+  고르개닫기(); 담기(); 부속그리기(); update();
 });
 $('#newPart').addEventListener('input', () => { $('#addWarn').textContent = ''; });
 $('#newPart').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#btnAdd').click(); } });
