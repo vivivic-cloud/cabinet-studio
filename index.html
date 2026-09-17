@@ -277,7 +277,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="Tshelf2">이동 선반</label><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tdoor">도어</label><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field"><label for="Tbot">하판</label><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
-      <div class="field"><label for="Tplinth">걸레받이</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
+      <div class="field"><label for="Tplinth">전면밴드</label><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field back"><label for="TB">뒷판</label><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><select id="TB" data-key="TB"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select></div>
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
@@ -293,7 +293,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <h2>내부 · 전면</h2>
       <div class="field wide"><label for="shelves">고정 선반 <b id="shelvesVal" class="mono">3</b>단</label><input id="shelves" data-key="shelves" type="range" min="0" max="8" step="1" value="3"></div>
       <div class="field wide"><label for="shelvesM">이동 선반 <b id="shelvesMVal" class="mono">0</b>단</label><input id="shelvesM" data-key="shelvesM" type="range" min="0" max="8" step="1" value="0"></div>
-      <div class="field"><label for="plinth">걸레받이 <small>0 = 없음</small></label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
+      <div class="field"><label for="plinth">전면밴드 <small>0 = 없음</small></label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
       <div class="field wide"><label>문짝</label>
         <div class="seg"><label><input type="radio" name="doors" value="0">없음</label><label><input type="radio" name="doors" value="1">여닫이 1</label><label><input type="radio" name="doors" value="2" checked>여닫이 2</label></div></div>
       <div class="field wide"><label>도어 방식</label>
@@ -488,14 +488,14 @@ function buildModel(s){
         W - 2*Tside - 2*옆, 선반깊이 - 앞, t, [0,-0.55,0], {L:W - 2*Tside - 2*옆, W:선반깊이 - 앞, T:t, grain:'가로'});
     선반z += t;
   }
-  if (plinth > 0) add('걸레받이', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
+  if (plinth > 0) add('전면밴드', Tside, 규칙.걸레앞, 0, W-2*Tside, Tplinth, plinth, [0,-0.8,-0.5], {L:W-2*Tside, W:plinth, T:Tplinth, grain:'가로'});
   // 뒷판. 끼우기면 통 내부보다 가로·세로로 「뒷판키움」 만큼 크게 짜서 홈에 물린다.
   if (끼움){
     const 키 = 규칙.뒷판키움, bw = (W - 2*Tside) + 키, bh = innerH + 키;
     add('뒷판', Tside - 키/2, 홈뒤 - TB, bz + Tbot - 키/2, bw, TB, bh, [0,1,0], {L:bh, W:bw, T:TB, grain:'세로'});
   } else {
     // 덮기 — 사장님 말씀(09-16): 상판 끝에서 2mm 내려오고, 양 측판 끝에서 2mm 씩 들어가고,
-    // 하판 바닥(= 하판 밑면 bz)에서 2mm 올라간다. 그만큼 걸레받이 뒤가 트인다.
+    // 하판 바닥(= 하판 밑면 bz)에서 2mm 올라간다. 그만큼 전면밴드 뒤가 트인다.
     const 물 = 규칙.뒷판물림;
     const bx0 = 물, bw = W - 2*물, bz0 = bz + 물, bh = (H - 물) - bz0;
     add('뒷판', bx0, CD, bz0, bw, TB, bh, [0,1,0], {L:bh, W:bw, T:TB, grain:'세로'});
@@ -509,7 +509,7 @@ function buildModel(s){
       x0 = Tside + 왼; x1 = W - Tside - 오;
       z0 = bz + Tbot + 규칙.인나머지; z1 = (H - Ttop) - 규칙.인나머지;
       dy = 0;                                // 몸통 앞면 안쪽에 앉는다
-    } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래는 걸레받이와 만나 5mm
+    } else {                                 // 아웃도어 — 몸통 외경에서 좌우·위 2mm, 아래는 전면밴드와 만나 5mm
       x0 = 규칙.아웃좌우; x1 = W - 규칙.아웃좌우;
       z0 = bz + (plinth > 0 ? 규칙.아웃아래걸레 : 규칙.아웃아래없음); z1 = H - 규칙.아웃위;
       dy = -Tdoor; 앞으로 = Tdoor;            // 몸통 앞으로 나온다
@@ -520,7 +520,7 @@ function buildModel(s){
   }
   // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」 (09-16 고쳐 주신 규칙).
   // 측판과 측판 사이에 정사이즈로 들어가고, **하판 위로 올라탄다**.
-  // 재단은 두 방식 모두 같다 — 가로 = 내부 폭, 세로 = 걸레받이 + 하판 두께(기본값 764 × 98).
+  // 재단은 두 방식 모두 같다 — 가로 = 내부 폭, 세로 = 전면밴드 + 하판 두께(기본값 764 × 98).
   //   덮기   — 가구 안쪽에서 뒷판과 맞닿는다(측판 안쪽 끝선과 맞춤)
   //   끼우기 — 뒷판 바깥(뒤)에 올라탄다. 두꺼우면 측판 뒤끝을 넘어 튀어나온다.
   let 밴드넘침 = 0;
@@ -700,7 +700,7 @@ function buildDrawing(s, m){
   line(bx, ty0 - 110, bx + 표폭, ty0 - 110, 'TITLE');
   text(`수납장  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
   text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
-  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
+  text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
   text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + 표폭/2, ty0 - 276, 26, 'TITLE');
   쪽 = 1;
@@ -713,7 +713,7 @@ function buildDrawing(s, m){
     ['치수',        `W${W} × D${D} × H${H}`],
     ['재질·두께',   `상판 ${Ttop}T · 측판 ${Tside}T · 도어 ${Tdoor}T`],
     ['',            `고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
-    ['',            `하판 ${Tbot}T · 걸레받이 ${s.Tplinth}T · 뒷판 ${TB}T`],
+    ['',            `하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T · 뒷판 ${TB}T`],
     ['구성',        `고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단`],
     ['',            `문짝 ${s.doors}짝 · ${s.doorMode === 'in' ? '인도어' : '아웃도어'}`],
     ['투상법·단위', '제3각법 · mm'],
@@ -812,7 +812,7 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
-const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','걸레받이','뒷판','밴드'];
+const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','전면밴드','뒷판','밴드'];
 const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
@@ -831,7 +831,7 @@ function 부속행들(m){
     map.get(k).qty += 1 + (p.더 || 0);
   });
   만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:'가로', 홈:false}); });
-  // 자주 보는 것이 앞에 온다 — 몸통 → 문짝 → 선반 → 걸레받이 → 뒷판, 만든 부속은 맨 뒤.
+  // 자주 보는 것이 앞에 온다 — 몸통 → 문짝 → 선반 → 전면밴드 → 뒷판, 만든 부속은 맨 뒤.
   // 부품표(bomRows)의 차례는 건드리지 않는다.
   const 순 = n => { const i = 부속차례.indexOf(n); return i < 0 ? 부속차례.length : i; };
   return [...map.values()].sort((a, b) => 순(a.name) - 순(b.name));
@@ -1789,7 +1789,7 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
 /* ───────── 부속 만들기 · 관계제어판 ─────────
    만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
    제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
-const 붙박이 = ['상판','측판','선반','고정선반','이동선반','도어','하판','걸레받이','뒷판','문짝'];
+const 붙박이 = ['상판','측판','선반','고정선반','이동선반','도어','하판','전면밴드','뒷판','문짝'];
 const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
   $('#customList').innerHTML = 만든부속.map((c,i) =>
@@ -1821,8 +1821,8 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'상판 ↔ 측판', 말:'측판 사이에 끼우거나 측판 위에 얹는다. 끼우면 상판 폭은 안치수, 얹으면 가구 전체 폭이다. 상판 윗면이 가구 맨 위 높이다.',
     값:(m,s) => s.topStyle === 'overlay' ? '측판 위' : '측판 사이', 어디:'보드선택 「상판 결합」' },
   { 갈래:'몸통', 사이:'하판 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
-  { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'걸레받이 높이만큼 띄워 앉는다. 걸레받이가 없으면 바닥에 붙는다.',
-    값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「걸레받이」' },
+  { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'전면밴드 높이만큼 띄워 앉는다. 전면밴드가 없으면 바닥에 붙는다.',
+    값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「전면밴드」' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 뒷판이 뒤에 붙으므로 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
     값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'보드선택 「뒷판」 줄' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (끼우기)', 말:'뒷판이 통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다. 뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.',
@@ -1844,15 +1844,15 @@ const 관계표 = [
     규칙:'이동앞뒤', 최소:0, 최대:100, 걸음:1 },
   { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'고정 선반과 이동 선반을 한데 세어 하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
     값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「고정 선반」·「이동 선반」 단수' },
-  { 갈래:'몸통', 사이:'걸레받이 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 걸레받이 값이다. 걸레받이를 0 으로 두면 아예 안 짠다.',
-    값:(m,s) => s.plinth > 0 ? `높이 ${fmt(s.plinth)}` : '안 짬', 어디:'내부·전면 「걸레받이」' },
-  { 갈래:'몸통', 사이:'걸레받이 ↔ 몸통 앞면', 말:'몸통 앞면에서 뒤로 물린다.', 규칙:'걸레앞', 최소:0, 최대:200, 걸음:1 },
+  { 갈래:'몸통', 사이:'전면밴드 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 전면밴드 값이다. 전면밴드를 0 으로 두면 아예 안 짠다.',
+    값:(m,s) => s.plinth > 0 ? `높이 ${fmt(s.plinth)}` : '안 짬', 어디:'내부·전면 「전면밴드」' },
+  { 갈래:'몸통', 사이:'전면밴드 ↔ 몸통 앞면', 말:'몸통 앞면에서 뒤로 물린다.', 규칙:'걸레앞', 최소:0, 최대:200, 걸음:1 },
   { 갈래:'도어', 사이:'문짝 ↔ 몸통 (아웃도어)', 말:'몸통 앞에 덧댄다. 도어 두께만큼 앞으로 나온다. 도어 짝수를 0 으로 두면 아예 안 짠다.',
     값:(m,s) => s.doors ? `${fmt(s.Tdoor)} 나옴` : '안 짬', 어디:'내부·전면 「도어」' },
   { 갈래:'도어', 사이:'문짝 ↔ 측판 바깥 (아웃도어)', 말:'측판 바깥면에서 좌우로 똑같이 뗀다.', 규칙:'아웃좌우', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 상판 (아웃도어)', 말:'상판 윗면 끝에서 아래로 뗀다.', 규칙:'아웃위', 최소:0, 최대:50, 걸음:0.1 },
-  { 갈래:'도어', 사이:'문짝 ↔ 걸레받이 (아웃도어)', 말:'걸레받이가 있으면 그 윗면에서 뗀다.', 규칙:'아웃아래걸레', 최소:0, 최대:50, 걸음:0.1 },
-  { 갈래:'도어', 사이:'문짝 ↔ 바닥 (아웃도어)', 말:'걸레받이가 없으면 바닥에서 뗀다.', 규칙:'아웃아래없음', 최소:0, 최대:50, 걸음:0.1 },
+  { 갈래:'도어', 사이:'문짝 ↔ 전면밴드 (아웃도어)', 말:'전면밴드가 있으면 그 윗면에서 뗀다.', 규칙:'아웃아래걸레', 최소:0, 최대:50, 걸음:0.1 },
+  { 갈래:'도어', 사이:'문짝 ↔ 바닥 (아웃도어)', 말:'전면밴드가 없으면 바닥에서 뗀다.', 규칙:'아웃아래없음', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 측판 안 (인도어)', 말:'몸통 안에 앉는다. 경첩이 달리는 쪽을 뗀다. 경첩을 좌에서 우로 바꾸면 이 값이 가는 쪽도 바뀐다.',
     규칙:'인경첩', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 상판·하판·측판 (인도어)', 말:'경첩 쪽 말고 맞닿는 나머지 세 면을 뗀다.', 규칙:'인나머지', 최소:0, 최대:50, 걸음:0.1 },
@@ -1862,7 +1862,7 @@ const 관계표 = [
     어디:'내부·전면 「도어」 짝수' },
   { 갈래:'도어', 사이:'선반 ↔ 문짝 (인도어)', 말:'인도어는 몸통 앞면 안쪽에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고 깊이를 줄인다. 고정·이동 둘 다 같다.',
     고름:'인선반줄임' },
-  { 갈래:'재단·부품표', 사이:'결 ↔ 부속', 말:'측판·문짝·뒷판은 결이 세로, 상판·하판·선반·걸레받이는 가로다.', 값:() => '세로 3 · 가로 4' },
+  { 갈래:'재단·부품표', 사이:'결 ↔ 부속', 말:'측판·문짝·뒷판은 결이 세로, 상판·하판·선반·전면밴드는 가로다.', 값:() => '세로 3 · 가로 4' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 선반', 말:'고정 선반과 이동 선반은 따로 센다. 두께도 따로 고른다.',
     값:(m,s) => `고정 ${s.shelves}단 · 이동 ${s.shelvesM}단`, 어디:'보드선택·내부·전면' },
   { 갈래:'재단·부품표', 사이:'재단 치수 ↔ 부속', 말:'길이 × 폭 × 두께로 낸다. 두께는 부속마다 보드선택에서 고른다. 재단 여유는 넣지 않는다.',
@@ -1875,7 +1875,7 @@ const 관계표 = [
     값:(m,s) => `x = ${fmt(s.W/4)}` },
   { 갈래:'도면', 사이:'평면 단면도 ↔ 가구', 말:'상판 아랫면에서 100mm 내려온 자리를 가로로 잘라 본다.',
     값:(m,s) => `z = ${fmt(s.H - s.Ttop - 100)}` },
-  { 갈래:'도면', 사이:'치수선 ↔ 부속', 말:'전체 폭·높이·깊이, 측판 두께, 선반 사이 간격, 걸레받이 높이, 도어 두께를 적는다.', 값:() => '7가지' }
+  { 갈래:'도면', 사이:'치수선 ↔ 부속', 말:'전체 폭·높이·깊이, 측판 두께, 선반 사이 간격, 전면밴드 높이, 도어 두께를 적는다.', 값:() => '7가지' }
 ];
 function 표그리기(){
   const m = 모델 || buildModel(state);
