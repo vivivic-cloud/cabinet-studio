@@ -60,6 +60,7 @@ select:focus{border-color:var(--head)}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
 .seg.mini label::after{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:44px}
+.seg.mini label.못씀{opacity:.38}   /* 지금은 안 서는 단 — 눌리기는 눌리고 까닭을 알린다 */
 input[type=range]{width:100%;accent-color:var(--head)}
 .stats{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding-top:14px;border-top:1px solid var(--line2)}
 .stat{display:flex;flex-direction:column;gap:1px}
@@ -577,7 +578,9 @@ function buildModel(s){
       add('밴드', Tside, 밴드y, z, 밴드폭, c.T, 밴드높, [0,-1,0], {L:밴드폭, W:밴드높, T:c.T, grain:'가로'}); };
     const 단 = 밴드단(c);
     if (단.includes('하')) 놓기(밴드높);                  // 여태 있던 그 자리 — 하판 위로 올라탄다
-    if (단.includes('중')) 고정센터.forEach(z => 놓기(z - 밴드높/2));   // 고정선반 센터 높이에 맞춘다
+    // 「중」 은 뒷판 끼우기일 때만이다 (09-17 사장님 말씀). 덮기에서는 밴드가 가구 안쪽(CD−두께)에
+    // 앉아 선반 깊이와 그대로 겹쳤다. 끼우기는 뒷판 바깥(홈뒤)이라 선반이 거기까지 안 나온다.
+    if (단.includes('중') && 끼움) 고정센터.forEach(z => 놓기(z - 밴드높/2));   // 고정선반 센터 높이에 맞춘다
     if (단.includes('상')) 놓기((H - Ttop) - 밴드높);     // 상판 바로 아래에 붙는다
   });
   // 손질한 것을 여기서 반영한다. 지운 것은 아예 빠지고, 숨긴 것은 3D·도면에 안 나오며(부품표에는 남는다),
@@ -1532,7 +1535,7 @@ document.querySelectorAll('[data-key]').forEach(el => {
   el.addEventListener('change', () => { if (el.type === 'number') el.value = state[el.dataset.key]; });
 });
 document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListener('change', () => { state.topStyle = r.value; update(); }));
-document.querySelectorAll('input[name=backMode]').forEach(r => r.addEventListener('change', () => { state.backMode = r.value; update(); }));
+document.querySelectorAll('input[name=backMode]').forEach(r => r.addEventListener('change', () => { state.backMode = r.value; 부속그리기(); update(); }));
 // 「뒷판 들어감」 은 관계표의 홈뒤살과 같은 값이다. 어느 쪽에서 만져도 같이 움직인다.
 $('#backIn').addEventListener('input', () => {
   const v = Number($('#backIn').value);
@@ -2005,9 +2008,12 @@ const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
   // 밴드는 이름 칸과 두께 칸 사이에 「상 · 중 · 하」 단추가 든다 (사장님 말씀 09-17).
   // 여러 개 켤 수 있고, 다시 누르면 꺼지고, 셋 다 끌 수도 있다 — 그래서 라디오가 아니라 체크다.
+  // 「중」 은 뒷판 끼우기일 때만 선다. 덮기면 흐리게 두되 **죽은 단추로 두지 않는다** —
+  // 눌리기는 눌리고 까닭을 한 줄 알린다(관리자가 정한 것. 사장님께 알려 두었다).
+  const 중됨 = () => state.backMode === 'insert';
   const 단추 = (c,i) => c.이름 !== '밴드' ? '' :
     `<div class="seg mini" role="group" aria-label="밴드 단">` +
-    밴드단값.map(v => `<label><input type="checkbox" data-bi="${i}" value="${v}"${밴드단(c).includes(v)?' checked':''}>${v}</label>`).join('') +
+    밴드단값.map(v => `<label class="${v === '중' && !중됨() ? '못씀' : ''}"><input type="checkbox" data-bi="${i}" value="${v}"${밴드단(c).includes(v)?' checked':''}>${v}</label>`).join('') +
     `</div>`;
   $('#customList').innerHTML = 만든부속.map((c,i) =>
     `<div class="field${c.이름 === '밴드' ? ' band' : ''}"><label>${esc(c.이름)}</label>${단추(c,i)}<div class="two">` +
@@ -2018,6 +2024,10 @@ function 부속그리기(){
   $('#customList').querySelectorAll('input[data-bi]').forEach(el =>
     el.addEventListener('change', () => {
       const c = 만든부속[+el.dataset.bi], 단 = 밴드단(c).filter(v => v !== el.value);
+      if (el.value === '중' && !중됨()){          // 덮기에서는 안 선다 — 되돌리고 까닭을 알린다
+        el.checked = 밴드단(c).includes('중');
+        toast('「중」 은 뒷판 끼우기일 때만 섭니다'); return;
+      }
       if (el.checked) 단.push(el.value);
       c.단 = 밴드단값.filter(v => 단.includes(v));      // 차례는 언제나 상·중·하
       담기(); update();
