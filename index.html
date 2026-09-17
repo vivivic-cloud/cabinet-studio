@@ -2163,6 +2163,9 @@ function 부속그리기(){
         el.checked = 밴드단(c).includes('중');
         toast('「중」 은 뒷판 끼우기일 때만 섭니다'); return;
       }
+      // 단추는 **처음 서는 자리**다. 껐다 켜면 그 단에 다시 선다 —
+      // 끌어 옮긴 것(`c.옮김`)은 그 위에 얹는 조정이라 여기서 턴다(관리자가 정한 것).
+      if (!el.checked && c.옮김) delete c.옮김[el.value];
       if (el.checked) 단.push(el.value);
       c.단 = 밴드단값.filter(v => 단.includes(v));      // 차례는 언제나 상·중·하
       담기(); update();
