@@ -85,7 +85,9 @@ input[type=range]{width:100%;accent-color:var(--head)}
   -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .hud{position:absolute;left:14px;top:12px;right:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;pointer-events:none}
 .hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:3px}
-.hud button{padding:6px 12px;font-size:12px;background:transparent;border-color:transparent;border-radius:999px}
+/* 손에 닿는 자리는 44px — 사장님 말씀(09-22) 「숨기기 취소 어디갔니?」 로 짚으신 그 줄이다.
+   폰에서 도구줄은 돌리기·옮기기·줌의 유일한 길이다(핀치 없음 · §4.7). 375px 에서 두 줄이 각각 한 줄에 들어간다. */
+.hud button{min-height:44px;min-width:44px;padding:0 12px;font-size:12px;background:transparent;border-color:transparent;border-radius:999px}
 .hud button:hover{background:var(--fill2)}
 .hud button[aria-pressed="true"]{background:#fff;color:var(--head);font-weight:700;border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .hud>div[hidden]{display:none}
