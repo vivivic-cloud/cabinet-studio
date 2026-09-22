@@ -249,6 +249,14 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
 .two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px}
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
+/* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
+   설정 때문에 없는 줄(도어 0짝 · 이동선반 0단 · 전면밴드 0)은 **안 내린다** — 제자리에 둔다. */
+#deadWrap[hidden]{display:none}
+#deadWrap{display:flex;flex-direction:column;gap:14px;margin-top:4px;padding-top:14px;border-top:1px dashed var(--line)}
+#deadWrap>h2{margin:0}
+#deadList,#deadCustom{display:flex;flex-direction:column;gap:14px}
+#deadList:empty,#deadCustom:empty{display:none}
+.field.죽음>label{color:var(--ink3)}
 
 .two .x:hover{background:var(--surface2);color:var(--dim)}
 .linkbtn{background:none;border:0;padding:4px 0;font-size:12px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:0}
@@ -395,19 +403,24 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field"><label for="D">깊이 <small>Depth</small></label><div class="num"><input id="D" data-key="D" type="number" min="200" max="800" step="1" value="400"><span>mm</span></div></div>
       <div class="field"><label for="H">높이 <small>Height</small></label><div class="num"><input id="H" data-key="H" type="number" min="300" max="2400" step="1" value="1800"><span>mm</span></div></div>
     </div>
-    <div class="group">
+    <div class="group" id="boardBox">
       <h2>보드선택</h2>
-      <div class="field gr"><label for="Ttop">상판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="상판 결 방향"><label><input type="checkbox" data-grain="상판" value="가로">가로</label><label><input type="checkbox" data-grain="상판" value="세로">세로</label></div></div><div class="two"><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="상판" aria-label="상판 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tside">측판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="측판 결 방향"><label><input type="checkbox" data-grain="측판" value="가로">가로</label><label><input type="checkbox" data-grain="측판" value="세로">세로</label></div></div><div class="two"><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="측판" aria-label="측판 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tshelf">고정 선반</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="고정선반 결 방향"><label><input type="checkbox" data-grain="고정선반" value="가로">가로</label><label><input type="checkbox" data-grain="고정선반" value="세로">세로</label></div></div><div class="two"><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="고정선반" aria-label="고정선반 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tshelf2">이동 선반</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="이동선반 결 방향"><label><input type="checkbox" data-grain="이동선반" value="가로">가로</label><label><input type="checkbox" data-grain="이동선반" value="세로">세로</label></div></div><div class="two"><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="이동선반" aria-label="이동선반 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tdoor">도어</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="문짝 결 방향"><label><input type="checkbox" data-grain="문짝" value="가로">가로</label><label><input type="checkbox" data-grain="문짝" value="세로">세로</label></div></div><div class="two"><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="문짝" aria-label="문짝 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tbot">하판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="하판 결 방향"><label><input type="checkbox" data-grain="하판" value="가로">가로</label><label><input type="checkbox" data-grain="하판" value="세로">세로</label></div></div><div class="two"><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div></div>
-      <div class="field gr"><label for="Tplinth">전면밴드</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="전면밴드 결 방향"><label><input type="checkbox" data-grain="전면밴드" value="가로">가로</label><label><input type="checkbox" data-grain="전면밴드" value="세로">세로</label></div></div><div class="two"><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div></div>
-      <div class="field back gr"><label for="TB">뒷판</label><div class="segs"><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><div class="seg mini grseg" role="group" aria-label="뒷판 결 방향"><label><input type="checkbox" data-grain="뒷판" value="가로">가로</label><label><input type="checkbox" data-grain="뒷판" value="세로">세로</label></div></div><div class="two"><select id="TB" data-key="TB"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div></div>
+      <div class="field gr" data-home="0" data-part="상판"><label for="Ttop">상판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="상판 결 방향"><label><input type="checkbox" data-grain="상판" value="가로">가로</label><label><input type="checkbox" data-grain="상판" value="세로">세로</label></div></div><div class="two"><select id="Ttop" data-key="Ttop"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="상판" aria-label="상판 지우기">×</button></div></div>
+      <div class="field gr" data-home="1" data-part="측판"><label for="Tside">측판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="측판 결 방향"><label><input type="checkbox" data-grain="측판" value="가로">가로</label><label><input type="checkbox" data-grain="측판" value="세로">세로</label></div></div><div class="two"><select id="Tside" data-key="Tside"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="측판" aria-label="측판 지우기">×</button></div></div>
+      <div class="field gr" data-home="2" data-part="고정선반"><label for="Tshelf">고정 선반</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="고정선반 결 방향"><label><input type="checkbox" data-grain="고정선반" value="가로">가로</label><label><input type="checkbox" data-grain="고정선반" value="세로">세로</label></div></div><div class="two"><select id="Tshelf" data-key="Tshelf"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="고정선반" aria-label="고정선반 지우기">×</button></div></div>
+      <div class="field gr" data-home="3" data-part="이동선반"><label for="Tshelf2">이동 선반</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="이동선반 결 방향"><label><input type="checkbox" data-grain="이동선반" value="가로">가로</label><label><input type="checkbox" data-grain="이동선반" value="세로">세로</label></div></div><div class="two"><select id="Tshelf2" data-key="Tshelf2"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="이동선반" aria-label="이동선반 지우기">×</button></div></div>
+      <div class="field gr" data-home="4" data-part="문짝"><label for="Tdoor">도어</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="문짝 결 방향"><label><input type="checkbox" data-grain="문짝" value="가로">가로</label><label><input type="checkbox" data-grain="문짝" value="세로">세로</label></div></div><div class="two"><select id="Tdoor" data-key="Tdoor"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="문짝" aria-label="문짝 지우기">×</button></div></div>
+      <div class="field gr" data-home="5" data-part="하판"><label for="Tbot">하판</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="하판 결 방향"><label><input type="checkbox" data-grain="하판" value="가로">가로</label><label><input type="checkbox" data-grain="하판" value="세로">세로</label></div></div><div class="two"><select id="Tbot" data-key="Tbot"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div></div>
+      <div class="field gr" data-home="6" data-part="전면밴드"><label for="Tplinth">전면밴드</label><div class="segs"><div class="seg mini grseg" role="group" aria-label="전면밴드 결 방향"><label><input type="checkbox" data-grain="전면밴드" value="가로">가로</label><label><input type="checkbox" data-grain="전면밴드" value="세로">세로</label></div></div><div class="two"><select id="Tplinth" data-key="Tplinth"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div></div>
+      <div class="field back gr" data-home="7" data-part="뒷판"><label for="TB">뒷판</label><div class="segs"><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div><div class="seg mini grseg" role="group" aria-label="뒷판 결 방향"><label><input type="checkbox" data-grain="뒷판" value="가로">가로</label><label><input type="checkbox" data-grain="뒷판" value="세로">세로</label></div></div><div class="two"><select id="TB" data-key="TB"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div></div>
       <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
+      <!-- 지운 부속만 여기로 내려 모은다 (09-22 사장님 말씀). 설정 때문에 없는 줄은 제자리에 둔다. -->
+      <div id="deadWrap" hidden>
+        <h2>비활성 부속</h2>
+        <div id="deadList"></div><div id="deadCustom"></div>
+      </div>
       <div class="field wide"><label for="newPart">부속 만들기 <small>칸에서 지웠던 부속을 고르거나 새 이름을 적습니다</small></label>
         <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"
              role="combobox" aria-expanded="false" aria-controls="partNames"><button id="btnAdd" type="button">추가</button>
@@ -1703,6 +1716,7 @@ function update(){
   applySel();
   숨김바();
   표값갱신();
+  비활성갱신();                                                    // 지운 줄을 「비활성 부속」 으로 (사장님 말씀 09-22)
   지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
@@ -2422,6 +2436,43 @@ document.addEventListener('change', e => {
   if (el.checked) 결설정[이름] = el.value; else delete 결설정[이름];
   결단추갱신(); 담기(); update();
 });
+/* ───────── 비활성 부속 — 지운 것만 목록 아래로 모은다 (09-22 사장님 말씀) ─────────
+   「이미삭제된 부속은 비활성 부속으로 목록아래에 따로 만들어 주세요」
+   **설정 때문에 없는 것은 안 내린다** — 도어 0짝 · 이동선반 0단 · 전면밴드 0 은 지운 것이 아니다.
+   내리면 도어 짝수를 0 으로 두는 순간 도어 두께 칸이 저 아래로 튀어 못 찾으신다.
+   무엇이 「지운 것」 인지는 `되살릴것()` 이 이미 정확히 센다(손질.지움 + 지난부속). **그걸 그대로 쓴다.**
+   줄은 **옮기기만 한다** — 다시 그리지 않으므로 두께·×·결 단추·덮기/끼우기가 그대로 먹는다.
+   되살리는 길은 예전 그대로 「부속 만들기」 칸의 드롭다운이다(§4.89). 여기에 단추를 붙이지 마라. */
+function 비활성갱신(){
+  const 죽은 = new Set(되살릴것().map(x => x.이름));
+  const 보드 = $('#boardBox'), 칸 = $('#deadList'), 무리 = $('#deadWrap'), 뒤칸 = $('#backInWrap');
+  if (!보드 || !칸) return;
+  const 줄들 = [...document.querySelectorAll('.params .field[data-home]')]
+                 .sort((a, b) => +a.dataset.home - +b.dataset.home);
+  let 옮겼다 = false;
+  줄들.forEach((줄, i) => {
+    const 죽 = 죽은.has(줄.dataset.part);
+    줄.classList.toggle('죽음', 죽);
+    if (줄.parentNode === (죽 ? 칸 : 보드)) return;          // 자리가 맞으면 건드리지 않는다
+    if (죽) 칸.appendChild(줄);
+    else 보드.insertBefore(줄, 줄들.slice(i+1).find(x => x.parentNode === 보드) || 뒤칸);
+    옮겼다 = true;
+  });
+  // 비활성 칸 안에서도 차례는 원래 차례다. 옮긴 일이 있을 때만 맞춘다(쓸데없이 DOM 을 흔들지 않게).
+  if (옮겼다) 줄들.forEach(줄 => { if (줄.parentNode === 칸) 칸.appendChild(줄); });
+  // 지운 만든 부속은 줄 자체가 없어졌으므로 `지난부속` 에서 다시 그린다 — 붙박이 죽은 줄과 같은 모양으로.
+  const 지운만든 = 지난부속.filter(c => 죽은.has(c.이름) && !만든부속.some(x => x.이름 === c.이름));
+  $('#deadCustom').innerHTML = 지운만든.map((c, i) =>
+    `<div class="field gr 죽음"><label>${esc(c.이름)}</label><div class="segs">${결칸(c.이름)}</div><div class="two">` +
+    `<select data-di="${i}" aria-label="${esc(c.이름)} 두께">${두께값.map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
+    `<button type="button" class="x 없음" data-dead="${esc(c.이름)}" aria-label="${esc(c.이름)} 이미 빠져 있음">×</button></div></div>`).join('');
+  $('#deadCustom').querySelectorAll('select[data-di]').forEach(el =>
+    el.addEventListener('change', () => { 지운만든[+el.dataset.di].T = Number(el.value); 담기(); }));
+  $('#deadCustom').querySelectorAll('button[data-dead]').forEach(el =>
+    el.addEventListener('click', () =>
+      toast(`${el.dataset.dead} 은 이미 빠져 있습니다 — 「부속 만들기」 칸을 누르면 되살립니다`)));
+  무리.hidden = !(칸.children.length || $('#deadCustom').children.length);
+}
 function 지우기단추갱신(){
   const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
   document.querySelectorAll('.params .two .x[data-kill]').forEach(el =>
