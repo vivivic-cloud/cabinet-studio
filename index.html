@@ -101,6 +101,16 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .panelhead{display:flex;align-items:baseline;gap:10px;padding:12px 18px 8px;border-bottom:1px solid var(--line2)}
 .panelhead h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .panelhead .eyebrow{margin-left:auto}
+/* ── 2D·3D 모드 — 한 번에 하나만 보인다 (09-22 사장님 말씀) ──────────────────
+   가르는 것은 `.view3d` 와 `.draw` 딱 둘이다. **부속표(`.bom`)는 두 모드 다 그대로 둔다.**
+   `display:none` 으로 확실히 숨긴다 — 자리만 차지하면 도면이 안 커진다.
+   바꾸는 단추는 두 칸에 하나씩 둔다. 한 번에 하나만 보이므로 늘 눈앞에 있다. */
+.modeseg{display:flex;gap:4px;flex:none;align-self:center}
+.panelhead .modeseg{margin-left:10px}
+.modeseg button{min-width:52px;min-height:44px;padding:0 12px;font-size:13px;border-radius:999px}
+.modeseg button[aria-pressed="true"]{background:var(--head);color:#fff;font-weight:700;border-color:transparent}
+.app.m3d .draw{display:none}
+.app.m2d .view3d{display:none}
 .svgwrap{flex:1;min-height:0;padding:10px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .svgwrap svg{width:100%;height:100%;display:block}
 .svgwrap .OUTLINE{stroke:var(--ink);stroke-width:1.4px}
@@ -300,10 +310,19 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .draw,.bom{min-height:0}
   .bom .tablewrap{overflow:auto;overscroll-behavior:contain}
 }
+/* 모드에 따라 칸을 다시 나눈다 — 숨은 칸 자리를 남은 칸이 실제로 가져간다 */
+@media (min-width:1101px){
+  .app.m3d{grid-template-columns:284px minmax(0,1fr);grid-template-areas:"head head" "params view3d" "params bom"}
+  .app.m2d{grid-template-columns:284px minmax(0,1fr);grid-template-areas:"head head" "params draw" "params bom"}
+}
+@media (max-width:1100px){
+  .app.m3d{grid-template-rows:auto auto minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "bom"}
+  .app.m2d{grid-template-rows:auto auto minmax(380px,60vh) auto;grid-template-areas:"head" "params" "draw" "bom"}
+}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 
-<div class="app">
+<div class="app m3d">
   <header>
     <div class="brand">
       <span class="eyebrow">Panel furniture · 3D + 2D drafting</span>
@@ -369,6 +388,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   <main class="view3d" aria-label="3D 뷰">
     <canvas id="c3d"></canvas>
     <div class="hud">
+      <div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div>
       <div class="tools" role="group" aria-label="도구">
         <button type="button" data-tool="select" title="선택 (Space)">선택</button>
         <button type="button" data-tool="orbit" title="궤도 (O)" aria-pressed="true">궤도</button>
@@ -396,7 +416,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </main>
 
   <section class="draw" aria-label="2D 도면">
-    <div class="panelhead"><h2>제작 도면</h2><span class="eyebrow mono">UNIT mm · 3각법</span></div>
+    <div class="panelhead"><h2>제작 도면</h2><span class="eyebrow mono">UNIT mm · 3각법</span><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div></div>
     <div class="svgwrap" id="svgwrap"></div>
   </section>
 
@@ -1280,6 +1300,7 @@ function setTool(t){
 const extR = () => Math.max(state.W, state.H, state.D) * 1.9 + 500;   // 전체가 화면에 들어오는 거리
 function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = extR(); }
 let 첫판 = true;                                     // 처음 한 번만 화면에 맞춘다
+let 삼디크기맞추기 = () => {};                        // init3D 에서 채운다 (모드 바꿀 때 쓴다)
 let endDrag = () => {};                              // 지시창이 뜨면 끌던 것을 놓는다 (init3D 에서 채운다)
 function init3D(){
   const cv = $('#c3d');
@@ -1293,7 +1314,11 @@ function init3D(){
   group = new THREE.Group(); scene.add(group);
   makeGrid();
   const wrap = cv.parentElement;
-  const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); 그리자(); };
+  // 칸이 숨겨지면 크기가 0 으로 온다. 그대로 두면 aspect 가 NaN 이 되어 다시 켤 때 까맣게 남는다.
+  const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return;                         // 숨은 동안에는 아무것도 안 한다
+    renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); 그리자(); };
+  삼디크기맞추기 = resize;                          // 모드를 바꿔 다시 보일 때 밖에서 부른다
   new ResizeObserver(resize).observe(wrap); resize();
 
   // 좌우(tTheta)는 그대로. 상하만 뒤집는다 — 끄는 손을 모델이 따라와야 한다.
@@ -2427,6 +2452,29 @@ function 제어판그리기(){
     담기(); 제어판그리기(); update();
   }));
 }
+/* ───────── 2D · 3D 모드 — 한 번에 하나만 보인다 (09-22 사장님 말씀) ─────────
+   「제작도면 쪽은 2D보기 변환하면 현 3d 화면 사라지고 보이게 해줘 2d 3d 모드변환 으로 둘중 하나만 보기로 하자」
+   가르는 것은 `.view3d` 와 `.draw` 둘뿐이다 — **부품표는 두 모드 다 그대로 보인다.**
+   처음 열면 3D 다. 단추는 두 칸에 하나씩 있어 어느 모드에서나 눈앞에 있다.
+   3D 는 숨은 동안 크기를 못 재므로 다시 켤 때 `삼디크기맞추기()` 로 렌더러·카메라를 다시 잡는다.
+   2D 는 숨은 동안 `#svgwrap` 폭이 0 이라 글자 배율이 틀어진다 — 다시 켤 때 도면을 다시 그린다. */
+let 보기모드 = '3d';
+function 모드바꾸기(m){
+  const 새 = (m === '2d') ? '2d' : '3d';
+  const 판 = document.querySelector('.app');
+  보기모드 = 새;
+  판.classList.toggle('m2d', 새 === '2d');
+  판.classList.toggle('m3d', 새 === '3d');
+  document.querySelectorAll('.modeseg button[data-mode]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === 새)));
+  requestAnimationFrame(() => {                    // 칸이 다시 자리를 잡은 뒤에 잰다
+    if (새 === '3d'){ 삼디크기맞추기(); 그리자(); }
+    else 도면그리기();                              // 폭이 제대로 잡힌 뒤라야 글자 배율이 맞는다
+  });
+}
+document.querySelectorAll('.modeseg button[data-mode]').forEach(b =>
+  b.addEventListener('click', () => 모드바꾸기(b.dataset.mode)));
+
 $('#btnRules').addEventListener('click', () => { 제어판그리기(); $('#rulesDlg').showModal(); });
 $('#rClose').addEventListener('click', () => $('#rulesDlg').close());
 $('#rX').addEventListener('click', () => $('#rulesDlg').close());
