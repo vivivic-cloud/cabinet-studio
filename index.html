@@ -77,7 +77,9 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .hud>div[hidden]{display:none}
 .hud .hidbar{flex-basis:100%;justify-content:flex-end;gap:6px;background:none;border:0;padding:0;pointer-events:none}
 .hidbar button{pointer-events:auto}
-.hidbar button{background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px}
+/* 사장님 말씀(09-22) 「숨기기 취소 어디갔니?」 — 28px 이라 손에 안 닿았다. 집 규칙대로 44px 로 올렸다. */
+.hidbar button{background:var(--surface2);border:1px solid var(--line);border-radius:999px;
+  min-height:44px;padding:0 14px;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .hidbar #btnHid{font-weight:700}
 .hidbar button:hover{background:var(--fill2)}
 #hidmenu{position:fixed;z-index:60;display:none;flex-direction:column;gap:2px;min-width:170px;max-width:min(280px,86vw);max-height:52vh;overflow:auto;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
