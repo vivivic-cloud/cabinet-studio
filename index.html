@@ -148,6 +148,39 @@ input[type=range]{width:100%;accent-color:var(--head)}
    쪽 하나가 A4 한 장(210×297mm) 비율이라 인쇄하면 그대로 종이 한 장이 된다. */
 .svgwrap .page{position:relative;width:100%;aspect-ratio:210/297;margin:0 auto 12px;border:1px solid var(--line);background:var(--surface)}
 .svgwrap .page:last-child{margin-bottom:0}
+/* 한 쪽씩 보고 아래 썸네일로 고른다 — 사장님 말씀(09-22)
+   「2d시 화면이 너무 커서 전체를 둘러보기 어렵습니다. 현재페이지를 적당한 사이즈로 줄이고
+     나머지 부분은 아래에 썸네일로 페이지 선택해서 볼 수 있게」 */
+#svgwrap{display:flex;flex-direction:column;overflow:hidden;padding:10px}
+.pagebox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pagebox>.page{margin:0;flex:none}
+#pageBox>.page:not(.보는쪽){display:none}   /* .page.p1{display:flex} 보다 세게 — 아이디로 이긴다 */
+/* 쪽을 칸 안에 통째로 넣는다 — 세로가 모자라면 세로에 맞춘다. 못 받는 브라우저는 예전처럼 폭에 맞춘다. */
+@supports (container-type:size){
+  .pagebox{container-type:size}
+  .pagebox>.page{width:min(100cqw, calc(100cqh * 210 / 297))}
+}
+.thumbs{flex:none;display:flex;gap:8px;align-items:flex-start;
+  overflow-x:auto;overflow-y:hidden;padding:9px 2px 2px;-webkit-overflow-scrolling:touch}
+.thumbs:empty{display:none}
+.thumb{flex:none;width:56px;padding:3px;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface);color:var(--ink3);font-size:11px;line-height:1.5;text-align:center}
+.thumb .tp{display:block;width:100%;aspect-ratio:210/297;overflow:hidden;background:#fff;
+  border-radius:4px;pointer-events:none}
+.thumb .tp svg{width:100%;height:100%;display:block}
+.thumb .tp *{pointer-events:none}
+.thumb .tl{display:block;padding-top:2px;white-space:nowrap}
+.thumb[aria-selected="true"]{border-color:var(--head);color:var(--head);font-weight:700;
+  box-shadow:0 0 0 1px var(--head)}
+.thumb:hover{background:var(--fill2)}
+/* 넓은 화면은 세로가 모자라고 가로가 남는다 — 썸네일을 옆에 세워 쪽을 키운다.
+   폰(1100px 이하)은 사장님 말씀 그대로 **아래**에 둔다. */
+@media (min-width:1101px){
+  #svgwrap{flex-direction:row}
+  .thumbs{flex-direction:column;align-items:stretch;width:66px;
+    overflow-x:hidden;overflow-y:auto;padding:2px 0 2px 9px}
+}
 .svgwrap .pnum{position:absolute;right:9px;bottom:5px;font-size:11px;color:var(--ink3)}
 /* 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 본다. 누르는 자리 44px 이상. */
 .svgwrap .page .big{position:absolute;right:8px;top:8px;min-width:56px;min-height:44px;padding:0 12px;
@@ -312,6 +345,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .app>*:not(.draw){display:none}
   .draw{display:block;min-height:0}
   .draw .panelhead{display:none}
+  #svgwrap{display:block;overflow:visible;padding:0}
+  .pagebox{display:block;overflow:visible;container-type:normal}
+  #pageBox>.page,#pageBox>.page:not(.보는쪽){display:block;width:210mm}
+  #pageBox>.page.p1{display:flex}
+  .thumbs{display:none}
   .svgwrap{overflow:visible;padding:0;flex:none}
   .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
@@ -329,11 +367,14 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 /* 모드에 따라 칸을 다시 나눈다 — 숨은 칸 자리를 남은 칸이 실제로 가져간다 */
 @media (min-width:1101px){
   .app.m3d{grid-template-columns:284px minmax(0,1fr);grid-template-areas:"head head" "params view3d" "params bom"}
-  .app.m2d{grid-template-columns:284px minmax(0,1fr);grid-template-areas:"head head" "params draw" "params bom"}
+  /* 2D 모드는 도면을 보러 들어간 자리다. 쪽이 칸 안에 통째로 들어가야 하므로 세로를 더 준다 —
+     부품표 칸은 제 안에서 굴러가므로 줄어도 다 볼 수 있다(사장님 말씀 09-22). */
+  .app.m2d{grid-template-columns:284px minmax(0,1fr);grid-template-areas:"head head" "params draw" "params bom";
+    grid-template-rows:auto minmax(440px,1fr) minmax(120px,26vh)}
 }
 @media (max-width:1100px){
   .app.m3d{grid-template-rows:auto auto minmax(380px,60vh) auto;grid-template-areas:"head" "params" "view3d" "bom"}
-  .app.m2d{grid-template-rows:auto auto minmax(380px,60vh) auto;grid-template-areas:"head" "params" "draw" "bom"}
+  .app.m2d{grid-template-rows:auto auto minmax(380px,84vh) auto;grid-template-areas:"head" "params" "draw" "bom"}
 }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
@@ -1743,12 +1784,16 @@ function 밴드깜박(조각, 끝나면){
   깜박타이머 = setTimeout(깜박, 420);                   // 카메라가 그 자리로 간 뒤에 깜박인다
 }
 let 밴드붉음 = null, 깜박타이머 = 0;
+let 보는쪽 = 0;                                   // 도면 칸에 지금 보이는 쪽 (0 = 1쪽)
 
 // 도면 칸 너비가 바뀌면 글자배도 달라진다 — 다시 그린다(모델은 그대로).
 // 전체도면은 이제 A4 한 장(210×297) 안에 들어가므로, 세로로도 잘려 줄어든다. 둘 중 작은 쪽으로 잰다.
 function 글자배(){
   if (!drawing) return 1;
-  const 칸 = Math.max(1, ($('#svgwrap').clientWidth || 1) - 22);   // 좌우 여백 10 + 테두리 1
+  // 이제 쪽은 칸 안에 통째로 들어간다 — 세로가 모자라면 세로가 폭을 정한다. 실제로 그려지는 폭으로 잰다.
+  const 상자 = $('#pageBox') || $('#svgwrap');
+  const bw = Math.max(1, (상자.clientWidth || 1) - 2), bh = Math.max(1, (상자.clientHeight || 1) - 2);
+  const 칸 = Math.max(1, Math.min(bw, bh * A4.W / A4.H));
   const 높 = 칸 * A4.H / A4.W * 0.86;                             // 1쪽은 아래 차례에 자리를 내준다
   const 폭 = (drawing.bbox.maxx - drawing.bbox.minx) + 280;
   const 키 = (drawing.bbox.maxy - drawing.bbox.miny) + 280;
@@ -1771,15 +1816,41 @@ function 도면그리기(){
   // 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 펼쳐 본다 (사장님 말씀 09-17).
   // 도면 위를 그냥 톡 치는 것은 예전처럼 부속 고르기다. 그걸 뺏으면 안 되어 단추를 따로 두었다.
   const 크게 = (i, 이름) => `<button type="button" class="big" data-pg="${i}" data-nm="${esc(이름)}">크게</button>`;
-  $('#svgwrap').innerHTML =
-    `<div class="page p1">${renderSVG(화면도면, true, 배)}${차례}${크게(0, '1쪽 · 전체 도면')}<span class="pnum mono">1 / ${총}</span></div>`
-    + 쪽.map((z, i) => `<div class="page">${z.svg}${크게(i+1, `${i+2}쪽 · ${z.이름들.join(' · ')}`)}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
+  const w = $('#svgwrap');
+  if (!w.querySelector('.pagebox'))                       // 틀은 한 번만 짠다 — 그래야 칸 크기를 잴 수 있다
+    w.innerHTML = '<div class="pagebox" id="pageBox"></div><div class="thumbs" id="thumbs" role="tablist" aria-label="쪽 고르기"></div>';
+  보는쪽 = Math.min(Math.max(0, 보는쪽), 총 - 1);
+  const 이름들 = ['1쪽 · 전체 도면', ...쪽.map((z, i) => `${i+2}쪽 · ${z.이름들.join(' · ')}`)];
+  $('#pageBox').innerHTML =
+    `<div class="page p1${보는쪽 === 0 ? ' 보는쪽' : ''}">${renderSVG(화면도면, true, 배)}${차례}${크게(0, 이름들[0])}<span class="pnum mono">1 / ${총}</span></div>`
+    + 쪽.map((z, i) => `<div class="page${보는쪽 === i+1 ? ' 보는쪽' : ''}">${z.svg}${크게(i+1, 이름들[i+1])}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
+  // 아래 썸네일 — 쪽 그림을 그대로 베껴 작게 보여 준다(다시 그리지 않는다).
+  $('#thumbs').innerHTML = 이름들.map((nm, i) =>
+    `<button type="button" class="thumb" role="tab" data-th="${i}" aria-selected="${i === 보는쪽}" title="${esc(nm)}">` +
+    `<span class="tp"></span><span class="tl">${i+1}쪽</span></button>`).join('');
+  [...$('#pageBox').children].forEach((pg, i) => {
+    const svg = pg.querySelector('svg'), 칸 = $('#thumbs').children[i];
+    if (svg && 칸) 칸.querySelector('.tp').appendChild(svg.cloneNode(true));
+  });
+  $('#thumbs').querySelectorAll('button[data-th]').forEach(b =>
+    b.addEventListener('click', () => 쪽고르기(+b.dataset.th)));
   applySel();
 }
-let 도면칸폭 = 0;
-new ResizeObserver(() => {                                // 너비가 실제로 바뀔 때만 (다시 그리기가 스스로를 부르지 않게)
-  const w = $('#svgwrap').clientWidth;
-  if (w !== 도면칸폭){ 도면칸폭 = w; 도면그리기(); }
+// 쪽 고르기 — 그림은 그대로 두고 어느 쪽을 보일지만 바꾼다(다시 그리지 않는다).
+function 쪽고르기(i){
+  const 쪽들 = [...($('#pageBox') ? $('#pageBox').children : [])];
+  if (!쪽들.length) return;
+  보는쪽 = Math.min(Math.max(0, i), 쪽들.length - 1);
+  쪽들.forEach((pg, k) => pg.classList.toggle('보는쪽', k === 보는쪽));
+  $('#thumbs').querySelectorAll('button[data-th]').forEach(b =>
+    b.setAttribute('aria-selected', String(+b.dataset.th === 보는쪽)));
+  $('#pageBox').scrollTop = 0; $('#pageBox').scrollLeft = 0;
+}
+let 도면칸폭 = 0, 도면칸높 = 0;
+// 이제 쪽이 세로에도 맞춰지므로 높이가 바뀌어도 글자배가 달라진다 — 둘 다 본다.
+new ResizeObserver(() => {                                // 실제로 바뀔 때만 (다시 그리기가 스스로를 부르지 않게)
+  const w = $('#svgwrap').clientWidth, h = $('#svgwrap').clientHeight;
+  if (w !== 도면칸폭 || h !== 도면칸높){ 도면칸폭 = w; 도면칸높 = h; 도면그리기(); }
 }).observe($('#svgwrap'));
 
 /* ───────── 입력 바인딩 ───────── */
@@ -2238,7 +2309,7 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
     배 = n; 가두기(); 칠();
   };
   window.큰그림열기 = (쪽번호, 이름) => {
-    const 쪽 = $('#svgwrap').children[쪽번호];
+    const 쪽 = ($('#pageBox') || $('#svgwrap')).children[쪽번호];
     if (!쪽) return;
     box.innerHTML = '';
     box.appendChild(쪽.cloneNode(true));       // 베껴 온다 — 원래 도면 칸은 한 점도 안 건드린다
