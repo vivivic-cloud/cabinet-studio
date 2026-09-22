@@ -1337,7 +1337,26 @@ function init3D(){
 
   // 좌우(tTheta)는 그대로. 상하만 뒤집는다 — 끄는 손을 모델이 따라와야 한다.
   // 아래로 끌면 모델의 윗면이 이쪽으로 넘어와 위에서 내려다보게 된다.
-  const orbit = (dx,dy) => { cam.tTheta -= dx*0.006; cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi - dy*0.006)); setPressed(null); };
+  // 도는 빠르기 — 사장님 말씀(09-22) 「너무 휫휫 어라운드 범위가 커서」.
+  // 폰 폭(375px)을 한 번 쓸면 90도 돌게 잡았다: (Math.PI/2) / 375 = 0.00419. (전에는 0.006 = 129도)
+  const 궤도속 = 0.00419;
+  // 커서 아래 점을 기준으로 돈다 — 사장님 말씀(09-22) 「커서가 멈춰진 부분 기준으로 뷰가 돌아가야」.
+  // 끌기 시작할 때 **한 번만** 겨눠 그 점을 잡고, 도는 동안 그 점이 **화면에서 안 움직이게**
+  // 기준(tTgt)을 거꾸로 셈한다. 잡을 것이 없으면 축이 없고 예전대로 지금 기준으로 돈다.
+  let 축 = null;                                   // { 점:세상 자리, 속:카메라 자리에서 본 같은 점 }
+  const orbit = (dx,dy) => {
+    cam.tTheta -= dx*궤도속;
+    cam.tPhi = Math.min(Math.PI-0.02, Math.max(0.02, cam.tPhi - dy*궤도속));
+    if (축){
+      // 카메라 자리에서 본 기준점(축.속)이 그대로면 화면에서도 그 자리다.
+      // 새 카메라 = 기준점 − (새 자세 × 축.속). 기준(tTgt)은 거기서 시선 방향으로 tR 만큼 들어간 곳.
+      const M = 자세(cam.tTheta, cam.tPhi);
+      const 눈 = 축.점.clone().sub(축.속.clone().applyMatrix4(M));
+      const 뒤 = new THREE.Vector3().setFromMatrixColumn(M, 2);
+      cam.tTgt.copy(눈).addScaledVector(뒤, -cam.tR);
+    }
+    setPressed(null);
+  };
   const pan = (dx,dy) => {
     const scale = 2 * cam.tR * Math.tan(camera.fov*Math.PI/360) / cv.clientHeight;
     const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
@@ -1366,6 +1385,27 @@ function init3D(){
       cam.tTgt.sub(hit).multiplyScalar(f).add(hit);
     }
     cam.tR = newR;
+  };
+
+  // 그 각도에서 카메라가 서는 자세 (three 의 lookAt 과 같은 셈: z = 기준→카메라, 위쪽은 +Y)
+  const 자세 = (theta, phi) => {
+    const z = new THREE.Vector3(Math.sin(phi)*Math.sin(theta), Math.cos(phi), Math.sin(phi)*Math.cos(theta));
+    const x = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), z).normalize();
+    const y = new THREE.Vector3().crossVectors(z, x);
+    return new THREE.Matrix4().makeBasis(x, y, z);
+  };
+  // 겨눔은 줌과 같이 **목표 시점**(aimCam)에서 한다 — 화면 카메라는 목표를 뒤쫓는 중이라 기준이 밀린다.
+  const 축잡기 = (px, py) => {
+    축 = null;
+    if (!group || !group.children.length) return;
+    const r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    aimCam.aspect = camera.aspect; aimCam.updateProjectionMatrix();
+    aimCam.position.copy(camAt(cam.tTgt, cam.tR, cam.tTheta, cam.tPhi));
+    aimCam.lookAt(cam.tTgt); aimCam.updateMatrixWorld(true);
+    광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), aimCam);
+    const h = 광선.intersectObjects(group.children, false)[0];
+    if (h) 축 = { 점:h.point.clone(), 속:aimCam.worldToLocal(h.point.clone()) };
   };
 
   const 광선 = new THREE.Raycaster();
@@ -1459,6 +1499,7 @@ function init3D(){
     else return;                                                       // 오른쪽 버튼 등은 그대로 둔다
     // mode 가 없어도(선택 도구) 자국은 남긴다 — 짧게 떼면 '고르기' 로 봐야 하니까.
     drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode, id:e.pointerId, touch, held:touch && !!mode, 끌 };
+    if (mode === 'orbit') 축잡기(e.clientX, e.clientY); else 축 = null;   // 도는 축은 짚은 그 자리다
     // 손가락은 곧바로 붙잡지 않는다. 가만히 누르면 길게 누르기(짚어서 지시)가 되도록 10px 만큼 길을 터 둔다.
     if (!touch && mode){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
