@@ -176,13 +176,6 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .thumb[aria-selected="true"]{border-color:var(--head);color:var(--head);font-weight:700;
   box-shadow:0 0 0 1px var(--head)}
 .thumb:hover{background:var(--fill2)}
-/* 넓은 화면은 세로가 모자라고 가로가 남는다 — 썸네일을 옆에 세워 쪽을 키운다(관리자가 정했다).
-   **폰(1100px 이하)은 사장님 말씀 그대로 아래에 한 줄이고 가로로 민다.** */
-@media (min-width:1101px){
-  #svgwrap{flex-direction:row}
-  .thumbs{flex-direction:column;align-items:stretch;width:66px;
-    overflow-x:hidden;overflow-y:auto;padding:2px 0 2px 9px}
-}
 
 .svgwrap .pnum{position:absolute;right:9px;bottom:5px;font-size:11px;color:var(--ink3)}
 /* 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 본다. 누르는 자리 44px 이상. */
