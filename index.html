@@ -2520,7 +2520,8 @@ function 되살리기(것){
 /* 칸 안의 드롭다운 — 사장님 말씀(09-17): 「지금까지 만든 부속이름을 칸 안에 드롭다운 목록으로,
    딸림말 없이 이름만, 이미 도면에 있으면 목록에 안 나타나게.」
    브라우저가 그리는 목록(`datalist`)은 **줄 높이를 내가 못 정한다** — 집 규칙이 44px 이라 직접 그린다.
-   칸 바로 아래에 이어 붙고, 적는 대로 걸러지고, 고르면 그 자리에서 되살아난다. 새 이름을 적는 길은 그대로다. */
+   칸 바로 아래에 이어 붙고, 적는 대로 걸러진다. **고르면 칸에 이름만 들어가고, 되살리는 것은 「추가」 다**
+   (09-22 사장님 말씀). 새 이름을 적는 길은 그대로다. */
 function 이름목록갱신(){
   const 칸 = $('#partNames'); if (!칸 || 칸.hidden) return;
   고르개펼치기(true);
@@ -2532,7 +2533,12 @@ function 고르개펼치기(그대로){
   칸.innerHTML = 목록.map((x,i) => `<button type="button" data-back="${i}" role="option">${esc(x.이름)}</button>`).join('');
   칸.querySelectorAll('button[data-back]').forEach(el => {
     el.addEventListener('mousedown', e => e.preventDefault());       // 칸에서 초점이 안 빠지게
-    el.addEventListener('click', () => { 고르개접기(); 되살리기(목록[+el.dataset.back]); });
+    // 고르면 **칸에 넣기만 한다.** 되살리는 것은 「추가」 다 —
+    // 사장님 말씀(09-22) 「드롭다운 선택 후 추가 버튼을 누르면 다시 활성화 부속으로 추가되어야 하는데
+    // 지금은 드롭 선택과 동시에 활성화 되어버림」. 09-17 에 「고르면 바로」 로 두었던 것을 되돌린 것이다.
+    el.addEventListener('click', () => {
+      $('#newPart').value = 목록[+el.dataset.back].이름; $('#addWarn').textContent = ''; 고르개접기();
+    });
   });
   const 편다 = 목록.length > 0;
   칸.hidden = !편다; 입.setAttribute('aria-expanded', String(편다));
@@ -2549,6 +2555,10 @@ document.addEventListener('pointerdown', e => {
 $('#btnAdd').addEventListener('click', () => {
   const 이름 = $('#newPart').value.trim(), 알림 = $('#addWarn');
   if (!이름){ 알림.textContent = '이름을 적어 주세요'; return; }
+  // 지운 부속 이름이면 여기서 되살린다 — 고르개에서 고르든 손으로 적든 같은 길이다(사장님 말씀 09-22).
+  // 붙박이(상판·측판 …)도 이 길로 돌아온다. 아래 「이미 있는 이름」 막이보다 **먼저** 본다.
+  const 되살릴 = 되살릴것().find(x => x.이름 === 이름);
+  if (되살릴){ 알림.textContent = ''; 되살리기(되살릴); return; }
   if (붙박이.includes(이름) || 만든부속.some(c => c.이름 === 이름)){
     알림.textContent = `이미 있는 이름입니다 — ${이름}`; return; }
   const 지난 = 지난부속.find(x => x.이름 === 이름);      // 전에 만들었던 것이면 두께·단을 그대로 살린다
