@@ -60,7 +60,12 @@ select:focus{border-color:var(--head)}
 /* 상세옵션 — 사장님 말씀(09-28): 「각 부속의 가로 세로 사이즈를 제시하고 해당 사이즈에 체크시
    결방향이 적용… 각 부속명 클릭시 상세옵션설정이 나타나게… 기본값은 결 없음」.
    부속명이 단추가 되어 제 줄 아래 상세옵션 칸을 펴고 접는다. 결 방향은 이제 거기서만 고른다. */
-.field.gr{grid-template-columns:minmax(0,1fr) 112px;grid-template-areas:"이름 두께" "옵션 옵션";gap:10px}
+/* 사장님 말씀(09-28): 「각 부속이 차지하는 높이 영역이 너무 크다 … 조금더 촘촘히 붙어 있게」.
+   접힌 줄의 둘째 칸(옵션)은 비어 있는데 `gap:10px` 이 그만큼 세로를 먹고 있었다(줄 54 → 44).
+   그래서 세로 틈은 0 으로 두고, 칸이 펴질 때만 `.opt` 가 제 여백을 낸다. */
+.field.gr{grid-template-columns:minmax(0,1fr) 96px;grid-template-areas:"이름 두께" "옵션 옵션";
+  column-gap:10px;row-gap:0}
+.field.gr>.opt:not([hidden]){margin-top:8px}
 .field.back.gr,.field.band.gr{grid-template-columns:auto minmax(0,1fr) 112px;
   grid-template-areas:"이름 단추 두께" "옵션 옵션 옵션";gap:8px}
 .field.gr>.pname{grid-area:이름}
@@ -283,10 +288,13 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .addrow input:focus{outline:none;border-color:var(--head)}
 .addrow button{flex:none}
 .two{display:flex;gap:10px;align-items:center}   /* 두께 칸과 × 를 띄운다 — 잘못 눌리지 않게 */
-.two select{flex:1;min-width:0}
-.two .x{flex:none;width:32px;height:32px;padding:0;border-radius:50%;line-height:1;font-size:16px;color:var(--ink3);position:relative}
+/* 보이는 것은 줄이고 닿는 자리는 44px 을 지킨다 (09-28 사장님 말씀 · 집 규칙 §0).
+   select 는 ::after 를 못 얹으므로 **제 몸이 곧 닿는 자리**다 — 높이 44 는 지키고 폭·글자를 줄였다. */
+.two select{flex:1;min-width:0;min-height:44px;padding:0 6px;font-size:13px;border-radius:11px}
+.two .x{flex:none;width:28px;height:28px;padding:0;border-radius:50%;line-height:1;font-size:15px;color:var(--ink3);position:relative}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
 .two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px}
+#boardBox{gap:4px}                /* 줄끼리 촘촘히 — 44px 줄에 4px 틈이면 닿는 자리가 안 겹친다 */
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
    설정 때문에 없는 줄(도어 0짝 · 이동선반 0단 · 전면밴드 0)은 **안 내린다** — 제자리에 둔다. */
