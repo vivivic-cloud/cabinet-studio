@@ -609,7 +609,8 @@ const $ = s => document.querySelector(s);
 const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:11, 뒷판물림:2, 홈깊이:6, 홈유격:0.8, 홈뒤살:9, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true, 아웃경첩:2,
                   // 09-28 사장님 말씀 — 부속마다 0.5mm 단위로 물리고 띄운다. **기본은 다 0 = 지금과 똑같이**.
-                  측판들임:0, 상판내림:0, 측판내밈:0, 고정선반들임:0, 이동선반들임:0 };
+                  측판들임:0, 상판내림:0, 측판내밈:0, 고정선반들임:0, 이동선반들임:0,
+                  하판측판들임:0, 하판올림:0 };
 const 곳간 = 'cabinet-studio';
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
 // 도면에서 부속을 골라 손질한 것. 자리(이름+좌표)로 짚는다 — 치수를 바꿔 그 자리가 없어지면 저절로 풀린다.
@@ -655,13 +656,13 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.결', JSON.stringify(결설정));
 } catch (e) {} }
 
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ───────── 모델: 파라미터 → 부품 목록 (단일 진실 공급원) ───────── */
 function buildModel(s){
-  const {W,D,H,Ttop,Tside,Tshelf,Tshelf2,Tdoor,Tbot,Tplinth,TB,shelves,shelvesM,plinth,topStyle,doors} = s;
+  const {W,D,H,Ttop,Tside,Tshelf,Tshelf2,Tdoor,Tbot,Tplinth,TB,shelves,shelvesM,plinth,topStyle,botStyle,doors} = s;
   // 뒷판 조립은 두 가지다.
   //  덮기(cover)  — 뒷판이 몸통 뒤에 덧붙는다. 몸통은 그만큼 얕아진다. 여태 쓰던 방식이다.
   //  끼우기(insert) — 뒷판이 몸통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다.
@@ -674,25 +675,37 @@ function buildModel(s){
   // 선반은 뒷판 앞면에서 멈춘다. 덮기면 몸통 깊이가 곧 뒷판 앞면이고,
   // 끼우기면 뒷판이 홈 뒤쪽 벽에 붙어 있으므로 그 앞면(홈뒤 − 뒷판 두께)이 끝이다.
   const 선반끝 = 끼움 ? 홈뒤 - TB : CD;
-  const sideH = topStyle === 'overlay' ? H - Ttop : H;
+  // 상판과 하판은 **한 벌의 논리**다 (09-28 사장님 말씀: 「하판도 상판과 마찬가지로 측판아래위치 /
+  // 측판사이위치 / 등 상판 위치논리만 변경되어 동일하게 작동하게」). 위아래만 뒤집힌다.
+  //   측판 사이   판이 측판 안으로 들어간다 — 측판이 그 끝까지 서고 판은 안폭만 쓴다
+  //   측판 위·아래 판이 측판 끝을 덮는다 — 측판이 그만큼 짧아지고 판은 W 를 다 쓴다
+  // 상판 것을 그대로 뒤집어 쓴다. 두 벌로 갈라 쓰지 마라 — 나중에 어긋난다.
+  const 위덮 = topStyle === 'overlay', 아래덮 = botStyle === 'under';
   // 09-28 사장님 말씀 — 0.5mm 단위 유격. 기본이 다 0 이라 안 건드리면 예전 도면 그대로다.
-  //   측들   측판 위일 때 측판이 상판 바깥선에서 안으로 들어가는 길이
+  //   측들   판이 측판 끝을 덮을 때 측판이 판 바깥선에서 안으로 들어가는 길이
+  //          — 상·하가 같은 x 자리를 다투므로 **큰 쪽**을 쓴다(둘을 더하면 두 번 들어간다)
   //   상내림 측판 사이일 때 상판 윗면이 측판 꼭지보다 낮아지는 길이
+  //   하올림 측판 사이일 때 하판 밑면이 **지금 자리(전면밴드 위)** 보다 올라가는 길이
   //   측밈   측판이 상판보다 **앞으로** 튀어나오는 길이 (뒤는 뒷판 자리라 앞으로만 낸다)
-  const 측들 = topStyle === 'overlay' ? 규칙.측판들임 : 0;
-  const 상내림 = topStyle === 'overlay' ? 0 : 규칙.상판내림;
+  const 측들 = Math.max(위덮 ? 규칙.측판들임 : 0, 아래덮 ? 규칙.하판측판들임 : 0);
+  const 상내림 = 위덮 ? 0 : 규칙.상판내림;
+  const 하올림 = 아래덮 ? 0 : 규칙.하판올림;
   const 측밈 = 규칙.측판내밈;
   const 안왼 = 측들 + Tside, 안오 = W - 측들 - Tside, 안폭 = 안오 - 안왼;
   const 상판밑 = (H - Ttop) - 상내림;         // 상판 아랫면 (= 몸통 안쪽 천장)
-  const bz = plinth;                         // 하판 밑면 높이
+  const bz = plinth + 하올림;                 // 하판 밑면 높이
+  // 측판 두 끝 — 상판이 위를 덮으면 그만큼 짧고, 하판이 아래를 받치면 그 위에서 선다
+  const 측위끝 = 위덮 ? H - Ttop : H, 측아랫끝 = 아래덮 ? bz + Tbot : 0;
+  const sideH = 측위끝 - 측아랫끝;
   const parts = [];
   const add = (name,x,y,z,w,d,h,dir,cut) => parts.push({name,x,y,z,w,d,h,dir,cut,pid:parts.length});
   const 측깊 = CD + 측밈;                    // 측판 깊이 — 앞으로 나온 만큼 길어진다
-  add('측판', 안왼-Tside, -측밈, 0, Tside, 측깊, sideH, [-1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
-  add('측판', 안오,       -측밈, 0, Tside, 측깊, sideH, [ 1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
-  const tx = topStyle === 'overlay' ? 0 : 안왼, tw = topStyle === 'overlay' ? W : 안폭;
+  add('측판', 안왼-Tside, -측밈, 측아랫끝, Tside, 측깊, sideH, [-1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
+  add('측판', 안오,       -측밈, 측아랫끝, Tside, 측깊, sideH, [ 1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
+  const tx = 위덮 ? 0 : 안왼, tw = 위덮 ? W : 안폭;
   add('상판', tx, 0, 상판밑, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
-  add('하판', 안왼, 0, bz, 안폭, CD, Tbot, [0,0,-1], {L:안폭, W:CD, T:Tbot, grain:'가로'});
+  const bx = 아래덮 ? 0 : 안왼, bwid = 아래덮 ? W : 안폭;   // 상판의 tx·tw 를 뒤집은 것이다
+  add('하판', bx, 0, bz, bwid, CD, Tbot, [0,0,-1], {L:bwid, W:CD, T:Tbot, grain:'가로'});
   const innerH = 상판밑 - (bz + Tbot);
   // 선반은 두 갈래다. 고정 선반은 측판에 체결해 박히고, 이동 선반은 체결 없이 철물 위에 얹힌다.
   // 얹히는 것이라 좌우로 조금 작게 짜는 집이 있어 그 값을 규칙에 두었다(기본 0 — 안 건드리면 예전과 같다).
@@ -835,7 +848,7 @@ function buildModel(s){
     p.pid = i; p.자리 = ks[0];                                   // 새로 적을 때는 앞엣것을 쓴다
     p.숨김 = ks.some(k => 손질.숨김.includes(k));
     p.더 = ks.reduce((a, k) => a + (손질.복제[k] || 0), 0); });
-  return { parts: 산것, pitch, CD, bz, sideH, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈,
+  return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈,
            앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 걸림자리 };
 }
 
@@ -897,7 +910,7 @@ function buildDrawing(s, m, 치수배 = 1){
   dimV(0, H, W, 250);
   let prev = m.bz + Tbot;
   목록.filter(p => p.name === '고정선반' || p.name === '이동선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + p.h; });
-  dimV(prev, H - Ttop, W, 120);
+  dimV(prev, m.상판밑, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
   제목('정면도  FRONT VIEW', W/2, -270, W);
 
@@ -906,10 +919,10 @@ function buildDrawing(s, m, 치수배 = 1){
   const cutS = 목록.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
   cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h)); hatch(ox + p.y, p.z, p.d, p.h); });
   if (m.홈){                                  // 상판·하판에 판 홈 (잘린 자리라 보인다)
-    rect(ox + m.홈.앞, H - Ttop, m.홈.폭, m.홈.깊이);
+    rect(ox + m.홈.앞, m.상판밑, m.홈.폭, m.홈.깊이);
     rect(ox + m.홈.앞, m.bz + Tbot - m.홈.깊이, m.홈.폭, m.홈.깊이);
   }
-  rect(ox, 0, m.CD, m.sideH, 'HIDDEN');
+  rect(ox, m.측아랫끝, m.CD, m.sideH, 'HIDDEN');
   dimH(ox, ox + D, 0, -120);
   dimH(ox + m.CD, ox + D, H, 120);
   if (doors.length){ const dy0 = doors[0].y; dimH(ox + dy0, ox + dy0 + Tdoor, H, 120); }
@@ -1955,6 +1968,7 @@ document.addEventListener('change', e => {
   if (!el) return;
   if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); update(); return; }
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
+  if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
   if (el.name === 'doors' && el.checked){ state.doors = Number(el.value); update(); return; }
   if (el.name === 'doorMode' && el.checked){ state.doorMode = el.value; update(); return; }
   if (el.dataset && el.dataset.bi !== undefined){
@@ -2555,6 +2569,12 @@ function 줄옵션(이름){
         `<label><input type="radio" name="topStyle" value="${v}"${state.topStyle===v?' checked':''}>${글}</label>`).join('') +
       `</div>` +
       (state.topStyle === 'overlay' ? 유격칸('측판 들임', '측판들임') : 유격칸('상판 내림', '상판내림'));
+  if (이름 === '하판')                       // 상판과 같은 꼴이다 — 위아래만 뒤집었다
+    return `<div class="opthead">하판 결합</div><div class="seg mini" role="group" aria-label="하판 결합">` +
+      [['inset','측판 사이'],['under','측판 아래']].map(([v,글]) =>
+        `<label><input type="radio" name="botStyle" value="${v}"${state.botStyle===v?' checked':''}>${글}</label>`).join('') +
+      `</div>` +
+      (state.botStyle === 'under' ? 유격칸('측판 들임', '하판측판들임') : 유격칸('하판 올림', '하판올림'));
   if (이름 === '측판') return 유격칸('측판 내밈', '측판내밈');
   if (이름 === '고정선반' || 이름 === '이동선반'){
     const k = 이름 === '고정선반' ? 'shelves' : 'shelvesM';
