@@ -91,6 +91,8 @@ select:focus{border-color:var(--head)}
 .optrow b i{font-style:normal;font-size:11px;color:var(--ink3);padding-left:2px}
 .optrow:has(input:checked){background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .optrow:has(input:checked) span{font-weight:700;color:var(--head)}
+.optwide{display:flex;flex-direction:column;gap:6px;padding:2px 4px 6px}
+.optwide label{font-size:13px;color:var(--ink)}
 .seg.mini{padding:2px;gap:2px}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
@@ -449,18 +451,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
           <div id="partNames" class="namedrop" role="listbox" hidden></div></div>
         <small id="addWarn" class="warn"></small></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
-      <div class="field wide"><label>상판 결합</label>
-        <div class="seg"><label><input type="radio" name="topStyle" value="inset" checked>측판 사이</label><label><input type="radio" name="topStyle" value="overlay">측판 위</label></div></div>
     </div>
     <div class="group">
       <h2>내부 · 전면</h2>
-      <div class="field wide"><label for="shelves">고정 선반 <b id="shelvesVal" class="mono">3</b>단</label><input id="shelves" data-key="shelves" type="range" min="0" max="8" step="1" value="3"></div>
-      <div class="field wide"><label for="shelvesM">이동 선반 <b id="shelvesMVal" class="mono">0</b>단</label><input id="shelvesM" data-key="shelvesM" type="range" min="0" max="8" step="1" value="0"></div>
-      <div class="field"><label for="plinth">전면밴드</label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
-      <div class="field wide"><label>문짝</label>
-        <div class="seg"><label><input type="radio" name="doors" value="0">없음</label><label><input type="radio" name="doors" value="1">여닫이 1</label><label><input type="radio" name="doors" value="2" checked>여닫이 2</label></div></div>
-      <div class="field wide"><label>도어 방식</label>
-        <div class="seg"><label><input type="radio" name="doorMode" value="out" checked>아웃도어</label><label><input type="radio" name="doorMode" value="in">인도어</label></div></div>
       <div class="field wide"><label>경첩</label>
         <div class="seg"><label><input type="radio" name="hinge" value="left" checked>좌</label><label><input type="radio" name="hinge" value="right">우</label></div></div>
     </div>
@@ -1893,24 +1886,30 @@ new ResizeObserver(() => {                                // 실제로 바뀔 �
 }).observe($('#svgwrap'));
 
 /* ───────── 입력 바인딩 ───────── */
-document.querySelectorAll('[data-key]').forEach(el => {
-  el.addEventListener('input', () => {
-    let v = Number(el.value);
-    if (el.type === 'number'){ if (!Number.isFinite(v)) return; v = Math.min(Number(el.max), Math.max(Number(el.min), v)); }
-    else if (el.tagName === 'SELECT' && !(v > 0)) return;   // 목록에 없는 값이 들어오면 두께가 0 이 된다 — 그냥 무른다
-    state[el.dataset.key] = v;
-    if (el.id === 'shelves') $('#shelvesVal').textContent = v;
-    if (el.id === 'shelvesM') $('#shelvesMVal').textContent = v;
-    update();
-  });
-  el.addEventListener('change', () => { if (el.type === 'number') el.value = state[el.dataset.key]; });
+// 값 칸은 상세옵션 안에도 있다(선반 단수·전면밴드). 칸을 접으면 노드가 지워지므로 위임으로 듣는다.
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el || !el.dataset || el.dataset.key === undefined) return;
+  let v = Number(el.value);
+  if (el.type === 'number'){ if (!Number.isFinite(v)) return; v = Math.min(Number(el.max), Math.max(Number(el.min), v)); }
+  else if (el.tagName === 'SELECT' && !(v > 0)) return;   // 목록에 없는 값이 들어오면 두께가 0 이 된다 — 그냥 무른다
+  state[el.dataset.key] = v;
+  if (el.id === 'shelves' && $('#shelvesVal')) $('#shelvesVal').textContent = v;
+  if (el.id === 'shelvesM' && $('#shelvesMVal')) $('#shelvesMVal').textContent = v;
+  update();
 });
-document.querySelectorAll('input[name=topStyle]').forEach(r => r.addEventListener('change', () => { state.topStyle = r.value; update(); }));
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el && el.dataset && el.dataset.key !== undefined && el.type === 'number') el.value = state[el.dataset.key];
+});
 // 덮기/끼우기·밴드 단추는 이제 상세옵션 안에 있다 — 접을 때 지워지므로 document 위임으로 듣는다.
 document.addEventListener('change', e => {
   const el = e.target;
   if (!el) return;
   if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); update(); return; }
+  if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
+  if (el.name === 'doors' && el.checked){ state.doors = Number(el.value); update(); return; }
+  if (el.name === 'doorMode' && el.checked){ state.doorMode = el.value; update(); return; }
   if (el.dataset && el.dataset.bi !== undefined){
     const c = 만든부속[+el.dataset.bi]; if (!c) return;
     const 단 = 밴드단(c).filter(v => v !== el.value);
@@ -1933,8 +1932,6 @@ $('#backIn').addEventListener('input', () => {
   규칙.홈뒤살 = Math.min(40, Math.max(0, v));
   담기(); update();
 });
-document.querySelectorAll('input[name=doors]').forEach(r => r.addEventListener('change', () => { state.doors = Number(r.value); update(); }));
-document.querySelectorAll('input[name=doorMode]').forEach(r => r.addEventListener('change', () => { state.doorMode = r.value; update(); }));
 document.querySelectorAll('input[name=hinge]').forEach(r => r.addEventListener('change', () => { state.hinge = r.value; update(); }));
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
@@ -2502,6 +2499,27 @@ function 옵션치수(이름){
    칸은 접힐 때 innerHTML 을 비우므로 **markup 으로 다시 그리고 듣는 곳은 document 위임**이다.
    글은 한 자도 더하지 않았다 — 단추 이름이 곧 제 이름이다. */
 function 줄옵션(이름){
+  if (이름 === '상판')
+    return `<div class="opthead">상판 결합</div><div class="seg mini" role="group" aria-label="상판 결합">` +
+      [['inset','측판 사이'],['overlay','측판 위']].map(([v,글]) =>
+        `<label><input type="radio" name="topStyle" value="${v}"${state.topStyle===v?' checked':''}>${글}</label>`).join('') +
+      `</div>`;
+  if (이름 === '고정선반' || 이름 === '이동선반'){
+    const k = 이름 === '고정선반' ? 'shelves' : 'shelvesM';
+    return `<div class="optwide"><label for="${k}"><b id="${k}Val" class="mono">${state[k]}</b>단</label>` +
+      `<input id="${k}" data-key="${k}" type="range" min="0" max="8" step="1" value="${state[k]}"></div>`;
+  }
+  if (이름 === '전면밴드')
+    return `<div class="optwide"><div class="num"><input id="plinth" data-key="plinth" type="number" ` +
+      `min="0" max="200" step="1" value="${state.plinth}"><span>mm</span></div></div>`;
+  if (이름 === '문짝')
+    return `<div class="seg mini" role="group" aria-label="문짝">` +
+      [['0','없음'],['1','여닫이 1'],['2','여닫이 2']].map(([v,글]) =>
+        `<label><input type="radio" name="doors" value="${v}"${String(state.doors)===v?' checked':''}>${글}</label>`).join('') +
+      `</div><div class="opthead">도어 방식</div><div class="seg mini" role="group" aria-label="도어 방식">` +
+      [['out','아웃도어'],['in','인도어']].map(([v,글]) =>
+        `<label><input type="radio" name="doorMode" value="${v}"${state.doorMode===v?' checked':''}>${글}</label>`).join('') +
+      `</div>`;
   if (이름 === '뒷판')
     return `<div class="seg mini" role="group" aria-label="뒷판 조립">` +
       [['cover','덮기'],['insert','끼우기']].map(([v,글]) =>
@@ -2527,7 +2545,10 @@ function 옵션칸(이름){
 function 결단추갱신(){
   document.querySelectorAll('.opt[data-opt]').forEach(el => {
     const 이름 = el.dataset.opt, 편다 = 열린옵션.has(이름);
-    if (편다) el.innerHTML = 옵션칸(이름); else if (el.innerHTML) el.innerHTML = '';
+    // 손이 얹혀 있는 칸은 다시 그리지 않는다 — 슬라이더를 끄는 중에 노드를 갈면 끌던 것을 놓친다.
+    const 만지는중 = el.innerHTML && el.contains(document.activeElement);
+    if (편다){ if (!만지는중) el.innerHTML = 옵션칸(이름); }
+    else if (el.innerHTML) el.innerHTML = '';
     el.hidden = !편다;
   });
   document.querySelectorAll('.pname[data-opt]').forEach(b =>
@@ -2690,14 +2711,14 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'측판 ↔ 바닥', 말:'측판 두 장이 바닥에서 선다. 높이는 가구 전체 높이다. 상판을 측판 위에 얹으면 상판 두께만큼 낮아진다.',
     값:(m,s) => `높이 ${fmt(m.sideH)}` },
   { 갈래:'몸통', 사이:'상판 ↔ 측판', 말:'측판 사이에 끼우거나 측판 위에 얹는다. 끼우면 상판 폭은 안치수, 얹으면 가구 전체 폭이다. 상판 윗면이 가구 맨 위 높이다.',
-    값:(m,s) => s.topStyle === 'overlay' ? '측판 위' : '측판 사이', 어디:'보드선택 「상판 결합」' },
+    값:(m,s) => s.topStyle === 'overlay' ? '측판 위' : '측판 사이', 어디:'상판 옵션 「상판 결합」' },
   { 갈래:'몸통', 사이:'하판 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'전면밴드 높이만큼 띄워 앉는다. 전면밴드가 없으면 바닥에 붙는다.',
-    값:m => `${fmt(m.bz)} 띄움`, 어디:'내부·전면 「전면밴드」' },
+    값:m => `${fmt(m.bz)} 띄움`, 어디:'전면밴드 옵션' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 뒷판이 뒤에 붙으므로 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
-    값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'보드선택 「뒷판」 줄' },
+    값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'뒷판 옵션' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (끼우기)', 말:'뒷판이 통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다. 뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.',
-    값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'보드선택 「뒷판」 줄' },
+    값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'뒷판 옵션' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 홈 (끼우기)', 말:'통 내부보다 가로·세로로 이만큼 크게 짠다. 홈 깊이의 두 배보다 조금 작게 잡아야 바닥에 닿지 않는다.',
     규칙:'뒷판키움', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'뒷판', 사이:'측판·상판·하판 ↔ 홈 (끼우기)', 말:'뒷판이 닿는 세 부속 안쪽면에 이 깊이로 홈을 판다.',
@@ -2708,18 +2729,18 @@ const 관계표 = [
     규칙:'홈뒤살', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 철물', 말:'조립할 때 체결하지 않는다. 다보 같은 철물 위에 얹혀 손으로 들어 옮긴다.',
-    값:(m,s) => `${s.shelvesM}장`, 어디:'내부·전면 「이동 선반」 단수' },
+    값:(m,s) => `${s.shelvesM}장`, 어디:'이동 선반 옵션 단수' },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'넣고 뺄 여유가 있어야 하므로 측판 안쪽면에서 한 쪽씩 뗀다. 폭은 그만큼 두 배로 작아진다.',
     규칙:'이동좌우', 최소:0, 최대:20, 걸음:0.5 },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 몸통', 말:'뒤는 뒷판에 붙이고 앞쪽에서 그만큼 뺀다. 앞이 트여야 손으로 들어낼 수 있다.',
     규칙:'이동앞뒤', 최소:0, 최대:100, 걸음:1 },
   { 갈래:'몸통', 사이:'선반 ↔ 하판·상판', 말:'고정 선반과 이동 선반을 한데 세어 하판 윗면과 상판 아랫면 사이를 고르게 나눈다. 아래에서부터 고정 선반을 먼저 놓고 그 위에 이동 선반을 얹는다. 간격 = (안높이 − 선반 두께 합) ÷ (선반 수 + 1).',
-    값:m => `간격 ${fmt(m.pitch)}`, 어디:'내부·전면 「고정 선반」·「이동 선반」 단수' },
+    값:m => `간격 ${fmt(m.pitch)}`, 어디:'고정 선반·이동 선반 옵션 단수' },
   { 갈래:'몸통', 사이:'전면밴드 ↔ 측판', 말:'측판 사이에 끼우고 바닥에서 선다. 높이가 곧 전면밴드 값이다. 전면밴드를 0 으로 두면 아예 안 짠다.',
-    값:(m,s) => s.plinth > 0 ? `높이 ${fmt(s.plinth)}` : '안 짬', 어디:'내부·전면 「전면밴드」' },
+    값:(m,s) => s.plinth > 0 ? `높이 ${fmt(s.plinth)}` : '안 짬', 어디:'전면밴드 옵션' },
   { 갈래:'몸통', 사이:'전면밴드 ↔ 몸통 앞면', 말:'몸통 앞면에서 뒤로 물린다.', 규칙:'걸레앞', 최소:0, 최대:200, 걸음:1 },
   { 갈래:'도어', 사이:'문짝 ↔ 몸통 (아웃도어)', 말:'몸통 앞에 덧댄다. 몸통 앞면에서 경첩유격만큼 띄우므로 유격 + 도어 두께만큼 앞으로 나온다. 도어 짝수를 0 으로 두면 아예 안 짠다.',
-    값:(m,s) => s.doors ? `유격 ${fmt(규칙.아웃경첩)} + 두께 ${fmt(s.Tdoor)} = ${fmt(m.앞으로)} 나옴` : '안 짬', 어디:'내부·전면 「도어」' },
+    값:(m,s) => s.doors ? `유격 ${fmt(규칙.아웃경첩)} + 두께 ${fmt(s.Tdoor)} = ${fmt(m.앞으로)} 나옴` : '안 짬', 어디:'도어 옵션' },
   { 갈래:'도어', 사이:'문짝 뒷면 ↔ 몸통 앞면 (아웃도어)', 말:'경첩이 들어갈 틈이다. 도어가 몸통에 딱 붙지 않는다 (사장님 말씀 09-28).',
     규칙:'아웃경첩', 최소:0, 최대:20, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 측판 바깥 (아웃도어)', 말:'측판 바깥면에서 좌우로 똑같이 뗀다.', 규칙:'아웃좌우', 최소:0, 최대:50, 걸음:0.1 },
@@ -2732,7 +2753,7 @@ const 관계표 = [
   { 갈래:'도어', 사이:'문짝 ↔ 문짝', 말:'두 짝이 맞닿는 사이를 뗀다.', 규칙:'도어사이', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 문짝 (폭 나누기)', 말:'유격을 뺀 남은 폭을 짝 수대로 똑같이 나눈다.',
     값:m => { const d = m.parts.filter(p => p.name === '문짝'); return d.length ? `${fmt(d[0].w)} × ${d.length}짝` : '도어 없음'; },
-    어디:'내부·전면 「도어」 짝수' },
+    어디:'도어 옵션 짝수' },
   { 갈래:'도어', 사이:'선반 ↔ 문짝 (인도어)', 말:'인도어는 몸통 앞면 안쪽에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고 깊이를 줄인다. 고정·이동 둘 다 같다.',
     고름:'인선반줄임' },
   // 결은 이제 부속마다 켜는 것이다(§4.96). 박아 둔 「세로 3 · 가로 4」 는 결없음에서 거짓말이 되어 세어 적는다.
@@ -2742,7 +2763,7 @@ const 관계표 = [
       return (세 + 가) ? `세로 ${세} · 가로 ${가} · 없음 ${r.length - 세 - 가}` : `없음 ${r.length}`; },
     어디:'보드선택' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 선반', 말:'고정 선반과 이동 선반은 따로 센다. 두께도 따로 고른다.',
-    값:(m,s) => `고정 ${s.shelves}단 · 이동 ${s.shelvesM}단`, 어디:'보드선택·내부·전면' },
+    값:(m,s) => `고정 ${s.shelves}단 · 이동 ${s.shelvesM}단`, 어디:'보드선택 · 부속 옵션' },
   { 갈래:'재단·부품표', 사이:'재단 치수 ↔ 부속', 말:'길이 × 폭 × 두께로 낸다. 두께는 부속마다 보드선택에서 고른다. 재단 여유는 넣지 않는다.',
     값:m => `${m.parts.length}조각`, 어디:'보드선택' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 부속', 말:'이름과 재단 치수가 똑같은 것끼리 한 줄로 묶어 수량을 센다.',
