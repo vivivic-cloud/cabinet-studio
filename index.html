@@ -452,11 +452,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <small id="addWarn" class="warn"></small></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
     </div>
-    <div class="group">
-      <h2>내부 · 전면</h2>
-      <div class="field wide"><label>경첩</label>
-        <div class="seg"><label><input type="radio" name="hinge" value="left" checked>좌</label><label><input type="radio" name="hinge" value="right">우</label></div></div>
-    </div>
     <div class="stats">
       <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
       <div class="stat"><b id="stInner">–</b><span>내부 폭 × 깊이</span></div>
@@ -631,7 +626,7 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.결', JSON.stringify(결설정));
 } catch (e) {} }
 
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', backMode:'cover', doors:2, doorMode:'out', hinge:'left', explode:0 };
+const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -700,8 +695,10 @@ function buildModel(s){
   if (doors > 0){
     const n = doors, gap = 규칙.도어사이;
     let x0, x1, z0, z1, dy;
-    if (s.doorMode === 'in'){                // 인도어 — 몸통 안. 경첩쪽 2mm, 맞닿는 나머지 면 3mm
-      const 왼 = s.hinge === 'left' ? 규칙.인경첩 : 규칙.인나머지, 오 = s.hinge === 'left' ? 규칙.인나머지 : 규칙.인경첩;
+    if (s.doorMode === 'in'){                // 인도어 — 몸통 안. 다는 쪽 2mm, 맞닿는 나머지 면 3mm
+      // 사장님 말씀(09-28): 「이 옵션은 삭제해주고 관련 로직도 모두 삭제해줘」 — 좌·우 고르개를 없앴다.
+      // 재 보니 좌·우는 **재단 치수를 하나도 안 바꾸고** 자리만 1mm 옮겼다. 그래서 예전 기본값(좌)만 남긴다.
+      const 왼 = 규칙.인경첩, 오 = 규칙.인나머지;
       x0 = Tside + 왼; x1 = W - Tside - 오;
       z0 = bz + Tbot + 규칙.인나머지; z1 = (H - Ttop) - 규칙.인나머지;
       dy = 0;                                // 몸통 앞면 안쪽에 앉는다
@@ -1932,7 +1929,6 @@ $('#backIn').addEventListener('input', () => {
   규칙.홈뒤살 = Math.min(40, Math.max(0, v));
   담기(); update();
 });
-document.querySelectorAll('input[name=hinge]').forEach(r => r.addEventListener('change', () => { state.hinge = r.value; update(); }));
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
 
@@ -2747,7 +2743,7 @@ const 관계표 = [
   { 갈래:'도어', 사이:'문짝 ↔ 상판 (아웃도어)', 말:'상판 윗면 끝에서 아래로 뗀다.', 규칙:'아웃위', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 전면밴드 (아웃도어)', 말:'전면밴드가 있으면 그 윗면에서 뗀다.', 규칙:'아웃아래걸레', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 바닥 (아웃도어)', 말:'전면밴드가 없으면 바닥에서 뗀다.', 규칙:'아웃아래없음', 최소:0, 최대:50, 걸음:0.1 },
-  { 갈래:'도어', 사이:'문짝 ↔ 측판 안 (인도어)', 말:'몸통 안에 앉는다. 경첩이 달리는 쪽을 뗀다. 경첩을 좌에서 우로 바꾸면 이 값이 가는 쪽도 바뀐다.',
+  { 갈래:'도어', 사이:'문짝 ↔ 측판 안 (인도어)', 말:'몸통 안에 앉는다. 경첩이 달리는 쪽을 뗀다.',
     규칙:'인경첩', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 상판·하판·측판 (인도어)', 말:'경첩 쪽 말고 맞닿는 나머지 세 면을 뗀다.', 규칙:'인나머지', 최소:0, 최대:50, 걸음:0.1 },
   { 갈래:'도어', 사이:'문짝 ↔ 문짝', 말:'두 짝이 맞닿는 사이를 뗀다.', 규칙:'도어사이', 최소:0, 최대:50, 걸음:0.1 },
