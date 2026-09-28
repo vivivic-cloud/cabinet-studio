@@ -433,7 +433,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 <div class="app m3d">
   <header>
     <div class="brand">
-      <span class="eyebrow">Panel furniture · 3D + 2D drafting</span>
       <h1>NRS</h1>
       <span class="tag">Keep it simple.</span>
     </div>
@@ -508,7 +507,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <button id="btnHidAll" type="button">모두 보이기</button>
       </div>
     </div>
-    <div class="hint mono">왼쪽 드래그 이동 · 휠 드래그 궤도 · 스크롤 줌<span class="mouseonly"> · Shift+Z 전체</span></div>
     <div class="explode">
       <label for="explode">분해도</label>
       <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해 정도">
@@ -516,12 +514,12 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   </main>
 
   <section class="draw" aria-label="2D 도면">
-    <div class="panelhead"><h2>제작 도면</h2><span class="eyebrow mono">UNIT mm · 3각법</span><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div></div>
+    <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div></div>
     <div class="svgwrap" id="svgwrap"></div>
   </section>
 
   <section class="bom" aria-label="부품표">
-    <div class="panelhead"><h2>부품표</h2><button id="btnBom" class="linkbtn" type="button">크게 보기</button><span class="eyebrow">재단 치수 · 결 방향 기준</span></div>
+    <div class="panelhead"><h2>부품표</h2><button id="btnBom" class="linkbtn" type="button">크게 보기</button></div>
     <div class="tablewrap" id="bomWrap"><table>
       <thead id="bomHead"><tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th></tr></thead>
       <tbody id="bomBody"></tbody>
@@ -2535,7 +2533,7 @@ function 줄옵션(이름){
       `min="0" max="200" step="1" value="${state.plinth}"><span>mm</span></div></div>`;
   if (이름 === '문짝')
     return `<div class="seg mini" role="group" aria-label="문짝">` +
-      [['0','없음'],['1','여닫이 1'],['2','여닫이 2']].map(([v,글]) =>
+      [['0','0'],['1','1'],['2','2']].map(([v,글]) =>
         `<label><input type="radio" name="doors" value="${v}"${String(state.doors)===v?' checked':''}>${글}</label>`).join('') +
       `</div><div class="opthead">도어 방식</div><div class="seg mini" role="group" aria-label="도어 방식">` +
       [['out','아웃도어'],['in','인도어']].map(([v,글]) =>
@@ -2557,17 +2555,28 @@ function 줄옵션(이름){
   }
   return '';
 }
+/* 결은 「결 있음」 을 먼저 켜야 가로·세로가 나온다 (09-28 사장님 말씀):
+   「결있음 선택시 … 해당 사이즈를 선택할 수 있게 … 결있음에 체크를 안하면 이런세팅 구성조차 안나타나게」.
+   담기는 값은 그대로 `결설정 = {이름:'가로'|'세로'}` 다 — 방향을 고르기 전까지는 담을 것이 없으므로
+   「켜 두기만 한 것」 은 `결켬`(Set)이 기억한다. 새로 열면 담긴 값이 있는 것만 켜져 있다. */
+const 결켬 = new Set();
+const 결있음 = 이름 => !!결표기(이름) || 결켬.has(이름);
 function 옵션칸(이름){
-  const t = 옵션치수(이름);
-  return 줄옵션(이름) + `<div class="opthead">결 방향</div>` +
-    결방향값.map(v => `<label class="optrow"><input type="checkbox" data-grain="${esc(이름)}" value="${v}">` +
-      `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('');
+  const t = 옵션치수(이름), 켬 = 결있음(이름);
+  return 줄옵션(이름) +
+    `<label class="optrow"><input type="checkbox" data-grainon="${esc(이름)}"${켬 ? ' checked' : ''}><span>결 있음</span></label>` +
+    (켬 ? `<div class="opthead">결 방향</div>` +
+      결방향값.map(v => `<label class="optrow"><input type="checkbox" data-grain="${esc(이름)}" value="${v}">` +
+        `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('') : '');
 }
 function 결단추갱신(){
   document.querySelectorAll('.opt[data-opt]').forEach(el => {
     const 이름 = el.dataset.opt, 편다 = 열린옵션.has(이름);
-    // 손이 얹혀 있는 칸은 다시 그리지 않는다 — 슬라이더를 끄는 중에 노드를 갈면 끌던 것을 놓친다.
-    const 만지는중 = el.innerHTML && el.contains(document.activeElement);
+    // 끌거나 치고 있는 칸은 다시 그리지 않는다 — 슬라이더를 끄는 중에 노드를 갈면 끌던 것을 놓친다.
+    // **끌고 치는 것(range·number)에만 건다** — 체크·라디오까지 막으면 켜도 칸이 안 펴진다(한 번 그랬다).
+    const a = document.activeElement;
+    const 만지는중 = !!el.innerHTML && el.contains(a) && !!a.matches &&
+      a.matches('input[type=range],input[type=number]');
     if (편다){ if (!만지는중) el.innerHTML = 옵션칸(이름); }
     else if (el.innerHTML) el.innerHTML = '';
     el.hidden = !편다;
@@ -2575,6 +2584,7 @@ function 결단추갱신(){
   document.querySelectorAll('.pname[data-opt]').forEach(b =>
     b.setAttribute('aria-expanded', String(열린옵션.has(b.dataset.opt))));
   document.querySelectorAll('input[data-grain]').forEach(el => { el.checked = 결설정[el.dataset.grain] === el.value; });
+  document.querySelectorAll('input[data-grainon]').forEach(el => { el.checked = 결있음(el.dataset.grainon); });
 }
 // 부속명을 누르면 그 줄의 상세옵션이 펴지고 접힌다. 길게 누르기(지시 손잡이)는 click 을 안 쓰므로 안 뺏긴다.
 document.addEventListener('click', e => {
@@ -2586,7 +2596,13 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (!el || !el.matches || !el.matches('input[data-grain]')) return;
+  if (!el || !el.matches) return;
+  if (el.matches('input[data-grainon]')){          // 결 있음 — 끄면 골라 둔 방향도 같이 턴다
+    const 이름 = el.dataset.grainon;
+    if (el.checked) 결켬.add(이름); else { 결켬.delete(이름); delete 결설정[이름]; }
+    결단추갱신(); 담기(); update(); return;
+  }
+  if (!el.matches('input[data-grain]')) return;
   const 이름 = el.dataset.grain;
   if (el.checked) 결설정[이름] = el.value; else delete 결설정[이름];
   결단추갱신(); 담기(); update();
