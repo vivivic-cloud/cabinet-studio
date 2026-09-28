@@ -433,7 +433,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field gr" data-home="5" data-part="하판"><button type="button" class="pname" data-opt="하판" aria-expanded="false">하판</button><div class="two"><select id="Tbot" data-key="Tbot" aria-label="하판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div><div class="opt" data-opt="하판" hidden></div></div>
       <div class="field gr" data-home="6" data-part="전면밴드"><button type="button" class="pname" data-opt="전면밴드" aria-expanded="false">전면밴드</button><div class="two"><select id="Tplinth" data-key="Tplinth" aria-label="전면밴드 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div><div class="opt" data-opt="전면밴드" hidden></div></div>
       <div class="field back gr" data-home="7" data-part="뒷판"><button type="button" class="pname" data-opt="뒷판" aria-expanded="false">뒷판</button><div class="segs"><div class="seg mini" role="group" aria-label="뒷판 조립"><label><input type="radio" name="backMode" value="cover" checked>덮기</label><label><input type="radio" name="backMode" value="insert">끼우기</label></div></div><div class="two"><select id="TB" data-key="TB" aria-label="뒷판 두께"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div><div class="opt" data-opt="뒷판" hidden></div></div>
-      <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감 <small>몸통 뒷면에서 홈까지</small></label>
+      <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감</label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
       <!-- 지운 부속만 여기로 내려 모은다 (09-22 사장님 말씀). 설정 때문에 없는 줄은 제자리에 둔다. -->
@@ -441,7 +441,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <h2>비활성 부속</h2>
         <div id="deadList"></div><div id="deadCustom"></div>
       </div>
-      <div class="field wide"><label for="newPart">부속 만들기 <small>칸에서 지웠던 부속을 고르거나 새 이름을 적습니다</small></label>
+      <div class="field wide"><label for="newPart">부속 만들기</label>
         <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"
              role="combobox" aria-expanded="false" aria-controls="partNames"><button id="btnAdd" type="button">추가</button>
           <div id="partNames" class="namedrop" role="listbox" hidden></div></div>
@@ -539,7 +539,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg"><div class="dlg">
   <h3 id="dlgTitle">DXF 내용</h3>
-  <p id="dlgMsg">이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 <code>cabinet.dxf</code>로 저장하면 AutoCAD·LibreCAD·FreeCAD에서 열립니다.</p>
+  <p id="dlgMsg"></p>
   <textarea id="dlgText" readonly spellcheck="false"></textarea>
   <div class="row"><button type="button" id="dlgCopy">복사</button><button type="button" id="dlgClose" class="primary">닫기</button></div>
 </div></dialog>
@@ -1731,7 +1731,7 @@ function update(){
   $('#bomHead').innerHTML = '<tr><th>부품</th><th>수량</th><th>결 길이</th><th>결 폭</th><th>두께</th><th>결</th>' + (비고있나 ? '<th>비고</th>' : '') + '</tr>';
   $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td>` + (비고있나 ? `<td class="mono">${esc(r.비고 || '')}</td>` : '') + `</tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
-  $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개 · 결 길이는 나뭇결(무늬) 방향 치수 · 재단 여유 미포함`;
+  $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개`;
   $('#stPitch').textContent = (state.shelves + state.shelvesM) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
   const 두께순 = Object.keys(area).sort((a,b) => area[b] - area[a]);   // 두께가 여럿이라 면적 큰 둘을 보인다
@@ -2203,7 +2203,7 @@ $('#bPrint').addEventListener('click', () => {
 });
 $('#bSave').addEventListener('click', async () => {
   const svg = 부품표SVG();
-  await save(fileBase() + '_부품표.svg', svg, () => showFallback('부품표 SVG', '이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 .svg 파일로 저장하세요.', svg));
+  await save(fileBase() + '_부품표.svg', svg, () => showFallback('부품표 SVG', '', svg));
 });
 
 /* ───────── 내보내기 ───────── */
@@ -2236,7 +2236,7 @@ async function save(filename, data, fallback){
 }
 $('#btnDxf').addEventListener('click', async () => {
   const dxf = buildDXF(drawing);
-  const fallback = () => showFallback('DXF 내용', '이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 cabinet.dxf 로 저장하면 AutoCAD·LibreCAD·FreeCAD에서 열립니다.', dxf);
+  const fallback = () => showFallback('DXF 내용', '', dxf);
   if (standalone){ await save(fileBase() + '.dxf', dxf, fallback); return; }
   const zip = new JSZip(); zip.file(fileBase() + '.dxf', dxf);   // claude.ai 저장 기능은 .dxf 확장자를 받지 않아 zip으로 포장
   const blob = await zip.generateAsync({ type:'blob' });
@@ -2244,7 +2244,7 @@ $('#btnDxf').addEventListener('click', async () => {
 });
 $('#btnSvg').addEventListener('click', async () => {
   const svg = svgForFile(drawing);
-  await save(fileBase() + '.svg', svg, () => showFallback('SVG 내용', '이 화면에서는 파일 저장이 지원되지 않습니다. 아래 내용을 복사해 .svg 파일로 저장하세요.', svg));
+  await save(fileBase() + '.svg', svg, () => showFallback('SVG 내용', '', svg));
 });
 $('#dlgClose').addEventListener('click', () => $('#dlg').close());
 $('#warnOk').addEventListener('click', () => $('#warnDlg').close());
@@ -2506,7 +2506,7 @@ function 옵션치수(이름){
 }
 function 옵션칸(이름){
   const t = 옵션치수(이름);
-  return `<div class="opthead">결 방향<small>결이 갈 쪽의 치수를 켭니다. 둘 다 끄면 「결 없음」 — 그것이 기본값이고 어디에도 결을 안 적습니다.</small></div>` +
+  return `<div class="opthead">결 방향</div>` +
     결방향값.map(v => `<label class="optrow"><input type="checkbox" data-grain="${esc(이름)}" value="${v}">` +
       `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('');
 }
@@ -2746,7 +2746,7 @@ function 표그리기(){
   let 갈래 = '';
   $('#rTable').innerHTML = 관계표.map((r, i) => {
     const 머리 = r.갈래 === 갈래 ? '' : `<h5>${esc(갈래 = r.갈래)}</h5>`;
-    const 말 = `<div><b>${esc(r.사이)}</b><small>${esc(r.말)}</small></div>`;
+    const 말 = `<div><b>${esc(r.사이)}</b></div>`;
     if (r.규칙)
       return `${머리}<div class="krow">${말}<div class="num"><input data-rule="${r.규칙}" type="number" min="${r.최소}" max="${r.최대}" step="${r.걸음}" value="${규칙[r.규칙]}"><span>mm</span></div></div>`;
     if (r.고름)
@@ -2782,7 +2782,7 @@ function 제어판그리기(){
   $('#rFix').innerHTML = 목록.length
     ? 목록.map(([무엇, k], i) => `<div class="rrow"><label>${esc(k.split('@')[0])} <small>${esc(무엇)} · 자리 ${esc(k.split('@')[1] || '')}</small></label>` +
         `<button type="button" data-fix="${i}">되돌리기</button></div>`).join('')
-    : '<p class="none">손질한 것이 없습니다.</p>';
+    : '<p class="none"></p>';
   $('#rFix').querySelectorAll('button[data-fix]').forEach(el => el.addEventListener('click', () => {
     const [무엇, k] = 목록[+el.dataset.fix];
     if (무엇 === '숨김') 손질.숨김 = 손질.숨김.filter(x => x !== k);
