@@ -1,5 +1,10 @@
 # cabinet-studio — 집 규칙
 
+**화면 이름은 `NRS` 다. 저장소·주소·박스 자리는 `cabinet-studio` 그대로다** (09-28 사장님 말씀).
+바뀐 것은 `<title>` 과 머리의 `<h1>` 둘뿐이고, 그 밑에 작은 글씨 `Keep it simple.` 한 줄이 있다.
+`곳간 = 'cabinet-studio'`(저장 열쇠 앞머리) · 주소 · `box:cabinet-studio` 를 **건드리면 안 된다** —
+저장값이 날아가고 사장님 바로가기가 끊기고 지시가 안 들어온다.
+
 파일 하나짜리 프로그램이다(`index.html`). `main` 에 올리면 깃허브 페이지로 바로 나간다:
 https://vivivic-cloud.github.io/cabinet-studio/
 
