@@ -419,9 +419,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
     <div class="group">
       <h2>외형 치수</h2>
-      <div class="field"><label for="W">폭 <small>Width</small></label><div class="num"><input id="W" data-key="W" type="number" min="300" max="2400" step="1" value="800"><span>mm</span></div></div>
-      <div class="field"><label for="D">깊이 <small>Depth</small></label><div class="num"><input id="D" data-key="D" type="number" min="200" max="800" step="1" value="400"><span>mm</span></div></div>
-      <div class="field"><label for="H">높이 <small>Height</small></label><div class="num"><input id="H" data-key="H" type="number" min="300" max="2400" step="1" value="1800"><span>mm</span></div></div>
+      <div class="field"><label for="W">폭</label><div class="num"><input id="W" data-key="W" type="number" min="300" max="2400" step="1" value="800"><span>mm</span></div></div>
+      <div class="field"><label for="D">깊이</label><div class="num"><input id="D" data-key="D" type="number" min="200" max="800" step="1" value="400"><span>mm</span></div></div>
+      <div class="field"><label for="H">높이</label><div class="num"><input id="H" data-key="H" type="number" min="300" max="2400" step="1" value="1800"><span>mm</span></div></div>
     </div>
     <div class="group" id="boardBox">
       <h2>보드선택</h2>
@@ -454,14 +454,13 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <h2>내부 · 전면</h2>
       <div class="field wide"><label for="shelves">고정 선반 <b id="shelvesVal" class="mono">3</b>단</label><input id="shelves" data-key="shelves" type="range" min="0" max="8" step="1" value="3"></div>
       <div class="field wide"><label for="shelvesM">이동 선반 <b id="shelvesMVal" class="mono">0</b>단</label><input id="shelvesM" data-key="shelvesM" type="range" min="0" max="8" step="1" value="0"></div>
-      <div class="field"><label for="plinth">전면밴드 <small>0 = 없음</small></label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
+      <div class="field"><label for="plinth">전면밴드</label><div class="num"><input id="plinth" data-key="plinth" type="number" min="0" max="200" step="1" value="80"><span>mm</span></div></div>
       <div class="field wide"><label>문짝</label>
         <div class="seg"><label><input type="radio" name="doors" value="0">없음</label><label><input type="radio" name="doors" value="1">여닫이 1</label><label><input type="radio" name="doors" value="2" checked>여닫이 2</label></div></div>
       <div class="field wide"><label>도어 방식</label>
         <div class="seg"><label><input type="radio" name="doorMode" value="out" checked>아웃도어</label><label><input type="radio" name="doorMode" value="in">인도어</label></div></div>
       <div class="field wide"><label>경첩</label>
         <div class="seg"><label><input type="radio" name="hinge" value="left" checked>좌</label><label><input type="radio" name="hinge" value="right">우</label></div></div>
-      <div class="field wide"><small id="gapNote" class="mono"></small></div>
     </div>
     <div class="stats">
       <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
@@ -1740,13 +1739,6 @@ function update(){
     $(v).textContent = t ? area[t].toFixed(2) + ' m²' : '–';
     $(l).textContent = t ? `${t}T 소요 면적` : '소요 면적';
   });
-  const 경첩 = state.hinge === 'left' ? '좌' : '우';
-  $('#gapNote').textContent = !state.doors ? ''
-    : (state.doorMode === 'in'
-        ? `유격 경첩쪽(${경첩}) ${fmt(규칙.인경첩)} · 나머지 ${fmt(규칙.인나머지)}`
-        : `유격 좌우 ${fmt(규칙.아웃좌우)} · 위 ${fmt(규칙.아웃위)} · 아래 ${fmt(state.plinth > 0 ? 규칙.아웃아래걸레 : 규칙.아웃아래없음)} · 경첩 ${fmt(규칙.아웃경첩)}`)
-      + (state.doors > 1 ? ` · 도어사이 ${fmt(규칙.도어사이)}` : '')
-      + (state.doorMode === 'in' && 규칙.인선반줄임 ? ` · 선반 깊이 −${fmt(state.Tdoor)}(도어 두께)` : '');
   applySel();
   숨김바();
   표값갱신();
