@@ -44,7 +44,7 @@ button:disabled{opacity:.5;cursor:default}
 /* 「뒷판 들어감」 도 같은 자다 — 칸을 좁히고 입력 높이를 44 로 되찾는다(전에는 39.8 이었다) */
 #backInWrap{grid-template-columns:1fr 82px;gap:8px}
 #backInWrap .num{border-radius:11px}
-#backInWrap .num input{min-height:44px;padding:0 6px;font-size:13px}
+#backInWrap .num input{min-height:34px;padding:0 6px;font-size:13px}
 .field small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
 .num{display:flex;align-items:center;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
 .num:focus-within{border-color:var(--head)}
@@ -87,11 +87,12 @@ select:focus{border-color:var(--head)}
 .pname:hover{color:var(--head)}
 .field.죽음>.pname{color:var(--ink3)}
 .opt[hidden]{display:none}
- /* 09-28 사장님 말씀: 「이런 입력칸의 높이가 너무 커 메인화면의 입력칸도 그렇고 좀 작게좀 조절해줘」.
-   **input 의 실제 높이는 44px 아래로 안 내린다** — 닿는 자리를 `::after` 로 넓히면 눌러도 글쇠가 안 뜬다.
-   그래서 줄이는 것은 **폭 · 글자 · 안여백 · 칸 사이 틈** 이다.
-   테두리 있는 숫자칸의 줄 높이는 **46px(= 44 + 테두리 2)이 바닥**이다. 더 줄이려면 input 을 44 아래로 내려야 한다. */
-.opt{display:flex;flex-direction:column;gap:2px;margin-top:-4px;padding:6px 8px 7px;
+ /* 09-28 사장님 말씀 **두 번** — 「이런 입력칸의 높이가 너무 커 … 좀 작게좀 조절해줘」,
+   그리고 「이노무 입력칸좀 줄여달라니까」. 첫 판은 44px 을 지켜 46px 줄이 그대로여서 **눈에 안 띄었다.**
+   **그래서 입력칸은 34px 이다. 44px 규칙은 단추에만 쓴다** (관리자가 제 말을 물렸다 · 사장님 글자가 이긴다).
+   × · 세그먼트 · 「추가」 같은 **단추는 44px 그대로 둔다** — 사장님이 짚으신 것은 글자 넣는 칸이다.
+   **46 으로 되돌리지 마라.** */
+.opt{display:flex;flex-direction:column;gap:2px;margin-top:-4px;padding:5px 8px 6px;
   border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
 .opthead{font-size:12px;font-weight:700;color:var(--ink2);padding-bottom:2px}
 .opthead small{display:block;font-weight:400;font-size:11.5px;color:var(--ink3);line-height:1.5;padding-top:2px}
@@ -104,15 +105,15 @@ select:focus{border-color:var(--head)}
 .optrow b i{font-style:normal;font-size:11px;color:var(--ink3);padding-left:2px}
 .optrow:has(input:checked){background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .optrow:has(input:checked) span{font-weight:700;color:var(--head)}
-.optwide{display:flex;flex-direction:column;gap:4px;padding:0 4px 2px}
+.optwide{display:flex;flex-direction:column;gap:3px;padding:0 4px 1px}
 .optwide label{font-size:13px;color:var(--ink)}
 /* 전면밴드 칸이 칸 폭을 다 먹고 있었다(305px · 입력 39.8px). 폭을 유격 칸과 같이 맞추고 높이를 44 로 되찾는다. */
 .optwide>.num{width:82px;border-radius:11px}
-.optwide>.num input{min-height:44px;padding:0 6px;font-size:13px}
-.optnum{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px}
+.optwide>.num input{min-height:34px;padding:0 6px;font-size:13px}
+.optnum{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 4px}
 .optnum label{flex:1;min-width:0;font-size:13px;color:var(--ink)}
 .optnum .num{flex:none;width:82px;border-radius:11px}
-.optnum .num input{min-height:44px;padding:0 6px;font-size:13px}
+.optnum .num input{min-height:34px;padding:0 6px;font-size:13px}
 /* 「12.5」 가 1px 잘렸다 — 「mm」 꼬리표 여백과 글자를 깎아 숫자 자리를 넓힌다(관계제어판은 안 건드린다) */
 .optnum .num span,.optwide>.num span,#backInWrap .num span{padding:0 6px 0 0;font-size:11px}
 .seg.mini{padding:2px;gap:2px}
@@ -177,9 +178,9 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .dims .d:focus-within{border-color:var(--head)}
 .dims i{font-style:normal;font-size:10.5px;font-weight:700;color:var(--ink2);flex:none}
 /* 폰 2D 에서 칸이 85px 까지 좁아진다 — 네 자리(1800)가 안 잘리게 글자를 줄이고 여백을 깎았다. */
-.dims input{flex:1 1 0;min-width:34px;width:100%;min-height:44px;border:0;background:transparent;color:var(--ink);
+.dims input{flex:1 1 0;min-width:34px;width:100%;border:0;background:transparent;color:var(--ink);
   font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-variant-numeric:tabular-nums;
-  font-size:13px;padding:0 1px;text-align:right;-moz-appearance:textfield}
+  font-size:13px;padding:0 1px;text-align:right;-moz-appearance:textfield;min-height:34px}
 .dims input::-webkit-outer-spin-button,.dims input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .dims span{font-size:9.5px;color:var(--ink3);flex:none}
 /* 도면 칸에서는 쪽 오른쪽 위 「크게」 단추(56×44)를 덮지 않게 띠를 왼쪽에 짧게 둔다.
@@ -290,7 +291,7 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .bom th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:800}
 .bom td:first-child,.bom th:first-child{text-align:left}
 .bom td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace}
-.addrow{display:flex;gap:6px;position:relative}
+.addrow{display:flex;align-items:center;gap:6px;position:relative}
 /* 「부속 이름」 칸에 붙는 드롭다운 — 칸 바로 아래에 이어 붙는다(따로 뜨는 판이 아니다).
    사장님 말씀(09-17): 「칸 안에 드롭다운 목록으로, 딸림말 없이 이름만, 도면에 있는 것은 빼고」. */
 .namedrop{position:absolute;left:0;top:calc(100% + 2px);width:calc(100% - 66px);z-index:30;
@@ -301,9 +302,9 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
   background:transparent;text-align:left;font-size:14px;color:var(--ink)}
 .namedrop button+button{border-top:1px solid var(--line)}
 .namedrop button:hover,.namedrop button.on{background:var(--fill2)}
-.addrow input{flex:1;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:0 10px}
+.addrow input{flex:1;min-width:0;min-height:34px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:0 10px}
 .addrow input:focus{outline:none;border-color:var(--head)}
-.addrow button{flex:none}
+.addrow button{flex:none;min-height:44px}   /* 단추는 44px 그대로 — 칸만 34 로 내렸다 */
 .two{display:flex;gap:10px;align-items:center}   /* 두께 칸과 × 를 띄운다 — 잘못 눌리지 않게 */
 /* 보이는 것은 줄이고 닿는 자리는 44px 을 지킨다 (09-28 사장님 말씀 · 집 규칙 §0).
    select 는 ::after 를 못 얹으므로 **제 몸이 곧 닿는 자리**다 — 높이 44 는 지키고 폭·글자를 줄였다. */
