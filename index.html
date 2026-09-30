@@ -2666,14 +2666,28 @@ function 줄옵션(이름){
       [['inset','측판 사이'],['overlay','측판 위']].map(([v,글]) =>
         `<label><input type="radio" name="topStyle" value="${v}"${state.topStyle===v?' checked':''}>${글}</label>`).join('') +
       `</div>` +
-      (state.topStyle === 'overlay' ? 유격칸('측판 들임', '측판들임') : 유격칸('상판 내림', '상판내림'));
+      (state.topStyle === 'overlay' ? '' : 유격칸('상판 내림', '상판내림'));
+      // 「측판 들임」 은 측판 상세옵션으로 옮겼다 (09-30 사장님 말씀). 두 군데 두지 않는다.
   if (이름 === '하판')                       // 상판과 같은 꼴이다 — 위아래만 뒤집었다
     return `<div class="opthead">하판 결합</div><div class="seg mini" role="group" aria-label="하판 결합">` +
       [['inset','측판 사이'],['under','측판 아래']].map(([v,글]) =>
         `<label><input type="radio" name="botStyle" value="${v}"${state.botStyle===v?' checked':''}>${글}</label>`).join('') +
       `</div>` +
-      (state.botStyle === 'under' ? 유격칸('측판 들임', '하판측판들임') : 유격칸('하판 올림', '하판올림'));
-  if (이름 === '측판') return 유격칸('측판 내밈', '측판내밈');
+      (state.botStyle === 'under' ? '' : 유격칸('하판 올림', '하판올림'));
+  /* 측판 상세옵션 — 사장님 말씀(09-30): 「상판이 측판위로 올라갈때는 측판들임 옵션이 나타나야 합니다」.
+     「측판 들임」 은 **측판이 얼마나 들어가는가**라 측판 판에 있어야 맞다. 상판·하판 판에서 옮겨 왔다.
+     **두 군데 두지 마라** — 같은 값이 두 줄로 보이면 어느 것을 고쳤는지 헷갈린다(§0).
+     칸은 둘이다. 상판이 측판을 덮을 때(`측판들임`) · 하판이 측판을 받칠 때(`하판측판들임`).
+     이름을 갈라 적는다 — 서로 다른 칸인데 이름이 같으면 두 줄이 똑같아 보인다. */
+  if (이름 === '측판'){
+    const 위 = state.topStyle === 'overlay', 아래 = state.botStyle === 'under';
+    // 둘은 같은 x 자리를 다퉈 `Math.max` 로 **큰 쪽만 먹는다**(buildModel). 둘 다 보일 때만 한 마디 붙인다 —
+    // 안 붙이면 작은 쪽을 고치고 「고쳤는데 안 바뀐다」 가 된다. 한 쪽만 보이면 아무 말도 안 붙인다.
+    return 유격칸('측판 내밈', '측판내밈')
+      + (위 ? 유격칸('측판 들임 (상판)', '측판들임') : '')
+      + (아래 ? 유격칸('측판 들임 (하판)', '하판측판들임') : '')
+      + (위 && 아래 ? '<div class="opthead"><small>큰 쪽만 들어갑니다</small></div>' : '');
+  }
   if (이름 === '고정선반' || 이름 === '이동선반'){
     const k = 이름 === '고정선반' ? 'shelves' : 'shelvesM';
     return `<div class="optwide"><label for="${k}"><b id="${k}Val" class="mono">${state[k]}</b>단</label>` +

@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+/* 「측판 들임」 은 측판 상세옵션에 있다 — 09-30 사장님 말씀
+     「상판이 측판위로 올라갈때는 측판들임 옵션이 나타나야 합니다」
+     ① 네 갈래(상판 사이·위 × 하판 사이·아래)에서 어느 판에 어느 줄이 뜨나
+     ② 상판·하판 판에서 「측판 들임」 이 사라졌나 · 측판 판에 같은 이름 두 줄이 안 나오나
+     ③ 둘 다 보일 때만 「큰 쪽만 들어갑니다」 한 마디가 붙나
+     ④ 값이 도면에 먹나 — 둘이 한 자리를 다퉈 **큰 쪽만** 먹는다(셈은 안 건드렸다)
+
+   돌리는 법:  node tests/측판들임.js
+   이 시험은 화면을 보므로 **three 허수아비를 쓰지 않는다** — 진짜로 띄워 `__probe` 로 값을 넣는다.
+   그래서 three.min.js 사본이 필요하다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
+const fs = require('fs'), path = require('path'), http = require('http');
+
+const 뿌리 = path.join(__dirname, '..');
+let chromium;
+try { chromium = require(process.env.PW || '/opt/node22/lib/node_modules/playwright').chromium; }
+catch { try { chromium = require('playwright').chromium; }
+  catch { console.log('건너뜀 — playwright 가 없다 (PW=<경로> 로 알려 줄 수 있다)'); process.exit(0); } }
+
+// 이 방은 CDN 이 막혀 있다(§7). three 사본이 있어야 화면이 뜬다.
+const 스리 = process.env.TH || path.join(뿌리, 'tests', 'three.min.js');
+if (!fs.existsSync(스리)){
+  console.log('건너뜀 — three.min.js 사본이 없다 (TH=<경로> 로 알려 줄 수 있다)'); process.exit(0); }
+
+const 손질 = () => {
+  let s = fs.readFileSync(process.env.SRC || path.join(뿌리, 'index.html'), 'utf8');
+  s = s.replace(/https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/three[^"']+/, 'three.min.js');
+  s = s.replace(/\s*<script[^>]*jszip[^>]*><\/script>/i, '');
+  s = s.replace(/\s*<script[^>]*viggle[^>]*><\/script>/i, '');   // 바깥 손잡이는 이 방에 안 온다
+  const 못 = 'init3D();';
+  if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
+  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),rule:()=>규칙};' + 못);
+};
+
+const 띄우기 = (html) => new Promise(res => {
+  const 서버 = http.createServer((q, a) => {
+    if (q.url.indexOf('three.min.js') >= 0){
+      a.writeHead(200, {'Content-Type':'application/javascript'}); return a.end(fs.readFileSync(스리)); }
+    a.writeHead(200, {'Content-Type':'text/html; charset=utf-8'}); a.end(html);
+  });
+  서버.listen(0, '127.0.0.1', () => res({ 서버, 주소: 'http://127.0.0.1:' + 서버.address().port + '/' }));
+});
+
+let 깬것 = 0;
+const 맞나 = (이름, 잰것, 바라는것) => {
+  const ok = JSON.stringify(잰것) === JSON.stringify(바라는것);
+  if (!ok) 깬것++;
+  console.log((ok ? '  ✔ ' : '  ✘ ') + 이름 + ' — 잰 값 ' + JSON.stringify(잰것) + (ok ? '' : ' · 바란 값 ' + JSON.stringify(바라는것)));
+};
+const 잠 = ms => new Promise(r => setTimeout(r, ms));
+
+(async () => {
+  const { 서버, 주소 } = await 띄우기(손질());
+  const b = await chromium.launch();
+  const ctx = await b.newContext({ viewport:{ width:375, height:780 } });
+  const p = await ctx.newPage();
+  const 터짐 = []; p.on('pageerror', e => 터짐.push(String(e)));
+  await p.goto(주소, { waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__probe, null, { timeout: 20000 });
+  await 잠(500);
+  // 세 판을 펴 둔다
+  await p.evaluate(() => ['상판','하판','측판'].forEach(n => {
+    const b = document.querySelector('.pname[data-opt="' + n + '"]');
+    if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); }));
+  await 잠(400);
+
+  const 판 = async o => { await p.evaluate(x => window.__probe.set(x), o); await 잠(300);
+    return p.evaluate(() => { const 읽 = n => { const el = document.querySelector('.opt[data-opt="' + n + '"]');
+        return el && !el.hidden ? [...el.querySelectorAll('.optnum label')].map(l => l.textContent) : null; };
+      return { 측판: 읽('측판'), 상판: 읽('상판'), 하판: 읽('하판'),
+               말: [...document.querySelectorAll('.opt[data-opt="측판"] small')].map(x => x.textContent),
+               낮은칸: [...document.querySelectorAll('.opt[data-opt="측판"] .optnum input')]
+                 .filter(i => Math.abs(i.getBoundingClientRect().height - 34) > 0.6).length }; }); };
+
+  console.log('① 상판 사이 · 하판 사이 — 예전 그대로');
+  { const r = await 판({ topStyle:'inset', botStyle:'inset' });
+    맞나('측판 판', r.측판, ['측판 내밈']);
+    맞나('상판 판 · 하판 판', [r.상판, r.하판], [['상판 내림'], ['하판 올림']]);
+    맞나('한 마디', r.말, []); }
+
+  console.log('② 상판 위 · 하판 사이 — 측판 판에 (상판) 줄이 뜬다');
+  { const r = await 판({ topStyle:'overlay', botStyle:'inset' });
+    맞나('측판 판', r.측판, ['측판 내밈', '측판 들임 (상판)']);
+    맞나('상판 판에서 사라짐', r.상판, []);
+    맞나('하판 판은 그대로', r.하판, ['하판 올림']);
+    맞나('한 마디 (한 쪽뿐이라 안 붙는다)', r.말, []); }
+
+  console.log('③ 상판 사이 · 하판 아래 — 측판 판에 (하판) 줄이 뜬다');
+  { const r = await 판({ topStyle:'inset', botStyle:'under' });
+    맞나('측판 판', r.측판, ['측판 내밈', '측판 들임 (하판)']);
+    맞나('하판 판에서 사라짐', r.하판, []);
+    맞나('상판 판은 그대로', r.상판, ['상판 내림']);
+    맞나('한 마디', r.말, []); }
+
+  console.log('④ 상판 위 · 하판 아래 — 두 줄이 다 뜨고 한 마디가 붙는다');
+  { const r = await 판({ topStyle:'overlay', botStyle:'under' });
+    맞나('측판 판 · 이름이 갈려 있다', r.측판, ['측판 내밈', '측판 들임 (상판)', '측판 들임 (하판)']);
+    맞나('같은 이름 두 줄', r.측판.length - new Set(r.측판).size, 0);
+    맞나('상판 판 · 하판 판에서 사라짐', [r.상판, r.하판], [[], []]);
+    맞나('한 마디', r.말, ['큰 쪽만 들어갑니다']);
+    맞나('34px 아닌 입력칸', r.낮은칸, 0); }
+
+  console.log('⑤ 값이 도면에 먹는다 — 둘은 한 자리를 다퉈 큰 쪽만 먹는다');
+  const 재 = () => p.evaluate(() => { const m = window.__probe.model();
+    return [m.안왼, m.innerW, m.parts.filter(q => q.name === '측판').map(q => q.x)]; });
+  // 칸이 없으면 기다리지 않는다 — 고치기 전 판에서는 측판 판에 이 칸이 없어 30초를 멎는다
+  const 넣 = async (r, v) => { const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
+    if (!await p.locator(자).count()){ 맞나('측판 판에 「' + r + '」 칸이 있나', false, true); return false; }
+    await p.fill(자, String(v)); await 잠(300); return true; };
+  맞나('0 · 0 (고치기 전과 같은 자리)', await 재(), [18, 764, [0, 782]]);
+  await 넣('측판들임', 2);      맞나('상판 2 · 하판 0', await 재(), [20, 760, [2, 780]]);
+  await 넣('하판측판들임', 3);  맞나('상판 2 · 하판 3 → 큰 쪽 3', await 재(), [21, 758, [3, 779]]);
+  await 넣('측판들임', 5);      맞나('상판 5 · 하판 3 → 큰 쪽 5', await 재(), [23, 754, [5, 777]]);
+  await 넣('측판들임', 0); await 넣('하판측판들임', 0);
+  맞나('도로 0 · 0', await 재(), [18, 764, [0, 782]]);
+
+  맞나('오류', 터짐, []);
+  await b.close(); 서버.close();
+  console.log(깬것 ? '\n✘ 깨진 것 ' + 깬것 + '개' : '\n✔ 다 맞다');
+  process.exit(깬것 ? 1 : 0);
+})().catch(e => { console.error('시험이 터졌다:', e.message); process.exit(1); });
