@@ -498,6 +498,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <div class="stats">
       <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
       <div class="stat"><b id="stInner">–</b><span>내부 폭 × 깊이</span></div>
+      <!-- 실제 외경 (09-30 사장님 말씀 「실제외경을 따로 표기」) — 입력과 같으면 update() 가 접는다.
+           `.stat` 은 이 집에 이미 있는 글줄 꼴이다. 새 모양을 만들지 않았다. -->
+      <div class="stat" id="stOuterRow" style="grid-column:1/-1"><b id="stOuter">–</b><span>실제 외경</span></div>
       <div class="stat"><b id="stAreaT">–</b><span id="stAreaTLabel">18T 소요 면적</span></div>
       <div class="stat"><b id="stAreaB">–</b><span id="stAreaBLabel">9T 소요 면적</span></div>
     </div>
@@ -686,11 +689,16 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function buildModel(s){
   const {W,D,H,Ttop,Tside,Tshelf,Tshelf2,Tdoor,Tbot,Tplinth,TB,shelves,shelvesM,plinth,topStyle,botStyle,doors} = s;
   // 뒷판 조립은 두 가지다.
-  //  덮기(cover)  — 뒷판이 몸통 뒤에 덧붙는다. 몸통은 그만큼 얕아진다. 여태 쓰던 방식이다.
+  //  덮기(cover)  — 뒷판이 몸통 뒤에 덧붙는다. 여태 쓰던 방식이다.
   //  끼우기(insert) — 뒷판이 몸통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다.
   //                  뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.
   const 끼움 = s.backMode === 'insert';
-  const CD = 끼움 ? D : D - TB;              // 몸통 깊이
+  // 09-30 사장님 말씀: 「덮기 뒷판의 두께는 외경사이즈 입력과 무관하게 해주세요.
+  // 부속이 소수점으로 떨어지면 안됩니다.」 — 그래서 **두 방식 다 몸통 깊이가 입력한 D 그대로**다.
+  // 전에는 덮기에서 `D - TB` 로 잡아 2.7T 뒷판의 `.3` 이 측판·상판·하판·선반에 다 번졌다(397.3).
+  // 덮기 뒷판은 이제 몸통 뒤끝(`y = CD`) **바깥**에 얹힌다 — 그만큼 실제 외경이 깊어지고,
+  // 그 값은 `외경` 으로 따로 내보내 도면·화면에 적는다.
+  const CD = D;                              // 몸통 깊이 = 입력한 깊이 (뒷판을 빼지 않는다)
   // 홈은 몸통 뒷면에서 「홈뒤살」 만큼 들어와, 뒷판 두께에 「홈유격」 을 더한 폭으로 「홈깊이」 만큼 판다.
   const 홈폭 = TB + 규칙.홈유격, 홈뒤 = D - 규칙.홈뒤살, 홈앞 = 홈뒤 - 홈폭;
   const 홈 = 끼움 ? { 깊이:규칙.홈깊이, 폭:홈폭, 앞:홈앞, 뒤:홈뒤 } : null;
@@ -874,8 +882,16 @@ function buildModel(s){
     p.pid = i; p.자리 = ks[0];                                   // 새로 적을 때는 앞엣것을 쓴다
     p.숨김 = ks.some(k => 손질.숨김.includes(k));
     p.더 = ks.reduce((a, k) => a + (손질.복제[k] || 0), 0); });
+  // ── 실제 외경 — 부속을 전부 감싸는 네모 (09-30 사장님 말씀: 「실제외경을 따로 표기해 주세요」) ──
+  //   짐작으로 더하지 않는다. 그래야 규칙이 늘어도 저절로 맞는다 —
+  //   덮기 뒷판(뒤로) · 아웃도어 경첩유격+도어 두께(앞으로) · 측판 내밈(앞으로) 이 다 저절로 들어간다.
+  //   **숨긴 것·지운 것은 뺀다** — 실제로 서는 부속만 감싼다.
+  const 보임 = 산것.filter(p => !p.숨김);
+  const 자 = (앞, 뒤) => 보임.length ? +(Math.max(...보임.map(뒤)) - Math.min(...보임.map(앞))).toFixed(3) : 0;
+  const 외경 = { W: 자(p => p.x, p => p.x + p.w), D: 자(p => p.y, p => p.y + p.d), H: 자(p => p.z, p => p.z + p.h) };
+  외경.같나 = Math.abs(외경.W - W) < 0.001 && Math.abs(외경.D - D) < 0.001 && Math.abs(외경.H - H) < 0.001;
   return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈,
-           앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 걸림자리 };
+           앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 걸림자리, 외경 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -1052,6 +1068,8 @@ function buildDrawing(s, m, 치수배 = 1){
   const 표제 = [
     ['품명',        규칙.이름 || '수납장', 36],
     ['치수',        `W${W} × D${D} × H${H}`],
+    // 실제 외경 — 입력과 다를 때만 적는다. 같으면 같은 것을 두 번 적는 셈이라 줄을 접는다.
+    ...(m.외경.같나 ? [] : [['실제외경', `W${fmt(m.외경.W)} × D${fmt(m.외경.D)} × H${fmt(m.외경.H)}`]]),
     ['재질·두께',   `상판 ${Ttop}T · 측판 ${Tside}T · 도어 ${Tdoor}T`],
     ['',            `고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
     ['',            `하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T · 뒷판 ${TB}T`],
@@ -1845,6 +1863,9 @@ function update(){
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개`;
   $('#stPitch').textContent = (state.shelves + state.shelvesM) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
+  // 실제 외경은 입력과 다를 때만 보인다 — 같은 숫자를 두 번 적지 않는다.
+  $('#stOuter').textContent = `${fmt(m.외경.W)} × ${fmt(m.외경.D)} × ${fmt(m.외경.H)}`;
+  $('#stOuterRow').style.display = m.외경.같나 ? 'none' : '';
   const 두께순 = Object.keys(area).sort((a,b) => area[b] - area[a]);   // 두께가 여럿이라 면적 큰 둘을 보인다
   [['#stAreaT','#stAreaTLabel',0], ['#stAreaB','#stAreaBLabel',1]].forEach(([v,l,i]) => {
     const t = 두께순[i];
@@ -2875,7 +2896,7 @@ const 관계표 = [
   { 갈래:'몸통', 사이:'하판 ↔ 측판', 말:'측판 사이에 끼운다. 폭은 안치수다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'하판 ↔ 바닥', 말:'전면밴드 높이만큼 띄워 앉는다. 전면밴드가 없으면 바닥에 붙는다.',
     값:m => `${fmt(m.bz)} 띄움`, 어디:'전면밴드 옵션' },
-  { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 뒷판이 뒤에 붙으므로 몸통 깊이는 전체 깊이에서 뒷판 두께를 뺀 것이다.',
+  { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (덮기)', 말:'몸통 뒤에 가구 폭·높이 그대로 덧댄다. 몸통 깊이는 입력한 깊이 그대로고, 뒷판은 그 뒤에 얹혀 실제 외경이 그만큼 깊어진다.',
     값:(m,s) => s.backMode === 'insert' ? '안 씀' : `몸통 깊이 ${fmt(m.CD)}`, 어디:'뒷판 옵션' },
   { 갈래:'뒷판', 사이:'뒷판 ↔ 몸통 (끼우기)', 말:'뒷판이 통 안으로 들어간다. 측판·상판·하판에 홈을 파고 거기에 끼운다. 뒷판이 안에 드니 측판·상판·하판은 깊이를 다 쓴다.',
     값:(m,s) => s.backMode === 'insert' ? `몸통 깊이 ${fmt(m.CD)}` : '안 씀', 어디:'뒷판 옵션' },
