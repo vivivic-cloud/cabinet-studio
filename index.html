@@ -79,7 +79,9 @@ select:focus{border-color:var(--head)}
 .segs{display:flex;gap:6px;min-width:0}
 .segs>.seg{flex:1 1 0;min-width:0}
 /* 부속명 단추 — 보이는 글자는 예전 이름표 그대로 두고 눌리는 자리만 44px 로 잡는다 */
-.pname{display:flex;align-items:center;gap:6px;min-height:44px;padding:0;
+/* 칸을 내려도 줄은 이 단추가 44 로 붙잡고 있었다 — 그래서 부속 사이가 안 좁아졌다(사장님 09-30).
+   줄을 따라 내리려면 이것도 내려야 한다. 폭이 229px 라 36px 로도 손이 넉넉히 닿는다. */
+.pname{display:flex;align-items:center;gap:6px;min-height:36px;padding:0;
   border:0;background:none;color:var(--ink);font:inherit;font-weight:600;
   text-align:left;word-break:keep-all;border-radius:10px}
 .pname::after{content:"▾";font-size:11px;color:var(--ink3);flex:none}
@@ -308,10 +310,14 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .two{display:flex;gap:10px;align-items:center}   /* 두께 칸과 × 를 띄운다 — 잘못 눌리지 않게 */
 /* 보이는 것은 줄이고 닿는 자리는 44px 을 지킨다 (09-28 사장님 말씀 · 집 규칙 §0).
    select 는 ::after 를 못 얹으므로 **제 몸이 곧 닿는 자리**다 — 높이 44 는 지키고 폭·글자를 줄였다. */
-.two select{flex:1;min-width:0;min-height:44px;padding:0 6px;font-size:13px;border-radius:11px}
+/* 09-30 사장님 말씀: 「이곳 사이즈 입력칸 아직도 커요 이로인해 부속간 여백이 커져있습니다」(측판 줄을 짚으시고).
+   이 고르개가 곧 사장님이 말씀하시는 「사이즈 입력칸」 이다 — §0 의 34px 자를 여기에도 댄다.
+   `select` 는 `::after` 를 못 얹으니 제 몸이 곧 닿는 자리다. 그래서 34 로 내렸다. */
+.two select{flex:1;min-width:0;min-height:34px;padding:0 6px;font-size:13px;border-radius:11px}
 .two .x{flex:none;width:28px;height:28px;padding:0;border-radius:50%;line-height:1;font-size:15px;color:var(--ink3);position:relative}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
-.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px}
+.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:40px}
+/* 세로만 40 이다 — 줄 36 + 틈 4 = 40 이라 44 로 두면 위아래 줄의 닿는 자리와 2px 씩 겹친다(재서 잡았다). */
 #boardBox{gap:4px}                /* 줄끼리 촘촘히 — 44px 줄에 4px 틈이면 닿는 자리가 안 겹친다 */
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
