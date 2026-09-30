@@ -926,13 +926,21 @@ function buildDrawing(s, m, 치수배 = 1){
   // 뷰 제목 — 글자 아래에 짧은 줄을 그어 그림과 가른다 (스펙시트에서 흔한 꼴)
   const 제목 = (str, cx, y, w) => { text(str, cx, y, 46); 쪽 = 1; line(cx - w/2, y - 36, cx + w/2, y - 36, 'TITLE'); 쪽 = 0; };
   const tick = (x,y) => line(x-9,y-9,x+9,y+9,'DIM');
+  /* 값이 0 인 치수는 아예 안 그린다 — 치수선·끝자국·숫자 통째로 (09-30 관리자가 정했다).
+     0mm 는 공장에 아무것도 알려 주지 않고 도면이 잘못 나온 것처럼 보인다.
+     **덮기·끼우기 둘 다에서 막는다.** 지금 걸리는 것은 「몸통 뒤끝 ~ 전체 깊이」 두 개다 —
+     몸통 깊이가 입력한 D 그대로라(§1.5) 두 자리가 겹쳐서 길이가 0 이다.
+     숫자만 지우고 선을 남기면 안 된다 — 그래서 `return` 으로 한 자리에서 막는다. */
+  const 빈치수 = (a, b) => Math.abs(b - a) < 1e-9;
   const dimH = (x1,x2,y,off0,글) => {
+    if (빈치수(x1, x2)) return;
     const off = off0*치수배, sg = Math.sign(off)||1, yl = y+off;
     line(x1,y+sg*8,x1,yl+sg*14,'DIM'); line(x2,y+sg*8,x2,yl+sg*14,'DIM'); line(x1,yl,x2,yl,'DIM');
     tick(x1,yl); tick(x2,yl);
     text(글 || fmt(Math.abs(x2-x1)), (x1+x2)/2, yl - sg*(TH/2+8), TH, 'DIM', 'MC', 0, [0,sg,Math.abs(off),Math.abs(x2-x1)]);
   };
   const dimV = (y1,y2,x,off0,글) => {
+    if (빈치수(y1, y2)) return;
     const off = off0*치수배, sg = Math.sign(off)||1, xl = x+off;
     line(x+sg*8,y1,xl+sg*14,y1,'DIM'); line(x+sg*8,y2,xl+sg*14,y2,'DIM'); line(xl,y1,xl,y2,'DIM');
     tick(xl,y1); tick(xl,y2);
