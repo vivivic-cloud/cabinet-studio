@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-/* 「측판 들임」 은 측판 상세옵션에 있다 — 09-30 사장님 말씀
+/* 측판 상세옵션 — 09-30 사장님 말씀 둘
      「상판이 측판위로 올라갈때는 측판들임 옵션이 나타나야 합니다」
+     「상판이 측판위 옵션일때 측판에서 측판내밈 옵션은 필요없어」
      ① 네 갈래(상판 사이·위 × 하판 사이·아래)에서 어느 판에 어느 줄이 뜨나
      ② 상판·하판 판에서 「측판 들임」 이 사라졌나 · 측판 판에 같은 이름 두 줄이 안 나오나
      ③ 둘 다 보일 때만 「큰 쪽만 들어갑니다」 한 마디가 붙나
      ④ 값이 도면에 먹나 — 둘이 한 자리를 다퉈 **큰 쪽만** 먹는다(셈은 안 건드렸다)
+     ⑤ 상판이 측판 위면 「측판 내밈」 은 칸도 없고 **셈에서도 0** 이다 — 담긴 값은 안 지운다
 
    돌리는 법:  node tests/측판들임.js
    이 시험은 화면을 보므로 **three 허수아비를 쓰지 않는다** — 진짜로 띄워 `__probe` 로 값을 넣는다.
@@ -64,7 +66,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); }));
   await 잠(400);
 
-  const 판 = async o => { await p.evaluate(x => window.__probe.set(x), o); await 잠(300);
+  /* 초점을 떼고 바꾼다 — 숫자 칸에 손이 얹혀 있으면 `결단추갱신()` 이 판을 다시 안 그린다(§4.94).
+     진짜 손가락은 다른 데를 눌러 초점이 저절로 옮겨 가므로 이것이 실제와 같은 자리다. */
+  const 판 = async o => { await p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+    await p.evaluate(x => window.__probe.set(x), o); await 잠(300);
     return p.evaluate(() => { const 읽 = n => { const el = document.querySelector('.opt[data-opt="' + n + '"]');
         return el && !el.hidden ? [...el.querySelectorAll('.optnum label')].map(l => l.textContent) : null; };
       return { 측판: 읽('측판'), 상판: 읽('상판'), 하판: 읽('하판'),
@@ -80,7 +85,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('② 상판 위 · 하판 사이 — 측판 판에 (상판) 줄이 뜬다');
   { const r = await 판({ topStyle:'overlay', botStyle:'inset' });
-    맞나('측판 판', r.측판, ['측판 내밈', '측판 들임 (상판)']);
+    // 「측판 내밈」 은 안 나온다 — 상판이 측판을 덮으면 쓸 자리가 없다(09-30 둘째 말씀)
+    맞나('측판 판', r.측판, ['측판 들임 (상판)']);
     맞나('상판 판에서 사라짐', r.상판, []);
     맞나('하판 판은 그대로', r.하판, ['하판 올림']);
     맞나('한 마디 (한 쪽뿐이라 안 붙는다)', r.말, []); }
@@ -94,7 +100,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('④ 상판 위 · 하판 아래 — 두 줄이 다 뜨고 한 마디가 붙는다');
   { const r = await 판({ topStyle:'overlay', botStyle:'under' });
-    맞나('측판 판 · 이름이 갈려 있다', r.측판, ['측판 내밈', '측판 들임 (상판)', '측판 들임 (하판)']);
+    맞나('측판 판 · 이름이 갈려 있다', r.측판, ['측판 들임 (상판)', '측판 들임 (하판)']);
     맞나('같은 이름 두 줄', r.측판.length - new Set(r.측판).size, 0);
     맞나('상판 판 · 하판 판에서 사라짐', [r.상판, r.하판], [[], []]);
     맞나('한 마디', r.말, ['큰 쪽만 들어갑니다']);
@@ -113,6 +119,25 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 넣('측판들임', 5);      맞나('상판 5 · 하판 3 → 큰 쪽 5', await 재(), [23, 754, [5, 777]]);
   await 넣('측판들임', 0); await 넣('하판측판들임', 0);
   맞나('도로 0 · 0', await 재(), [18, 764, [0, 782]]);
+
+  console.log('⑥ 상판이 측판 위면 「측판 내밈」 은 칸도 없고 셈에서도 0 이다');
+  const 측 = () => p.evaluate(() => { const m = window.__probe.model();
+    const q = m.parts.filter(x => x.name === '측판')[0];
+    return [q.y, q.cut.W, m.측밈, m.외경.D, window.__probe.rule().측판내밈]; });
+  { await 판({ topStyle:'inset', botStyle:'inset', doorMode:'in' });   // 인도어라야 외경이 내밈을 따라간다
+    await 넣('측판내밈', 2.5);
+    맞나('측판 사이 · 내밈 2.5', await 측(), [-2.5, 402.5, 2.5, 405.2, 2.5]);
+    await 판({ topStyle:'overlay' });
+    // 담긴 값(2.5)은 그대로 두고 **보고 쓰는 것만** 막는다
+    맞나('측판 위 — 내밈 0 과 같고 담긴 값은 남는다', await 측(), [0, 400, 0, 402.7, 2.5]);
+    맞나('측판 위 — 측판 판에 내밈 칸 없다',
+      await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="측판"] .optnum label')].map(l => l.textContent)),
+      ['측판 들임 (상판)']);
+    await 판({ topStyle:'inset' });
+    맞나('도로 측판 사이 — 2.5 가 살아난다', await 측(), [-2.5, 402.5, 2.5, 405.2, 2.5]);
+    await 넣('측판내밈', 0);
+    맞나('0 으로 되돌림', await 측(), [0, 400, 0, 402.7, 0]);
+    await 판({ doorMode:'out' }); }
 
   맞나('오류', 터짐, []);
   await b.close(); 서버.close();
