@@ -134,7 +134,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .hud{position:absolute;left:14px;top:70px;right:14px;   /* 치수 띠(12 + 46 + 12) 밑으로 내렸다 */display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;pointer-events:none}
 .hud>div{display:flex;gap:4px;pointer-events:auto;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:3px}
 /* 손에 닿는 자리는 44px — 사장님 말씀(09-22) 「숨기기 취소 어디갔니?」 로 짚으신 그 줄이다.
-   폰에서 도구줄은 돌리기·옮기기·줌의 유일한 길이다(핀치 없음 · §4.7). 375px 에서 두 줄이 각각 한 줄에 들어간다. */
+   폰에서 도구줄은 돌리기·옮기기의 유일한 길이다. 줌은 **두 손가락으로 확대·축소**도 된다(09-30 사장님 말씀 · §4.7).
+   단추를 없애지 마라 — 핀치는 더한 것이다. 375px 에서 두 줄이 각각 한 줄에 들어간다. */
 .hud button{min-height:44px;min-width:44px;padding:0 12px;font-size:12px;background:transparent;border-color:transparent;border-radius:999px}
 .hud button:hover{background:var(--fill2)}
 .hud button[aria-pressed="true"]{background:#fff;color:var(--head);font-weight:700;border-color:transparent;box-shadow:0 1px 3px rgba(0,0,0,.07)}
@@ -157,7 +158,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .view3d canvas.dragging{cursor:grabbing}
 /* 도구줄(선택·궤도·이동·줌·전체)은 마우스 있는 곳에서는 감춘다 — 사장님 말씀(09-17 「마우스로 다 된다」).
    마우스는 이 단추를 아예 안 본다: 왼쪽 끌기=이동 · 휠 끌기=궤도 · 스크롤=줌 · Shift+Z=전체.
-   손가락은 이 단추가 유일한 길이다(핀치가 없다) — 폰에서는 그대로 둔다. */
+   손가락으로 돌리기·옮기기는 이 단추가 유일한 길이다 — 폰에서는 그대로 둔다.
+   줌은 09-30 부터 **두 손가락으로도** 된다(사장님 말씀). 단추는 그대로 남긴다. */
 .mouseonly{display:none}
 @media (hover:hover) and (pointer:fine){ .hud .tools{display:none} .mouseonly{display:inline} }
 .explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;max-width:360px;margin-left:auto}
@@ -1662,8 +1664,29 @@ function init3D(){
   // 가운데 버튼은 mousedown 에서 막아야 브라우저 자동 스크롤이 안 뜬다. pointerdown 으로는 안 막힌다.
   cv.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
   cv.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+  /* 두 손가락으로 벌리면 확대 · 좁히면 축소 (09-30 사장님 말씀: 「줌 작동을 두손가락 벌리면 확대 좁히면 축소로 해줘요」).
+     **더하는 것이지 바꾸는 것이 아니다** — 도구줄의 「줌」 단추 · 휠 · 마우스 길은 한 줄도 안 건드렸다.
+     손가락이 **둘일 때만** 돈다. 하나는 예전 그대로라 길게 누르기(짚어서 지시)를 안 뺏는다.
+     중심은 **두 손가락 가운데**다(`zoomBy` 가 짚은 자리를 제자리에 두고 키운다).
+     `.view3d canvas` 에 `touch-action:none` 이 이미 있어 아이폰이 웹페이지를 통째로 확대하지 않는다. */
+  const 손3d = new Map();
+  let 핀치 = null, 핀치틀 = 0;
+  const 핀치잼 = () => { const [a,b] = [...손3d.values()];
+    return { d: Math.hypot(a.x-b.x, a.y-b.y) || 1, x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; };
   cv.addEventListener('pointerdown', e => {
     const touch = e.pointerType === 'touch';
+    if (touch){
+      손3d.set(e.pointerId, { x:e.clientX, y:e.clientY });
+      if (손3d.size === 2){
+        핀치 = Object.assign(핀치잼(), { R: cam.tR });
+        // 끌던 것은 여기서 마무리한다 — 두 손가락은 줌이므로 돌리기·이동·밴드끌기를 겹쳐 두지 않는다
+        if (drag){ if (drag.끌 && drag.mode === '밴드') 끌끝(drag.끌); drag = null; cv.classList.remove('dragging'); }
+        // 길게 누르기 시계를 끈다 — 손잡이가 `scroll` 에서 그만두므로 이 프로그램이 이미 쓰는 길을 그대로 쓴다
+        cv.dispatchEvent(new Event('scroll', { bubbles:true }));
+        return;
+      }
+      if (핀치) return;                                   // 셋째 손가락은 무시한다
+    }
     let mode = null, 끌 = null;
     // 고른 밴드를 짚었으면 그 밴드를 끈다. 마우스는 왼쪽 버튼, 손가락은 「선택」 연장일 때만 —
     // 「선택」 은 지금도 화면을 안 움직이므로 뺏는 것이 없다.
@@ -1683,6 +1706,20 @@ function init3D(){
     if (!touch && mode){ cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); e.preventDefault(); }
   });
   cv.addEventListener('pointermove', e => {
+    const 손 = 손3d.get(e.pointerId);
+    if (손){ 손.x = e.clientX; 손.y = e.clientY; }
+    if (핀치 && 손3d.size >= 2){                          // 두 손가락 — 벌린 만큼 커지고 좁힌 만큼 작아진다
+      /* ⚠ 한 프레임에 한 번만 셈한다. `pointermove` 는 **손가락마다 따로** 오므로 사건마다 셈하면
+         한쪽만 갱신된 가운데점을 기준으로 잡아 **중심이 번갈아 튀고 그만큼 밀린다**(재 보니 574px).
+         한 프레임 모아서 두 손가락 자리가 다 들어온 뒤에 잡으면 밀림이 0 이다. */
+      if (!핀치틀) 핀치틀 = requestAnimationFrame(() => {
+        핀치틀 = 0;
+        if (!핀치 || 손3d.size < 2) return;
+        const 지금 = 핀치잼();
+        zoomBy((핀치.R * (핀치.d / 지금.d)) / cam.tR, 지금.x, 지금.y);
+      });
+      return;
+    }
     if (!drag || !drag.mode) return;     // 고르기만 기다리는 중이면 화면은 가만히 둔다
     if (drag.held){                                                    // 10px 넘게 끌어야 비로소 3D 조작이다
       if (Math.abs(e.clientX-drag.x0) <= 10 && Math.abs(e.clientY-drag.y0) <= 10) return;
@@ -1718,7 +1755,11 @@ function init3D(){
     drag = null; cv.classList.remove('dragging');
   };
   endDrag = end;
-  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  // 손가락을 떼면 핀치를 턴다. 하나가 남아도 `drag` 가 없으므로 저절로 돌거나 밀리지 않는다.
+  const 손뗌 = e => { if (손3d.delete(e.pointerId) && 손3d.size < 2){
+    핀치 = null; if (핀치틀){ cancelAnimationFrame(핀치틀); 핀치틀 = 0; } } };
+  cv.addEventListener('pointerup', e => { 손뗌(e); end(e); });
+  cv.addEventListener('pointercancel', e => { 손뗌(e); end(e); });
   cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
   document.addEventListener('keydown', e => {
     if (e.target.matches('input,select,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
