@@ -55,21 +55,40 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const { 서버, 주소 } = await 띄우기(손질());
   const b = await chromium.launch();
-  const ctx = await b.newContext({ viewport:{ width:375, height:780 } });
+  const ctx = await b.newContext({ viewport:{ width:375, height:780 }, hasTouch:true, isMobile:true });
   const p = await ctx.newPage();
+  const cdp = await ctx.newCDPSession(p);
   const 터짐 = []; p.on('pageerror', e => 터짐.push(String(e)));
   await p.goto(주소, { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__probe, null, { timeout: 20000 });
   await 잠(500);
 
   const 펴기 = async 이름 => { const b2 = p.locator(`.pname[data-opt="${이름}"]`);
-    if (await b2.getAttribute('aria-expanded') !== 'true'){ await b2.click(); await 잠(300); } };
+    if (await b2.getAttribute('aria-expanded') !== 'true') await 손가락(`.pname[data-opt="${이름}"]`); };
   const 접혔나 = 이름 => p.evaluate(n => document.querySelector(`.pname[data-opt="${n}"]`).getAttribute('aria-expanded') === 'false', 이름);
   const 규 = k => p.evaluate(x => window.__probe.rule()[x], k);
   /* 고치기 전 판에는 저장·닫기 단추가 없다 — 거기서 30초 멎지 않게 먼저 세고 넘어간다.
      (그 판에서는 이 시험이 깨진 것으로 빨개져야 맞다.) */
+  /* **진짜 손가락**으로 누른다 — `.click()` 은 확인으로 치지 않는다(관리자가 못 박았다). */
+  const 손가락 = async 자 => { const e = await p.$(자); if (!e) return false;
+    await e.scrollIntoViewIfNeeded(); const r = await e.boundingBox();
+    const x = r.x + r.width / 2, y = r.y + r.height / 2;
+    await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x, y }] });
+    await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
+    await 잠(350); return true; };
+  // 고치기 전 판에는 저장·닫기 단추가 없다 — 거기서 30초 멎지 않게 먼저 세고 넘어간다
   const 누르기 = async 자 => { if (!await p.locator(자).count()){ 맞나('단추가 있나 — ' + 자, false, true); return false; }
-    await p.click(자); await 잠(350); return true; };
+    return 손가락(자); };
+  // 칸도 손가락으로 톡 쳐 초점을 잡고 친다 — 진짜로 쓰는 길이다
+  const 쳐넣기 = async (자, v) => {
+    if (!await p.locator(자).count()){ 맞나('칸이 있나 — ' + 자, false, true); return false; }
+    await 손가락(자);
+    await p.keyboard.down('Control'); await p.keyboard.press('a'); await p.keyboard.up('Control');
+    await p.keyboard.type(String(v)); await 잠(300);
+    // 진짜로 들어갔는지 본다 — 안 들어가면 뒤의 판정이 거짓으로 통과한다(한 번 그랬다)
+    const 든값 = await p.evaluate(x => { const i = document.querySelector(x); return i ? i.value : null; }, 자);
+    if (든값 !== String(v)) 맞나('친 값이 칸에 들어갔나 — ' + 자, 든값, String(v));
+    return true; };
   const 칸값 = (이름, r) => p.evaluate(v => { const i = document.querySelector(`.opt[data-opt="${v.이름}"] input[data-rule="${v.r}"]`);
     return i ? i.value : null; }, { 이름, r });
 
@@ -83,18 +102,20 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('보이는 크기', await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="상판"] .optbtns button')]
       .map(x => { const r = x.getBoundingClientRect(); return +r.width.toFixed(1) + '×' + r.height.toFixed(0); })),
       ['54×28', '54×28']);
+    // 고치기 전 판에는 단추가 없다 — null 로 터지지 않게 먼저 거른다(그 판에서는 위 둘이 이미 빨갛다)
     맞나('닿는 자리 세로 (::after 로 넓힌 것)', await p.evaluate(() => {
       const b2 = document.querySelector('.opt[data-opt="상판"] .optbtns button');
+      if (!b2) return null;
       const r = b2.getBoundingClientRect(), a = getComputedStyle(b2, '::after');
       return +(r.height + parseFloat(a.top) * -1 * 2).toFixed(0); }), 36);
     맞나('윗줄과 닿는 자리가 겹치나', await p.evaluate(() => {
       const b2 = document.querySelector('.opt[data-opt="상판"] .optbtns button');
       const 줄 = [...document.querySelectorAll('.opt[data-opt="상판"] .optrow')].pop();
-      if (!줄) return 0;
+      if (!b2 || !줄) return 0;
       return (줄.getBoundingClientRect().bottom > b2.getBoundingClientRect().top - 4) ? 1 : 0; }), 0); }
 
   console.log('② 수치를 치고 닫기 — 안 먹고 이전 세팅 그대로');
-  { await p.fill('.opt[data-opt="상판"] input[data-rule="상판내림"]', '4'); await 잠(250);
+  { await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 4);
     맞나('치는 동안에는 안 먹는다', await 규('상판내림'), 0);
     await 누르기('.opt[data-opt="상판"] [data-optclose]');
     맞나('닫기 뒤 규칙 · 판이 접혔나', [await 규('상판내림'), await 접혔나('상판')], [0, true]);
@@ -102,19 +123,19 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('다시 펴면 칸도 이전 값', await 칸값('상판', '상판내림'), '0'); }
 
   console.log('③ 수치를 치고 저장 — 먹고 판이 접힌다');
-  { await p.fill('.opt[data-opt="상판"] input[data-rule="상판내림"]', '4'); await 잠(200);
+  { await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 4);
     await 누르기('.opt[data-opt="상판"] [data-optsave]');
     맞나('저장 뒤 규칙 · 판이 접혔나', [await 규('상판내림'), await 접혔나('상판')], [4, true]);
     맞나('도면이 따라온다 (상판 z)', await p.evaluate(() => window.__probe.model().parts.find(q => q.name === '상판').z), 1778);
     await 펴기('상판');
-    await p.fill('.opt[data-opt="상판"] input[data-rule="상판내림"]', '0'); await 잠(200);
+    await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 0);
     await 누르기('.opt[data-opt="상판"] [data-optsave]');
     맞나('0 으로 되돌림', await 규('상판내림'), 0); }
 
   console.log('④ 부속명을 다시 눌러 접는 것도 닫기와 같다');
   { await 펴기('상판');
-    await p.fill('.opt[data-opt="상판"] input[data-rule="상판내림"]', '7'); await 잠(200);
-    await p.click('.pname[data-opt="상판"]'); await 잠(300);
+    await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 7);
+    await 손가락('.pname[data-opt="상판"]');
     맞나('규칙 · 접혔나', [await 규('상판내림'), await 접혔나('상판')], [0, true]);
     await 펴기('상판');
     맞나('칸도 이전 값', await 칸값('상판', '상판내림'), '0');
@@ -123,19 +144,32 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('⑤ 상세옵션의 숫자 칸(전면밴드)도 같다');
   { const 밴 = () => p.evaluate(() => window.__probe.st().plinth);
     await 펴기('전면밴드');
-    await p.fill('.opt[data-opt="전면밴드"] input[data-key="plinth"]', '120'); await 잠(250);
+    await 쳐넣기('.opt[data-opt="전면밴드"] input[data-key="plinth"]', 120);
     맞나('치는 동안에는 안 먹는다', await 밴(), 80);
     await 누르기('.opt[data-opt="전면밴드"] [data-optclose]');
     맞나('닫기 뒤', await 밴(), 80);
     await 펴기('전면밴드');
-    await p.fill('.opt[data-opt="전면밴드"] input[data-key="plinth"]', '120'); await 잠(200);
+    await 쳐넣기('.opt[data-opt="전면밴드"] input[data-key="plinth"]', 120);
     await 누르기('.opt[data-opt="전면밴드"] [data-optsave]');
     맞나('저장 뒤', await 밴(), 120);
     await 펴기('전면밴드');
-    await p.fill('.opt[data-opt="전면밴드"] input[data-key="plinth"]', '80'); await 잠(200);
+    await 쳐넣기('.opt[data-opt="전면밴드"] input[data-key="plinth"]', 80);
     await 누르기('.opt[data-opt="전면밴드"] [data-optsave]'); }
 
-  console.log('⑥ 끌개·라디오는 예전처럼 바로 먹는다 (사장님 말씀이 「수치입력」 이다)');
+  console.log('⑥ 판이 다시 그려져도 아직 저장 안 한 값이 안 날아간다 (관리자가 못 박은 자리)');
+  { await 펴기('상판');
+    await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 6);
+    await 손가락('h1');                                 // 초점을 떼면 「만지는중」 자물쇠가 풀린다
+    await p.evaluate(() => window.__probe.set({}));     // update() → 결단추갱신() 이 판을 통째로 다시 그린다
+    await 잠(450);
+    맞나('다시 그린 뒤 — 칸 값 · 규칙', [await 칸값('상판', '상판내림'), await 규('상판내림')], ['6', 0]);
+    await 누르기('.opt[data-opt="상판"] [data-optsave]');
+    맞나('그 뒤 저장하면 친 값이 먹는다', await 규('상판내림'), 6);
+    await 펴기('상판'); await 쳐넣기('.opt[data-opt="상판"] input[data-rule="상판내림"]', 0);
+    await 누르기('.opt[data-opt="상판"] [data-optsave]');
+    맞나('0 으로 되돌림', await 규('상판내림'), 0); }
+
+  console.log('⑦ 끌개·라디오는 예전처럼 바로 먹는다 (사장님 말씀이 「수치입력」 이다)');
   { await 펴기('고정선반');
     await p.evaluate(() => { const i = document.querySelector('#shelves'); i.value = '5';
       i.dispatchEvent(new Event('input', { bubbles:true })); }); await 잠(350);
@@ -147,13 +181,13 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await 펴기('뒷판');
     // 라디오는 알약 `label` 이 덮고 있다 — 그 알약을 누른다(진짜 손가락과 같은 자리)
     const 알약 = v => `.opt[data-opt="뒷판"] input[name=backMode][value=${v}] + , .opt[data-opt="뒷판"] label:has(input[value="${v}"])`;
-    await p.click(`.opt[data-opt="뒷판"] label:has(input[name=backMode][value="insert"])`); await 잠(350);
+    await 손가락(`.opt[data-opt="뒷판"] label:has(input[name=backMode][value="insert"])`);
     맞나('덮기/끼우기 — 바로 먹는다', await p.evaluate(() => window.__probe.st().backMode), 'insert');
-    await p.click(`.opt[data-opt="뒷판"] label:has(input[name=backMode][value="cover"])`); await 잠(300);
+    await 손가락(`.opt[data-opt="뒷판"] label:has(input[name=backMode][value="cover"])`);
     await 누르기('.opt[data-opt="뒷판"] [data-optclose]'); }
 
-  console.log('⑦ 관계제어판은 예전 그대로 바로 먹는다');
-  { await p.click('#btnRules'); await 잠(400);
+  console.log('⑧ 관계제어판은 예전 그대로 바로 먹는다');
+  { await 손가락('#btnRules'); await 잠(300);
     await p.fill('#rTable input[data-rule="아웃경첩"]', '5'); await 잠(350);
     맞나('관계제어판 아웃경첩 5', await 규('아웃경첩'), 5);
     await p.fill('#rTable input[data-rule="아웃경첩"]', '2'); await 잠(300);

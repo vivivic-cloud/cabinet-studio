@@ -493,15 +493,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         <small id="addWarn" class="warn"></small></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
     </div>
-    <div class="stats">
-      <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
-      <div class="stat"><b id="stInner">–</b><span>내부 폭 × 깊이</span></div>
-      <!-- 실제 외경 (09-30 사장님 말씀 「실제외경을 따로 표기」) — 입력과 같으면 update() 가 접는다.
-           `.stat` 은 이 집에 이미 있는 글줄 꼴이다. 새 모양을 만들지 않았다. -->
-      <div class="stat" id="stOuterRow" style="grid-column:1/-1"><b id="stOuter">–</b><span>실제 외경</span></div>
-      <div class="stat"><b id="stAreaT">–</b><span id="stAreaTLabel">18T 소요 면적</span></div>
-      <div class="stat"><b id="stAreaB">–</b><span id="stAreaBLabel">9T 소요 면적</span></div>
-    </div>
   </aside>
 
   <main class="view3d" aria-label="3D 뷰">
@@ -605,6 +596,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     </div>
   </div>
   <div class="bview" id="bomBig"></div>
+  <!-- 10-01 사장님 말씀 「이런 상세정보는 이곳에 나타날 필요없음」 — 왼쪽 설정 칸에서 여기로 **옮겼다**.
+       지운 것이 아니다. 같은 노드를 그대로 옮겼으므로 `update()` 가 채우는 길은 한 줄도 안 바뀐다. -->
+  <div class="stats">
+    <div class="stat"><b id="stPitch">–</b><span>선반 간격 (내부 유효)</span></div>
+    <div class="stat"><b id="stInner">–</b><span>내부 폭 × 깊이</span></div>
+    <!-- 실제 외경 (09-30 사장님 말씀 「실제외경을 따로 표기」) — 입력과 같으면 update() 가 접는다.
+       `.stat` 은 이 집에 이미 있는 글줄 꼴이다. 새 모양을 만들지 않았다. -->
+    <div class="stat" id="stOuterRow" style="grid-column:1/-1"><b id="stOuter">–</b><span>실제 외경</span></div>
+    <div class="stat"><b id="stAreaT">–</b><span id="stAreaTLabel">18T 소요 면적</span></div>
+    <div class="stat"><b id="stAreaB">–</b><span id="stAreaBLabel">9T 소요 면적</span></div>
+  </div>
   <div class="row">
     <button type="button" id="bPrint">인쇄 · PDF</button>
     <button type="button" id="bSave">SVG 저장</button>
