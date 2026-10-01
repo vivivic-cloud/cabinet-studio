@@ -480,7 +480,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field gr" data-home="5" data-part="하판"><button type="button" class="pname" data-opt="하판" aria-expanded="false">하판</button><div class="two"><select id="Tbot" data-key="Tbot" aria-label="하판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div><div class="opt" data-opt="하판" hidden></div></div>
       <div class="field gr" data-home="6" data-part="전면밴드"><button type="button" class="pname" data-opt="전면밴드" aria-expanded="false">전면밴드</button><div class="two"><select id="Tplinth" data-key="Tplinth" aria-label="전면밴드 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div><div class="opt" data-opt="전면밴드" hidden></div></div>
       <div class="field gr" data-home="7" data-part="뒷판"><button type="button" class="pname" data-opt="뒷판" aria-expanded="false">뒷판</button><div class="two"><select id="TB" data-key="TB" aria-label="뒷판 두께"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div><div class="opt" data-opt="뒷판" hidden></div></div>
-      <div class="field" id="backInWrap" hidden><label for="backIn">뒷판 들어감</label>
+      <div class="field" id="backInWrap" hidden><label for="backIn">우라홈</label>
         <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
       <!-- 지운 부속만 여기로 내려 모은다 (09-22 사장님 말씀). 설정 때문에 없는 줄은 제자리에 둔다. -->
@@ -631,7 +631,7 @@ const $ = s => document.querySelector(s);
 /* ───────── 부속끼리 맞물리는 규칙 ─────────
    여태 코드에 박혀 있던 숫자들이다. 관계제어판에서만 만질 수 있고, 안 건드리면 이 기본값
    그대로라 예전과 똑같이 돈다. 브라우저에 남긴다(이 프로그램은 제 저장소가 없다). */
-const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:11, 뒷판물림:2, 홈깊이:6, 홈유격:0.8, 홈뒤살:9, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
+const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:11, 뒷판물림:2, 홈깊이:6, 홈유격:0.8, 우라홈:9, 아웃좌우:2, 아웃위:2, 아웃아래걸레:5, 아웃아래없음:2,
                   인경첩:2, 인나머지:3, 도어사이:4, 걸레앞:30, 인선반줄임:true, 아웃경첩:2,
                   // 09-28 사장님 말씀 — 부속마다 0.5mm 단위로 물리고 띄운다. **기본은 다 0 = 지금과 똑같이**.
                   측판들임:0, 상판내림:0, 측판내밈:0, 고정선반들임:0, 이동선반들임:0,
@@ -658,6 +658,14 @@ const 열쇠들 = p => p.단열쇠 ? [p.단열쇠, 자리(p)] : [자리(p)];
 try {
   const r = JSON.parse(localStorage.getItem(곳간 + '.규칙') || 'null');
   if (r && typeof r === 'object') 규칙 = { ...규칙기본, ...r };
+  /* 10-01 사장님 말씀 — 「뒷판 들어감」(`홈뒤살`)이 「우라홈」 이 되었다. **재던 자리가 다르다** —
+     홈뒤살은 홈의 **뒤쪽 벽**까지였고 우라홈은 홈의 **안쪽 마감선**까지다.
+     옛 값은 **숫자 그대로** 받는다(9 → 9). 홈폭을 더해 옮기면 그 값이 뒷판 두께를 타는데
+     사장님 말씀이 「뒷판 두께와 무관」 이라 그 길은 틀렸다. 옛 열쇠는 버린다. */
+  if (규칙.홈뒤살 !== undefined){
+    if (!(r && r.우라홈 !== undefined) && Number.isFinite(규칙.홈뒤살)) 규칙.우라홈 = 규칙.홈뒤살;
+    delete 규칙.홈뒤살;
+  }
   const c = JSON.parse(localStorage.getItem(곳간 + '.부속') || 'null');
   if (Array.isArray(c)) 만든부속 = c.filter(x => x && typeof x.이름 === 'string');
   const 지 = JSON.parse(localStorage.getItem(곳간 + '.지난부속') || 'null');
@@ -702,12 +710,18 @@ function buildModel(s){
   // 덮기 뒷판은 이제 몸통 뒤끝(`y = CD`) **바깥**에 얹힌다 — 그만큼 실제 외경이 깊어지고,
   // 그 값은 `외경` 으로 따로 내보내 도면·화면에 적는다.
   const CD = D;                              // 몸통 깊이 = 입력한 깊이 (뒷판을 빼지 않는다)
-  // 홈은 몸통 뒷면에서 「홈뒤살」 만큼 들어와, 뒷판 두께에 「홈유격」 을 더한 폭으로 「홈깊이」 만큼 판다.
-  const 홈폭 = TB + 규칙.홈유격, 홈뒤 = D - 규칙.홈뒤살, 홈앞 = 홈뒤 - 홈폭;
-  const 홈 = 끼움 ? { 깊이:규칙.홈깊이, 폭:홈폭, 앞:홈앞, 뒤:홈뒤 } : null;
-  // 선반은 뒷판 앞면에서 멈춘다. 덮기면 몸통 깊이가 곧 뒷판 앞면이고,
-  // 끼우기면 뒷판이 홈 뒤쪽 벽에 붙어 있으므로 그 앞면(홈뒤 − 뒷판 두께)이 끝이다.
-  const 선반끝 = 끼움 ? 홈뒤 - TB : CD;
+  /* 10-01 사장님 말씀: 「우라홈 … 은 뒷판의 끼임을 위해 측판및 상판등에 가공되는 홈의 시작점부터
+     부속의 마감까지의 거리입니다. 즉 **뒷판의 두께, 가공 홈의 넓이들과 관계없이** 해당 부속의 마감에서
+     시작하여 홈 가공의 **안쪽 마감선**까지의 길이 … 고정선반·이동선반의 사이즈는 뒷판 끼임 위치와
+     관계없이 이 홈 가공의 시작선부터 전면 마감부까지의 거리로 계산됩니다」.
+     그래서 **홈 안쪽선(`홈앞`)이 기준**이다 — 거기서 홈폭만큼 뒤로 파고, 선반은 거기서 멈춘다.
+     전에는 `홈뒤` 가 기준이라 선반이 뒷판 두께만큼 짧았다. */
+  const 홈폭 = TB + 규칙.홈유격, 홈앞 = D - 규칙.우라홈, 홈뒤 = 홈앞 + 홈폭;
+  // `뒤살` = 부속 뒤 마감 ~ 홈 **뒤쪽 벽** (= 우라홈 − 홈폭). 도면이 그 자리를 재는 데 쓴다.
+  const 홈 = 끼움 ? { 깊이:규칙.홈깊이, 폭:홈폭, 앞:홈앞, 뒤:홈뒤, 뒤살:D - 홈뒤 } : null;
+  // 선반은 **홈 안쪽선**에서 멈춘다(= `CD − 우라홈`). 뒷판이 홈 어디에 끼든 안 바뀐다.
+  // 덮기는 그대로 몸통 깊이가 끝이다 — 홈이 없다.
+  const 선반끝 = 끼움 ? 홈앞 : CD;
   // 상판과 하판은 **한 벌의 논리**다 (09-28 사장님 말씀: 「하판도 상판과 마찬가지로 측판아래위치 /
   // 측판사이위치 / 등 상판 위치논리만 변경되어 동일하게 작동하게」). 위아래만 뒤집힌다.
   //   측판 사이   판이 측판 안으로 들어간다 — 측판이 그 끝까지 서고 판은 안폭만 쓴다
@@ -1027,7 +1041,7 @@ function buildDrawing(s, m, 치수배 = 1){
     text(`홈 가공도  GROOVE DETAIL · 10배`, (칸들.length-1)*간격/2 + 보임*M/2, gy + 760, 46);
     칸들.forEach(([이름, 면, T], i) => {
       const x0 = i*간격, w = 보임*M, h = T*M, y0 = gy - h;
-      const gx = x0 + w - (규칙.홈뒤살 + m.홈.폭)*M, gw = m.홈.폭*M, gd = m.홈.깊이*M;
+      const gx = x0 + w - 규칙.우라홈*M, gw = m.홈.폭*M, gd = m.홈.깊이*M;   // 뒤 끝에서 우라홈 자리가 홈 안쪽선
       // 판 단면 — 홈이 파인 면이 위다
       line(x0, y0, x0 + w, y0); line(x0, y0, x0, y0 + h); line(x0 + w, y0, x0 + w, y0 + h);
       line(x0, y0 + h, gx, y0 + h);
@@ -1052,7 +1066,7 @@ function buildDrawing(s, m, 치수배 = 1){
       tick(gx + gw + 40, y0 + h - gd); tick(gx + gw + 40, y0 + h);
       빼서적기(gx + gw/2, y0 + h + 70, x0 + w*0.22, y0 + h + 240, `폭 ${fmt(m.홈.폭)}`);
       빼서적기(gx + gw + 40, y0 + h - gd/2, x0 + w*0.78, y0 + h + 240, `깊이 ${fmt(m.홈.깊이)}`);
-      빼서적기((gx + gw + x0 + w)/2, y0 + h + 70, x0 + w*0.5, y0 + h + 470, `뒤 끝에서 ${fmt(규칙.홈뒤살)}`);
+      빼서적기((gx + gw + x0 + w)/2, y0 + h + 70, x0 + w*0.5, y0 + h + 470, `뒤 끝에서 ${fmt(m.홈.뒤살)}`);
       dimV(y0, y0 + h, x0, -150, fmt(T));
       text('앞', x0 + 40, y0 - 80, TH, 'DIM');            // 어느 쪽이 앞인지 — 치수 글자와 같이 커진다
       text('뒤', x0 + w - 40, y0 - 80, TH, 'DIM');
@@ -1325,7 +1339,7 @@ function 부속쪽SVG(행들, m){
     // 홈 파는 부속은 칸 아래쪽을 홈 가공도에 내준다 — 그 부속 정보가 있는 자리에 그 부속 홈이 붙는다.
     // 홈 가공도 배율은 칸 너비가 정한다. 그러니 그만큼만 자리를 떼고 나머지는 겉면 그림에 준다.
     const dw = (ix - 10) - dx;
-    const 보임 = 규칙.홈뒤살 + (m.홈 ? m.홈.폭 : 0) + 8;        // 뒤 끝에서 이만큼만 잘라 본다
+    const 보임 = 규칙.우라홈 + 8;                              // 뒤 끝에서 이만큼만 잘라 본다
     const 배 = (r.홈 && m.홈) ? Math.min(dw*0.95 / 보임, 12) : 0;
     const 홈칸 = (r.홈 && m.홈) ? Math.min((칸높 - 20)*0.72, r.T*배 + 30.5) : 0;
     const dh = 칸높 - 6 - 14 - 홈칸;                           // 아래 14 는 가로 치수 자리
@@ -1343,9 +1357,9 @@ function 부속쪽SVG(행들, m){
       선(b,my,b-2.2,my-1.1,'gr'); 선(b,my,b-2.2,my+1.1,'gr');
       글(`결 ${r.grain}`, (a+b)/2, my - 3, 't4');
     }
-    // 끼우기에서 뒷판이 물리는 홈. 뒤 끝에서 홈뒤살 만큼 들어와 홈 폭만큼 판다.
+    // 끼우기에서 뒷판이 물리는 홈. 뒤 끝에서 **우라홈** 자리가 홈 안쪽선이고 거기서 홈 폭만큼 뒤로 판다.
     if (r.홈 && m.홈){
-      const g1 = fy + h - 규칙.홈뒤살*k, g0 = g1 - m.홈.폭*k;
+      const g0 = fy + h - 규칙.우라홈*k, g1 = g0 + m.홈.폭*k;
       선(fx,g0,fx+w,g0,'ln2'); 선(fx,g1,fx+w,g1,'ln2');
       글('앞', fx + 4, fy + 4.2, 't4'); 글('뒤', fx + 4, fy + h - 4.2, 't4');
       선(fx + w*0.5, g0, fx + w*0.5, g0 - 1, 'ln2');     // 홈은 실제 비례로는 가늘다 — 어디인지 가리켜 준다
@@ -1357,7 +1371,7 @@ function 부속쪽SVG(행들, m){
     // 정보 칸 — 사이즈 정보를 글자로도 적는다.
     const 줄 = [['수량', r.qty], ['가로', fmt(r.L)], ['세로', fmt(r.W)], ['두께', fmt(r.T)]];
     if (r.grain) 줄.push(['결', r.grain]);
-    if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(규칙.홈뒤살)}`]);
+    if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(m.홈.뒤살)}`]);
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
@@ -1367,7 +1381,7 @@ function 부속쪽SVG(행들, m){
       // 위 22 는 이름표·치수선·숫자 자리, 아래 8.5 는 앞·뒤 글자 자리다.
       const sw = 보임*배, st = r.T*배;
       const sx = dx, sy = ty + 칸높 - 8.5 - st;
-      const gx = sx + sw - (규칙.홈뒤살 + m.홈.폭)*배, gw = m.홈.폭*배, gd = m.홈.깊이*배;
+      const gx = sx + sw - 규칙.우라홈*배, gw = m.홈.폭*배, gd = m.홈.깊이*배;
       // 홈 파인 면이 위, 뒤 끝이 오른쪽이다
       선(sx, sy+st, sx+sw, sy+st, 'ln'); 선(sx, sy, sx, sy+st, 'ln'); 선(sx+sw, sy, sx+sw, sy+st, 'ln');
       선(sx, sy, gx, sy, 'ln'); 선(gx+gw, sy, sx+sw, sy, 'ln');
@@ -1388,7 +1402,7 @@ function 부속쪽SVG(행들, m){
       };
       const dyy = sy - 3.6;
       치수선(gx, gx + gw, dyy, fmt(m.홈.폭));               // 홈 폭
-      치수선(gx + gw, sx + sw, dyy, fmt(규칙.홈뒤살));       // 홈에서 뒤 끝까지
+      치수선(gx + gw, sx + sw, dyy, fmt(m.홈.뒤살));         // 홈에서 뒤 끝까지
       const vx = gx + gw + 2.4;                             // 깊이 — 홈 옆 살 안에 세로로
       선(vx, sy, vx, sy + gd, 'dim'); 자국(vx, sy); 자국(vx, sy + gd);
       선(gx + gw, sy + gd, vx + 1.2, sy + gd, 'dim');
@@ -1916,7 +1930,7 @@ function update(){
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
   $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
-  if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.홈뒤살;
+  if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.우라홈;
   밴드살피기();
 }
 
@@ -2114,11 +2128,11 @@ document.addEventListener('change', e => {
     담기(); update();
   }
 });
-// 「뒷판 들어감」 은 관계표의 홈뒤살과 같은 값이다. 어느 쪽에서 만져도 같이 움직인다.
+// 「우라홈」 은 관계표의 우라홈과 같은 값이다. 어느 쪽에서 만져도 같이 움직인다.
 $('#backIn').addEventListener('input', () => {
   const v = Number($('#backIn').value);
   if (!Number.isFinite(v)) return;
-  규칙.홈뒤살 = Math.min(40, Math.max(0, v));
+  규칙.우라홈 = Math.min(40, Math.max(0, v));
   담기(); update();
 });
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
@@ -2966,8 +2980,8 @@ const 관계표 = [
     규칙:'홈깊이', 최소:0, 최대:20, 걸음:0.5 },
   { 갈래:'뒷판', 사이:'홈 ↔ 뒷판 두께 (끼우기)', 말:'홈 폭은 뒷판 두께에 이 유격을 더한 값이다. 2.7T 뒷판이면 홈이 3.5 가 된다.',
     규칙:'홈유격', 최소:0, 최대:3, 걸음:0.1 },
-  { 갈래:'뒷판', 사이:'홈 ↔ 몸통 뒷면 (끼우기)', 말:'몸통 뒷면에서 이만큼 살을 남기고 홈을 판다.',
-    규칙:'홈뒤살', 최소:0, 최대:40, 걸음:0.5 },
+  { 갈래:'뒷판', 사이:'우라홈 (끼우기)', 말:'부속 뒤 마감에서 홈 안쪽 마감선까지의 거리다. 뒷판 두께·홈 폭과 상관없다. 선반 깊이가 이것으로 정해진다.',
+    규칙:'우라홈', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 철물', 말:'조립할 때 체결하지 않는다. 다보 같은 철물 위에 얹혀 손으로 들어 옮긴다.',
     값:(m,s) => `${s.shelvesM}장`, 어디:'이동 선반 옵션 단수' },
