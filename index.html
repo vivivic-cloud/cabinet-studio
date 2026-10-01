@@ -183,7 +183,10 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .modeseg{display:flex;gap:4px;flex:none;align-self:center}
 .panelhead .modeseg{margin-left:10px}
 /* 외형 치수 띠 — `.hud` 와 같은 본이다. 떠 있으므로 칸 높이를 한 픽셀도 안 뺏는다. */
-.dims{position:absolute;z-index:6;left:14px;right:14px;top:12px;display:flex;gap:4px}
+/* 10-01 사장님 말씀 — 「2D/3D 변환시 외경입력부의 이질감이 없도록 해줘 두가지의 입력부가 너무 다르게
+   생겼고 위치도 다름」. 그래서 **두 모드가 같은 폭·같은 자리**다 — 칸 왼위에서 14·12 띄우고 270px 이다.
+   2D 는 머리줄 밑이 칸의 시작이라 `모드띠맞추기()` 가 머리줄 높이에 12 를 더해 준다(상대 자리가 같다). */
+.dims{position:absolute;z-index:6;left:14px;right:auto;top:12px;width:min(calc(100% - 28px), 270px);display:flex;gap:4px}
 .dims .d{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:2px;
   background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:0 6px 0 7px}
 .dims .d:focus-within{border-color:var(--head)}
@@ -194,9 +197,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
   font-size:13px;padding:0 1px;text-align:right;-moz-appearance:textfield;min-height:34px}
 .dims input::-webkit-outer-spin-button,.dims input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .dims span{font-size:9.5px;color:var(--ink3);flex:none}
-/* 도면 칸에서는 쪽 오른쪽 위 「크게」 단추(56×44)를 덮지 않게 띠를 왼쪽에 짧게 둔다.
-   덮으면 「크게」 가 아예 안 눌린다 — 재서 확인했다. */
-.draw>.dims{right:auto;width:min(calc(100% - 28px), 270px)}
+/* 쪽 오른쪽 위 「크게」 단추(56×44)를 덮으면 아예 안 눌린다 — 그래서 띠는 왼쪽에 짧게 둔다(재서 확인했다).
+   10-01 부터 3D 도 같은 폭이라 따로 둘 규칙이 없어졌다. */
 .draw{position:relative}
 .modeseg button{min-width:52px;min-height:44px;padding:0 12px;font-size:13px;border-radius:999px}
 .modeseg button[aria-pressed="true"]{background:var(--head);color:#fff;font-weight:700;border-color:transparent}
@@ -3112,8 +3114,9 @@ function 모드띠맞추기(){
   const 칸 = 보기모드 === '2d' ? document.querySelector('.draw') : document.querySelector('.view3d');
   if (칸 && 띠.parentElement !== 칸) 칸.appendChild(띠);
   const 머리 = 보기모드 === '2d' ? document.querySelector('.draw .panelhead') : null;
-  // 2mm 만 띄운다 — 더 내리면 띠가 쪽 윗여백을 넘어 도면 치수 글자를 덮는다(잰 값: 10 이면 「2.7」 이 8px 깔렸다).
-  띠.style.top = 머리 ? (머리.offsetHeight + 2) + 'px' : '';
+  /* 10-01 사장님 말씀 — 두 모드의 자리가 같아야 한다. 칸의 **보이는 속 윗끝에서 12** 다.
+     2D 는 머리줄이 그 위에 있으므로 머리줄 높이를 더한다(폰은 머리줄이 숨어 0 이라 12 그대로). */
+  띠.style.top = 머리 ? (머리.offsetHeight + 12) + 'px' : '';
 }
 function 모드바꾸기(m){
   const 새 = (m === '2d') ? '2d' : '3d';
