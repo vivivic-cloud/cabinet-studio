@@ -71,15 +71,17 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   // 초점을 떼고 바꾼다 — 숫자 칸에 손이 얹혀 있으면 판을 다시 안 그린다(§4.94)
   const 두기 = async o => { await p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await p.evaluate(x => window.__probe.set(x), o); await 잠(300); };
-  /* 10-01 사장님 말씀(§4.9893)으로 **수치는 「저장」 을 눌러야 먹는다.** 저장이 판을 접으므로 다시 편다. */
-  const 펴기 = async () => { const b = p.locator('.pname[data-opt="측판"]');
-    if (await b.getAttribute('aria-expanded') !== 'true'){ await b.click(); await 잠(300); } };
-  const 넣 = async (r, v) => { await 펴기();
-    const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
-    if (!await p.locator(자).count()){ 맞나('측판 판에 「' + r + '」 칸이 있나', false, true); return false; }
-    await p.fill(자, String(v)); await 잠(150);
-    await p.click('.opt[data-opt="측판"] [data-optsave]'); await 잠(350);
-    await 펴기(); return true; };
+  /* 10-01 사장님 말씀(§4.9887)으로 「상판유격」 은 **상판 판**으로 갔다. 그래서 칸이 어느 판에 있든 찾는다.
+     수치는 「저장」 을 눌러야 먹고(§4.9893) 저장이 판을 접으므로 다시 편다. */
+  const 펴기 = async (...이름들) => { for (const n of 이름들){ const b2 = p.locator(`.pname[data-opt="${n}"]`);
+    if (await b2.getAttribute('aria-expanded') !== 'true'){ await b2.click(); await 잠(250); } } };
+  const 넣 = async (r, v) => { await 펴기('상판', '하판', '측판');
+    const 판 = await p.evaluate(x => { const i = document.querySelector(`.opt[data-opt] input[data-rule="${x}"]`);
+      return i ? i.closest('.opt').dataset.opt : null; }, r);
+    if (!판){ 맞나('「' + r + '」 칸이 어느 판에든 있나', false, true); return false; }
+    await p.fill(`.opt[data-opt="${판}"] input[data-rule="${r}"]`, String(v)); await 잠(150);
+    await p.click(`.opt[data-opt="${판}"] [data-optsave]`); await 잠(350);
+    await 펴기('상판', '하판', '측판'); return true; };
   // 측판 좌우·깊이 · 상판 · 하판 · 실제외경 — 한 번에 잰다
   const 재 = () => p.evaluate(() => { const m = window.__probe.model();
     const 측 = m.parts.filter(q => q.name === '측판'), 상 = m.parts.find(q => q.name === '상판'),
@@ -123,6 +125,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
                     외경: [800, 402.7, 1800] });
     맞나('측판 판에 깊이 칸 없다',
       await p.locator('.opt[data-opt="측판"] input[data-rule="측판깊이들임"]').count(), 0);
+    맞나('상판 판에 상판유격 칸도 없다 (측판 사이라서)',
+      await p.locator('.opt[data-opt="상판"] input[data-rule="측판들임"]').count(), 0);
     맞나('담긴 값은 남는다',
       await p.evaluate(() => [window.__probe.rule().측판들임, window.__probe.rule().측판깊이들임]), [2, 3]);
     await 두기({ topStyle:'overlay' });
@@ -132,16 +136,21 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('0 으로 되돌림', await 재(), 처음); }
 
   console.log('⑥ 칸 이름 — 네 갈래 · 같은 이름 두 줄 없음 · 한 마디는 좌우 두 줄 바로 아래');
-  const 줄 = async o => { await 두기(o); await 펴기();
+  const 줄 = async o => { await 두기(o); await 펴기('상판', '하판', '측판');
     return p.evaluate(() => [...document.querySelector('.opt[data-opt="측판"]').children]
       .filter(c => c.classList.contains('optnum') || c.classList.contains('opthead'))
       .map(c => { const l = c.querySelector('label'); return l ? l.textContent : c.textContent.trim(); })); };
   { 맞나('상판 사이 · 하판 사이', await 줄({ topStyle:'inset', botStyle:'inset' }), ['측판유격']);
-    맞나('상판 위 · 하판 사이', await 줄({ topStyle:'overlay', botStyle:'inset' }), ['상판유격', '측판 들임']);
+    맞나('상판 위 · 하판 사이 (상판유격은 상판 판으로 갔다)', await 줄({ topStyle:'overlay', botStyle:'inset' }), ['측판 들임']);
     맞나('상판 사이 · 하판 아래', await 줄({ topStyle:'inset', botStyle:'under' }), ['측판유격', '측판 들임 (하판)']);
     const r = await 줄({ topStyle:'overlay', botStyle:'under' });
-    맞나('상판 위 · 하판 아래 — 한 마디가 좌우 두 줄 바로 아래다',
-      r, ['상판유격', '측판 들임 (하판)', '큰 쪽만 들어갑니다', '측판 들임']);
+    맞나('상판 위 · 하판 아래 — 한 마디가 좌우 줄 바로 아래다',
+      r, ['측판 들임 (하판)', '「상판유격」 과 큰 쪽만 들어갑니다', '측판 들임']);
+    맞나('상판유격은 상판 판에 있고 거기에도 한 마디가 붙는다',
+      await p.evaluate(() => [...document.querySelector('.opt[data-opt="상판"]').children]
+        .filter(c => c.classList.contains('optnum') || (c.classList.contains('opthead') && c.querySelector('small')))
+        .map(c => { const l = c.querySelector('label'); return l ? l.textContent : c.textContent.trim(); })),
+      ['상판유격', '「측판 들임 (하판)」 과 큰 쪽만 들어갑니다']);
     맞나('같은 이름 두 줄', r.length - new Set(r).size, 0); }
 
   맞나('오류', 터짐, []);
