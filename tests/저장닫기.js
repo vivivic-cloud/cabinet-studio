@@ -73,12 +73,25 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 칸값 = (이름, r) => p.evaluate(v => { const i = document.querySelector(`.opt[data-opt="${v.이름}"] input[data-rule="${v.r}"]`);
     return i ? i.value : null; }, { 이름, r });
 
-  console.log('① 판마다 저장·닫기가 있고 둘 다 44px 이다');
+  /* 10-01 사장님 말씀 — 「저장 닫기 버튼 너무 크다 너무 커요 지금의 4분의 1수준으로 조절해줘」.
+     보이는 크기를 154.5×44 → **54×28** 로 줄였다(넓이로 약 1/4). 닿는 자리는 `::after` 로 **54×36** 이다 —
+     위 틈 8 + 아래 여백 6 안이라 윗줄과 안 겹친다(§4.9891). */
+  console.log('① 판마다 저장·닫기가 있고 보이는 크기는 54×28 · 닿는 자리는 54×36 이다');
   { await 펴기('상판');
     맞나('단추 이름', await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="상판"] .optbtns button')].map(x => x.textContent)),
       ['저장', '닫기']);
-    맞나('44px 아닌 단추 수', await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="상판"] .optbtns button')]
-      .filter(x => x.getBoundingClientRect().height < 43.9).length), 0); }
+    맞나('보이는 크기', await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="상판"] .optbtns button')]
+      .map(x => { const r = x.getBoundingClientRect(); return +r.width.toFixed(1) + '×' + r.height.toFixed(0); })),
+      ['54×28', '54×28']);
+    맞나('닿는 자리 세로 (::after 로 넓힌 것)', await p.evaluate(() => {
+      const b2 = document.querySelector('.opt[data-opt="상판"] .optbtns button');
+      const r = b2.getBoundingClientRect(), a = getComputedStyle(b2, '::after');
+      return +(r.height + parseFloat(a.top) * -1 * 2).toFixed(0); }), 36);
+    맞나('윗줄과 닿는 자리가 겹치나', await p.evaluate(() => {
+      const b2 = document.querySelector('.opt[data-opt="상판"] .optbtns button');
+      const 줄 = [...document.querySelectorAll('.opt[data-opt="상판"] .optrow')].pop();
+      if (!줄) return 0;
+      return (줄.getBoundingClientRect().bottom > b2.getBoundingClientRect().top - 4) ? 1 : 0; }), 0); }
 
   console.log('② 수치를 치고 닫기 — 안 먹고 이전 세팅 그대로');
   { await p.fill('.opt[data-opt="상판"] input[data-rule="상판내림"]', '4'); await 잠(250);

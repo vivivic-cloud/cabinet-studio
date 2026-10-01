@@ -42,9 +42,6 @@ button:disabled{opacity:.5;cursor:default}
 .field[hidden]{display:none}
 .field label{color:var(--ink);font-weight:600;word-break:keep-all}
 /* 「뒷판 들어감」 도 같은 자다 — 칸을 좁히고 입력 높이를 44 로 되찾는다(전에는 39.8 이었다) */
-#backInWrap{grid-template-columns:1fr 82px;gap:8px}
-#backInWrap .num{border-radius:11px}
-#backInWrap .num input{min-height:34px;padding:0 6px;font-size:13px}
 .field small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
 .num{display:flex;align-items:center;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
 .num:focus-within{border-color:var(--head)}
@@ -87,7 +84,6 @@ select:focus{border-color:var(--head)}
 .pname::after{content:"▾";font-size:11px;color:var(--ink3);flex:none}
 .pname[aria-expanded="true"]::after{content:"▴";color:var(--head)}
 .pname:hover{color:var(--head)}
-.field.죽음>.pname{color:var(--ink3)}
 .opt[hidden]{display:none}
  /* 09-28 사장님 말씀 **두 번** — 「이런 입력칸의 높이가 너무 커 … 좀 작게좀 조절해줘」,
    그리고 「이노무 입력칸좀 줄여달라니까」. 첫 판은 44px 을 지켜 46px 줄이 그대로여서 **눈에 안 띄었다.**
@@ -117,10 +113,14 @@ select:focus{border-color:var(--head)}
 .optnum .num{flex:none;width:82px;border-radius:11px}
 .optnum .num input{min-height:34px;padding:0 6px;font-size:13px}
 /* 「12.5」 가 1px 잘렸다 — 「mm」 꼬리표 여백과 글자를 깎아 숫자 자리를 넓힌다(관계제어판은 안 건드린다) */
-.optnum .num span,.optwide>.num span,#backInWrap .num span{padding:0 6px 0 0;font-size:11px}
-/* 10-01 사장님 말씀 — 상세옵션의 수치는 「저장」 을 눌러야 적용된다. 단추는 44px 그대로다(§0). */
-.optbtns{display:flex;gap:8px;margin-top:8px}
-.optbtns button{flex:1;min-height:44px;font-size:13px}
+.optnum .num span,.optwide>.num span{padding:0 6px 0 0;font-size:11px}
+/* 10-01 사장님 말씀 — 상세옵션의 수치는 「저장」 을 눌러야 적용된다.
+   「저장 닫기 버튼 너무 크다 너무 커요 지금의 4분의 1수준으로 조절해줘」 — 그래서 꽉 채우지 않고
+   오른쪽에 작게 둔다. **보이는 크기는 1/4 로 줄이고 닿는 자리는 `::after` 로 36px 을 남겼다**
+   (위 틈 8 + 아래 여백 6 안에 들어가므로 윗줄과 안 겹친다. 44 로 넓히면 윗줄을 먹는다 — 재서 잡았다). */
+.optbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.optbtns button{flex:none;min-height:28px;padding:0 14px;font-size:12px;position:relative}
+.optbtns button::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
 .seg.mini{padding:2px;gap:2px}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
@@ -328,12 +328,6 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
    설정 때문에 없는 줄(도어 0짝 · 이동선반 0단 · 전면밴드 0)은 **안 내린다** — 제자리에 둔다. */
-#deadWrap[hidden]{display:none}
-#deadWrap{display:flex;flex-direction:column;gap:14px;margin-top:4px;padding-top:14px;border-top:1px dashed var(--line)}
-#deadWrap>h2{margin:0}
-#deadList,#deadCustom{display:flex;flex-direction:column;gap:14px}
-#deadList:empty,#deadCustom:empty{display:none}
-.field.죽음>label{color:var(--ink3)}
 
 .two .x:hover{background:var(--surface2);color:var(--dim)}
 .linkbtn{background:none;border:0;padding:4px 0;font-size:12px;color:var(--ink3);text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:0}
@@ -484,14 +478,8 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <div class="field gr" data-home="5" data-part="하판"><button type="button" class="pname" data-opt="하판" aria-expanded="false">하판</button><div class="two"><select id="Tbot" data-key="Tbot" aria-label="하판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div><div class="opt" data-opt="하판" hidden></div></div>
       <div class="field gr" data-home="6" data-part="전면밴드"><button type="button" class="pname" data-opt="전면밴드" aria-expanded="false">전면밴드</button><div class="two"><select id="Tplinth" data-key="Tplinth" aria-label="전면밴드 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div><div class="opt" data-opt="전면밴드" hidden></div></div>
       <div class="field gr" data-home="7" data-part="뒷판"><button type="button" class="pname" data-opt="뒷판" aria-expanded="false">뒷판</button><div class="two"><select id="TB" data-key="TB" aria-label="뒷판 두께"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div><div class="opt" data-opt="뒷판" hidden></div></div>
-      <div class="field" id="backInWrap" hidden><label for="backIn">우라홈</label>
-        <div class="num"><input id="backIn" type="number" min="0" max="40" step="0.5" value="9"><span>mm</span></div></div>
       <div id="customList"></div>
       <!-- 지운 부속만 여기로 내려 모은다 (09-22 사장님 말씀). 설정 때문에 없는 줄은 제자리에 둔다. -->
-      <div id="deadWrap" hidden>
-        <h2>비활성 부속</h2>
-        <div id="deadList"></div><div id="deadCustom"></div>
-      </div>
       <div class="field wide"><label for="newPart">부속추가</label>
         <div class="addrow"><input id="newPart" type="text" maxlength="20" placeholder="부속 이름" autocomplete="off"
              role="combobox" aria-expanded="false" aria-controls="partNames"><button id="btnAdd" type="button">추가</button>
@@ -1944,8 +1932,6 @@ function update(){
   지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
-  $('#backInWrap').hidden = state.backMode !== 'insert';          // 끼우기일 때만 보인다
-  if (document.activeElement !== $('#backIn')) $('#backIn').value = 규칙.우라홈;
   밴드살피기();
 }
 
@@ -2128,7 +2114,7 @@ document.addEventListener('change', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (!el) return;
-  if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); update(); return; }
+  if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); 결단추갱신(); update(); return; }
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
   if (el.name === 'doors' && el.checked){ state.doors = Number(el.value); update(); return; }
@@ -2147,13 +2133,6 @@ document.addEventListener('change', e => {
     c.단 = 밴드단값.filter(v => 단.includes(v));              // 차례는 언제나 상·중·하
     담기(); update();
   }
-});
-// 「우라홈」 은 관계표의 우라홈과 같은 값이다. 어느 쪽에서 만져도 같이 움직인다.
-$('#backIn').addEventListener('input', () => {
-  const v = Number($('#backIn').value);
-  if (!Number.isFinite(v)) return;
-  규칙.우라홈 = Math.min(40, Math.max(0, v));
-  담기(); update();
 });
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
@@ -2729,9 +2708,9 @@ function 옵션치수(이름){
    칸은 접힐 때 innerHTML 을 비우므로 **markup 으로 다시 그리고 듣는 곳은 document 위임**이다.
    글은 한 자도 더하지 않았다 — 단추 이름이 곧 제 이름이다. */
 // 0.5mm 유격 칸 하나 (09-28 사장님 말씀). 이름표와 숫자만 — 설명은 안 붙인다.
-const 유격칸 = (이름표, 열쇠) =>
+const 유격칸 = (이름표, 열쇠, 최대 = 50) =>
   `<div class="optnum"><label for="r_${열쇠}">${이름표}</label><div class="num">` +
-  `<input id="r_${열쇠}" data-rule="${열쇠}" type="number" min="0" max="50" step="0.5"` +
+  `<input id="r_${열쇠}" data-rule="${열쇠}" type="number" min="0" max="${최대}" step="0.5"` +
   ` value="${담을값.has(열쇠) ? 담을값.get(열쇠) : 규칙[열쇠]}"><span>mm</span></div></div>`;
 function 줄옵션(이름){
   if (이름 === '상판')
@@ -2787,10 +2766,12 @@ function 줄옵션(이름){
         `<label><input type="radio" name="doorMode" value="${v}"${state.doorMode===v?' checked':''}>${글}</label>`).join('') +
       `</div>`;
   if (이름 === '뒷판')
+    // 10-01 사장님 말씀: 「우라홈은 뒷판 끼우기 옵션 적용시 뒷판의 옵션조정에 나타나게 해줘」.
+    // 줄 밑에 홀로 서 있던 칸(`#backInWrap`)을 여기로 들였다 — 부속마다 있는 옵션은 그 부속 판 안이다(§4.94).
     return `<div class="seg mini" role="group" aria-label="뒷판 조립">` +
       [['cover','덮기'],['insert','끼우기']].map(([v,글]) =>
         `<label><input type="radio" name="backMode" value="${v}"${state.backMode===v?' checked':''}>${글}</label>`).join('') +
-      `</div>`;
+      `</div>` + (state.backMode === 'insert' ? 유격칸('우라홈', '우라홈', 40) : '');
   if (이름 === '밴드'){
     const i = 만든부속.findIndex(c => c.이름 === '밴드');
     if (i < 0) return '';
@@ -2880,37 +2861,20 @@ document.addEventListener('change', e => {
    무엇이 「지운 것」 인지는 `되살릴것()` 이 이미 정확히 센다(손질.지움 + 지난부속). **그걸 그대로 쓴다.**
    줄은 **옮기기만 한다** — 다시 그리지 않으므로 두께·×·결 단추·덮기/끼우기가 그대로 먹는다.
    되살리는 길은 예전 그대로 「부속 만들기」 칸의 드롭다운이다(§4.89). 여기에 단추를 붙이지 마라. */
+/* ───────── 지운 부속은 목록에서 아예 없앤다 (10-01 사장님 말씀) ─────────
+   「삭제된 부속은 목록에서 없애줘 비활성 부속이라고 해도 어차피 부속추가로 다시 살릴 수 있는거잖아」
+   **09-22 의 「비활성 부속」 칸(§4.898)을 걷어낸 것이다.** 되살리는 길은 예전 그대로 「부속추가」 다(§4.89).
+   ⚠ **설정 때문에 없는 것은 안 없앤다** — 도어 0짝 · 이동선반 0단 · 전면밴드 0 은 지운 것이 아니다.
+   무엇이 「지운 것」 인지는 `되살릴것()` 이 센다(손질.지움 + 지난부속). 그걸 그대로 쓴다.
+   **줄은 옮기지도 지우지도 않는다 — 보이기만 끈다.** 그래야 두께 고르개·×·결 단추가 그대로 먹고,
+   되살리면 제자리에 그대로 돌아온다.
+   ⚠ `hidden` 으로는 안 된다 — `.field.gr{display:grid}` 가 `[hidden]` 을 이긴다(§7.5 의 그 탈).
+   그래서 **인라인 `style.display`** 다. */
 function 비활성갱신(){
   const 죽은 = new Set(되살릴것().map(x => x.이름));
-  const 보드 = $('#boardBox'), 칸 = $('#deadList'), 무리 = $('#deadWrap'), 뒤칸 = $('#backInWrap');
-  if (!보드 || !칸) return;
-  const 줄들 = [...document.querySelectorAll('.params .field[data-home]')]
-                 .sort((a, b) => +a.dataset.home - +b.dataset.home);
-  let 옮겼다 = false;
-  줄들.forEach((줄, i) => {
-    const 죽 = 죽은.has(줄.dataset.part);
-    줄.classList.toggle('죽음', 죽);
-    if (줄.parentNode === (죽 ? 칸 : 보드)) return;          // 자리가 맞으면 건드리지 않는다
-    if (죽) 칸.appendChild(줄);
-    else 보드.insertBefore(줄, 줄들.slice(i+1).find(x => x.parentNode === 보드) || 뒤칸);
-    옮겼다 = true;
+  document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
+    줄.style.display = 죽은.has(줄.dataset.part) ? 'none' : '';
   });
-  // 비활성 칸 안에서도 차례는 원래 차례다. 옮긴 일이 있을 때만 맞춘다(쓸데없이 DOM 을 흔들지 않게).
-  if (옮겼다) 줄들.forEach(줄 => { if (줄.parentNode === 칸) 칸.appendChild(줄); });
-  // 지운 만든 부속은 줄 자체가 없어졌으므로 `지난부속` 에서 다시 그린다 — 붙박이 죽은 줄과 같은 모양으로.
-  const 지운만든 = 지난부속.filter(c => 죽은.has(c.이름) && !만든부속.some(x => x.이름 === c.이름));
-  $('#deadCustom').innerHTML = 지운만든.map((c, i) =>
-    `<div class="field gr 죽음">` +
-    `<button type="button" class="pname" data-opt="${esc(c.이름)}" aria-expanded="false">${esc(c.이름)}</button><div class="two">` +
-    `<select data-di="${i}" aria-label="${esc(c.이름)} 두께">${두께값.map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
-    `<button type="button" class="x 없음" data-dead="${esc(c.이름)}" aria-label="${esc(c.이름)} 이미 빠져 있음">×</button></div>` +
-    `<div class="opt" data-opt="${esc(c.이름)}" hidden></div></div>`).join('');
-  $('#deadCustom').querySelectorAll('select[data-di]').forEach(el =>
-    el.addEventListener('change', () => { 지운만든[+el.dataset.di].T = Number(el.value); 담기(); }));
-  $('#deadCustom').querySelectorAll('button[data-dead]').forEach(el =>
-    el.addEventListener('click', () =>
-      toast(`${el.dataset.dead} 은 이미 빠져 있습니다 — 「부속추가」 칸을 누르면 되살립니다`)));
-  무리.hidden = !(칸.children.length || $('#deadCustom').children.length);
 }
 function 지우기단추갱신(){
   const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
