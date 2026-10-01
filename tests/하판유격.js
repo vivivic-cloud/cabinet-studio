@@ -73,21 +73,22 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r.x + r.width/2, y:r.y + r.height/2 }] });
     await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(350); return true; };
 
-  // 깊 = 하판유격 · 측 = 측판 들임(깊이) · 밴 = 걸레앞(= 화면 「전면밴드유격」)
-  const 재 = (깊, 측, 밴, 위 = 'inset', 아래 = 'inset') => p.evaluate(v => {
+  // 깊 = 하판유격 · 측 = 측판 들임(깊이) · 밴 = 전면밴드유격 · 올 = 하판 올림
+  const 재 = (깊, 측, 밴, 위 = 'inset', 아래 = 'inset', 올 = 0) => p.evaluate(v => {
     const R = window.__probe.rule();
-    R.하판유격 = v.깊; R.측판깊이들임 = v.측; R.걸레앞 = v.밴;
+    R.하판유격 = v.깊; R.측판깊이들임 = v.측; R.전면밴드유격 = v.밴; R.하판올림 = v.올;
     window.__probe.set({ topStyle:v.위, botStyle:v.아래, backMode:'cover', doorMode:'in', plinth:80 });
     const m = window.__probe.model(), 것 = n => m.parts.find(q => q.name === n);
     const 측판 = 것('측판'), 하 = 것('하판'), 밴드 = 것('전면밴드'), 보 = 것('보호대');
     return { 측판앞: 측판.y, 하판:[하.y, +하.d.toFixed(2), +하.cut.W.toFixed(2)],
              전면밴드: 밴드 ? [밴드.y, 밴드.h, 밴드.cut.W] : null,
+             밴드틈: (밴드 && 하) ? +(하.z - (밴드.z + 밴드.h)).toFixed(2) : null,
              보호대: 보 ? [보.y, +(보.y + 보.d).toFixed(2)] : null,
              외경:[m.외경.W, m.외경.D, m.외경.H] };
-  }, { 깊, 측, 밴, 위, 아래 });
+  }, { 깊, 측, 밴, 위, 아래, 올 });
 
   console.log('① 하판유격 0 · 측판 들임 0 이면 예전과 한 톨도 같다');
-  const 처음 = { 측판앞:0, 하판:[0, 400, 400], 전면밴드:[30, 80, 80], 보호대:[382, 400], 외경:[800, 402.7, 1800] };
+  const 처음 = { 측판앞:0, 하판:[0, 400, 400], 전면밴드:[30, 80, 80], 밴드틈:0, 보호대:[382, 400], 외경:[800, 402.7, 1800] };
   맞나('기본', await 재(0, 0, 30), 처음);
 
   console.log('② 하판 앞면 = 측판 앞면 + 하판유격');
@@ -101,24 +102,37 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('측판 들임 5 · 하판유격 3', await 재(3, 5, 30, 'overlay'),
     Object.assign({}, 처음, { 측판앞:5, 하판:[8, 392, 392], 전면밴드:[38, 80, 80] }));
 
-  console.log('④ 전면밴드 앞면 = 하판 앞면 + 전면밴드유격(`걸레앞`)');
+  console.log('④ 전면밴드 앞면 = 하판 앞면 + 전면밴드유격');
   for (const [밴, 깊] of [[0, 0], [45, 0], [45, 3], [30.5, 0]]) {
     const r = await 재(깊, 0, 밴);
-    맞나(`걸레앞 ${밴} · 하판유격 ${깊}`, [r.하판[0], r.전면밴드[0]], [깊, 깊 + 밴]);
+    맞나(`전면밴드유격 ${밴} · 하판유격 ${깊}`, [r.하판[0], r.전면밴드[0]], [깊, 깊 + 밴]);
   }
 
-  console.log('⑤ 「하판 측판 아래」 에서는 앞면 0 그대로 (전면밴드·보호대가 아예 없다 · §4.9892)');
-  맞나('측판 아래 · 하판유격 10', await 재(10, 0, 30, 'inset', 'under'),
-    { 측판앞:0, 하판:[0, 400, 400], 전면밴드:null, 보호대:null, 외경:[800, 402.7, 1800] });
+  /* ⑤ 「하판 올림」(위아래)과 「하판유격」(앞뒤)은 **서로 다른 칸**이다. 전면밴드 키가 하판 밑면을 따라
+        올라가 틈이 0 으로 남는 것은 **사장님이 시키신 것이 아니라 관리자가 두기로 한 것**이다(§4.9884). */
+  console.log('⑤ 「하판 올림」 은 위아래 — 전면밴드가 따라 올라가 틈 0 이다');
+  for (const [올, 키] of [[2, 82], [5, 85], [12.5, 92.5]]) {
+    const r = await 재(0, 0, 30, 'inset', 'inset', 올);
+    맞나(`하판 올림 ${올} — 전면밴드 키·재단 · 틈 · 하판 앞면(안 움직인다)`,
+      [r.전면밴드[1], r.전면밴드[2], r.밴드틈, r.하판[0]], [키, 키, 0, 0]);
+  }
+  { const r = await 재(3, 0, 30, 'inset', 'inset', 2);
+    맞나('하판 올림 2 · 하판유격 3 — 둘이 안 섞인다', [r.하판[0], r.하판[1], r.전면밴드[0], r.전면밴드[1], r.밴드틈],
+      [3, 397, 33, 82, 0]); }
+  await 재(0, 0, 30);
 
-  console.log('⑥ 실제 외경이 안 변한다 · 보호대는 뒤끝에 맞춰 안 따라간다 (§4.87)');
+  console.log('⑥ 「하판 측판 아래」 에서는 앞면 0 그대로 (전면밴드·보호대가 아예 없다 · §4.9892)');
+  맞나('측판 아래 · 하판유격 10', await 재(10, 0, 30, 'inset', 'under'),
+    { 측판앞:0, 하판:[0, 400, 400], 전면밴드:null, 밴드틈:null, 보호대:null, 외경:[800, 402.7, 1800] });
+
+  console.log('⑦ 실제 외경이 안 변한다 · 보호대는 뒤끝에 맞춰 안 따라간다 (§4.87)');
   for (const [깊, 측, 위] of [[0,0,'inset'], [10,0,'inset'], [0,5,'overlay'], [10,5,'overlay'], [50,0,'inset']]) {
     const r = await 재(깊, 측, 30, 위);
     맞나(`하판유격 ${깊} · 측판 들임 ${측} — 외경 · 보호대`, [r.외경, r.보호대], [[800, 402.7, 1800], [382, 400]]);
   }
   await 재(0, 0, 30);
 
-  console.log('⑦ 화면 — 칸이 서는 자리 · 관계제어판에서 빠졌다 · 진짜 손가락으로 저장하면 먹는다');
+  console.log('⑧ 화면 — 칸이 서는 자리 · 관계제어판에서 빠졌다 · 진짜 손가락으로 저장하면 먹는다');
   { const 판줄 = async (위, 아래, 이름) => { await p.evaluate(v => {
         if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
         window.__probe.set({ topStyle:v.위, botStyle:v.아래 }); }, { 위, 아래 }); await 잠(350);
@@ -153,6 +167,20 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         return [m.parts.find(q => q.name === '하판').y, m.parts.find(q => q.name === '전면밴드').y]; }), [2.5, 32.5]);
     } else 맞나('하판 판에 「하판유격」 칸이 있나', false, true);
     await p.evaluate(() => { window.__probe.rule().하판유격 = 0; window.__probe.set({}); }); await 잠(300); }
+
+  console.log('⑨ 옛 `걸레앞` 은 숫자 그대로 「전면밴드유격」 이 된다');
+  { const ctx2 = await b.newContext({ viewport:{ width:375, height:780 } });
+    await ctx2.addInitScript(() => localStorage.setItem('cabinet-studio.규칙',
+      JSON.stringify({ 이름:'옛 설정', 걸레앞:45, 아웃좌우:3 })));
+    const p2 = await ctx2.newPage();
+    await p2.goto(주소, { waitUntil: 'domcontentloaded' });
+    await p2.waitForFunction(() => window.__probe, null, { timeout: 20000 });
+    await 잠(600);
+    맞나('옛 설정 {걸레앞:45} — 전면밴드유격 · 옛 열쇠 · 다른 값 · 전면밴드 y',
+      await p2.evaluate(() => { const R = window.__probe.rule();
+        return [R.전면밴드유격, R.걸레앞 === undefined, R.아웃좌우,
+                window.__probe.model().parts.find(q => q.name === '전면밴드').y]; }), [45, true, 3, 45]);
+    await ctx2.close(); }
 
   맞나('오류', 터짐, []);
   await b.close(); 서버.close();
