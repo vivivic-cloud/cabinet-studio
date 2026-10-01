@@ -71,9 +71,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   // 초점을 떼고 바꾼다 — 숫자 칸에 손이 얹혀 있으면 판을 다시 안 그린다(§4.94)
   const 두기 = async o => { await p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await p.evaluate(x => window.__probe.set(x), o); await 잠(300); };
-  const 넣 = async (r, v) => { const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
+  /* 10-01 사장님 말씀(§4.9893)으로 **수치는 「저장」 을 눌러야 먹는다.** 저장이 판을 접으므로 다시 편다. */
+  const 펴기 = async () => { const b = p.locator('.pname[data-opt="측판"]');
+    if (await b.getAttribute('aria-expanded') !== 'true'){ await b.click(); await 잠(300); } };
+  const 넣 = async (r, v) => { await 펴기();
+    const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
     if (!await p.locator(자).count()){ 맞나('측판 판에 「' + r + '」 칸이 있나', false, true); return false; }
-    await p.fill(자, String(v)); await 잠(300); return true; };
+    await p.fill(자, String(v)); await 잠(150);
+    await p.click('.opt[data-opt="측판"] [data-optsave]'); await 잠(350);
+    await 펴기(); return true; };
   // 측판 좌우·깊이 · 상판 · 하판 · 실제외경 — 한 번에 잰다
   const 재 = () => p.evaluate(() => { const m = window.__probe.model();
     const 측 = m.parts.filter(q => q.name === '측판'), 상 = m.parts.find(q => q.name === '상판'),
@@ -126,13 +132,13 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('0 으로 되돌림', await 재(), 처음); }
 
   console.log('⑥ 칸 이름 — 네 갈래 · 같은 이름 두 줄 없음 · 한 마디는 좌우 두 줄 바로 아래');
-  const 줄 = async o => { await 두기(o);
+  const 줄 = async o => { await 두기(o); await 펴기();
     return p.evaluate(() => [...document.querySelector('.opt[data-opt="측판"]').children]
       .filter(c => c.classList.contains('optnum') || c.classList.contains('opthead'))
       .map(c => { const l = c.querySelector('label'); return l ? l.textContent : c.textContent.trim(); })); };
-  { 맞나('상판 사이 · 하판 사이', await 줄({ topStyle:'inset', botStyle:'inset' }), ['측판 내밈']);
+  { 맞나('상판 사이 · 하판 사이', await 줄({ topStyle:'inset', botStyle:'inset' }), ['측판유격']);
     맞나('상판 위 · 하판 사이', await 줄({ topStyle:'overlay', botStyle:'inset' }), ['상판유격', '측판 들임']);
-    맞나('상판 사이 · 하판 아래', await 줄({ topStyle:'inset', botStyle:'under' }), ['측판 내밈', '측판 들임 (하판)']);
+    맞나('상판 사이 · 하판 아래', await 줄({ topStyle:'inset', botStyle:'under' }), ['측판유격', '측판 들임 (하판)']);
     const r = await 줄({ topStyle:'overlay', botStyle:'under' });
     맞나('상판 위 · 하판 아래 — 한 마디가 좌우 두 줄 바로 아래다',
       r, ['상판유격', '측판 들임 (하판)', '큰 쪽만 들어갑니다', '측판 들임']);

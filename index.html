@@ -118,6 +118,9 @@ select:focus{border-color:var(--head)}
 .optnum .num input{min-height:34px;padding:0 6px;font-size:13px}
 /* 「12.5」 가 1px 잘렸다 — 「mm」 꼬리표 여백과 글자를 깎아 숫자 자리를 넓힌다(관계제어판은 안 건드린다) */
 .optnum .num span,.optwide>.num span,#backInWrap .num span{padding:0 6px 0 0;font-size:11px}
+/* 10-01 사장님 말씀 — 상세옵션의 수치는 「저장」 을 눌러야 적용된다. 단추는 44px 그대로다(§0). */
+.optbtns{display:flex;gap:8px;margin-top:8px}
+.optbtns button{flex:1;min-height:44px;font-size:13px}
 .seg.mini{padding:2px;gap:2px}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
@@ -203,6 +206,7 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .svgwrap .HATCH{stroke:var(--hatch);stroke-width:.5px}
 .svgwrap .TITLE{stroke:var(--ink3);stroke-width:.8px}
 .svgwrap .강{stroke:var(--ink2);stroke-width:1.2px}
+.svgwrap .옅음{opacity:.4}
 .svgwrap text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2)}
 .svgwrap text.DIM{fill:var(--dim)}
 .svgwrap text.TEXT{fill:var(--accent)}
@@ -946,7 +950,7 @@ function buildDrawing(s, m, 치수배 = 1){
   // 밀기 = 화면에서 글자를 키울 때 어느 쪽으로 물러날지. 치수 숫자가 제 치수선을 덮지 않게 한다.
   // 키움이 1 일 때는 0 만큼 움직이므로 DXF·저장 SVG 는 한 점도 안 달라진다.
   const text = (str,x,y,h,layer='TEXT',align='MC',rot=0,밀기) => P.push({t:'text',str,x,y,h,layer,align,rot,쪽,밀기});
-  const hatch = (x,y,w,h) => {                      // ANSI31 45° 단면 해치
+  const hatch = (x,y,w,h,굵기) => {                  // ANSI31 45° 단면 해치
     const sp = 12, c0 = Math.ceil((y-(x+w))/sp)*sp, c1 = y+h-x;
     for (let c = c0; c <= c1; c += sp){
       const pts = []; let v;
@@ -954,7 +958,7 @@ function buildDrawing(s, m, 치수배 = 1){
       v = x+w+c; if (v >= y && v <= y+h) pts.push([x+w, v]);
       v = y-c;   if (v > x && v < x+w) pts.push([v, y]);
       v = y+h-c; if (v > x && v < x+w) pts.push([v, y+h]);
-      if (pts.length >= 2) line(pts[0][0],pts[0][1],pts[1][0],pts[1][1],'HATCH');
+      if (pts.length >= 2) line(pts[0][0],pts[0][1],pts[1][0],pts[1][1],'HATCH',굵기);
     }
   };
   // 뷰 제목 — 글자 아래에 짧은 줄을 그어 그림과 가른다 (스펙시트에서 흔한 꼴)
@@ -983,11 +987,15 @@ function buildDrawing(s, m, 치수배 = 1){
   // 숨기기는 3D 에서만이다 — 도면에는 숨긴 부속도 다 그린다(사장님 말씀 09-17).
   // 가려서 보시려는 것은 3D 이고, 도면은 짜는 사람이 보는 것이라 하나도 빠지면 안 된다.
   const 목록 = m.parts;
+  /* 10-01 사장님 말씀: 「이동선반 생성시 고정선반과 도면상 고정선반과 구분될 수 있도록 도면에서 반투명 처리」.
+     **꾸밈 클래스(`굵기`)로만 준다** — 층(`OUTLINE`·`HATCH`)은 그대로라 **DXF 는 한 바이트도 안 변한다**(§2).
+     DXF 에는 투명도가 없고, 층을 새로 만들면 네 기준값이 움직인다. */
+  const 옅게 = p => p.name === '이동선반' ? '옅음' : undefined;
   const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
   const doors = 목록.filter(p => p.name === '문짝');
 
   // 정면도 — 문짝은 숨은선
-  carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h)));
+  carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h, 'OUTLINE', 옅게(p))));
   doors.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h, 'HIDDEN')));
   dimH(0, W, 0, -120);
   dimH(m.안왼 - Tside, m.안왼, H, 120);
@@ -1001,7 +1009,7 @@ function buildDrawing(s, m, 치수배 = 1){
   // 측면 단면도 — 절단면 x = W/4 (문짝·선반 관통)
   const ox = W + 520, xc = W/4;
   const cutS = 목록.filter(p => p.name !== '측판' && p.x <= xc && xc <= p.x + p.w);
-  cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h)); hatch(ox + p.y, p.z, p.d, p.h); });
+  cutS.forEach(p => { 부속(p, () => rect(ox + p.y, p.z, p.d, p.h, 'OUTLINE', 옅게(p))); hatch(ox + p.y, p.z, p.d, p.h, 옅게(p)); });
   if (m.홈){                                  // 상판·하판에 판 홈 (잘린 자리라 보인다)
     rect(ox + m.홈.앞, m.상판밑, m.홈.폭, m.홈.깊이);
     rect(ox + m.홈.앞, m.bz + Tbot - m.홈.깊이, m.홈.폭, m.홈.깊이);
@@ -1017,7 +1025,7 @@ function buildDrawing(s, m, 치수배 = 1){
   // 평면 단면도 — 절단면 z = 상판 아래 100
   const oy = H + 620, zc = H - Ttop - 100;
   const cutT = 목록.filter(p => p.z <= zc && zc <= p.z + p.h);
-  cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d)); hatch(p.x, oy + p.y, p.w, p.d); });
+  cutT.forEach(p => { 부속(p, () => rect(p.x, oy + p.y, p.w, p.d, 'OUTLINE', 옅게(p))); hatch(p.x, oy + p.y, p.w, p.d, 옅게(p)); });
   if (m.홈){                                  // 양 측판 안쪽면에 판 홈
     rect(m.안왼 - m.홈.깊이, oy + m.홈.앞, m.홈.깊이, m.홈.폭);
     rect(m.안오,             oy + m.홈.앞, m.홈.깊이, m.홈.폭);
@@ -2088,12 +2096,15 @@ document.addEventListener('input', e => {
     if (el.closest('#rTable')) return;
     const v = Number(el.value);
     if (!Number.isFinite(v)) return;
-    규칙[el.dataset.rule] = Math.min(Number(el.max), Math.max(Number(el.min), v));
-    담기(); update(); return;
+    // 10-01 사장님 말씀 — 여기서 바로 안 먹인다. 「저장」 을 눌러야 먹는다.
+    담을값.set(el.dataset.rule, Math.min(Number(el.max), Math.max(Number(el.min), v)));
+    return;
   }
   if (el.dataset.key === undefined) return;
   let v = Number(el.value);
-  if (el.type === 'number'){ if (!Number.isFinite(v)) return; v = Math.min(Number(el.max), Math.max(Number(el.min), v)); }
+  if (el.type === 'number'){ if (!Number.isFinite(v)) return; v = Math.min(Number(el.max), Math.max(Number(el.min), v));
+    // 상세옵션 안의 숫자 칸도 「저장」 을 눌러야 먹는다 (10-01 사장님 말씀). 끌개(range)는 예전처럼 바로 먹는다.
+    if (el.closest('.opt[data-opt]')){ 담을상태.set(el.dataset.key, v); return; } }
   else if (el.tagName === 'SELECT' && !(v > 0)) return;   // 목록에 없는 값이 들어오면 두께가 0 이 된다 — 그냥 무른다
   state[el.dataset.key] = v;
   if (el.id === 'shelves' && $('#shelvesVal')) $('#shelvesVal').textContent = v;
@@ -2102,7 +2113,9 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el && el.dataset && el.dataset.key !== undefined && el.type === 'number') el.value = state[el.dataset.key];
+  // 담아 둔 값이 있으면 되돌리지 않는다 — 「저장」 전까지 친 숫자가 보여야 한다
+  if (el && el.dataset && el.dataset.key !== undefined && el.type === 'number'
+      && !담을상태.has(el.dataset.key)) el.value = state[el.dataset.key];
 });
 // 덮기/끼우기·밴드 단추는 이제 상세옵션 안에 있다 — 접을 때 지워지므로 document 위임으로 듣는다.
 document.addEventListener('change', e => {
@@ -2692,6 +2705,14 @@ function 선단(이름){                       // 도면에 지금 서 있는 �
    도면에 안 선 부속(지운 것·0개)은 잴 치수가 없어 **–** 로 둔다. 그래도 체크는 된다.
    듣는 곳은 document 하나라 줄이 새로 그려져도 다시 걸 일이 없다. */
 const 열린옵션 = new Set();                       // 지금 펴져 있는 부속 이름 (다시 그려도 그대로 편다)
+/* 10-01 사장님 말씀: 「부속옵션 설정부에 저장/닫기 버튼을 만들어 주세요. 이로서 수치입력후 저장 버튼을
+   누르지 않으면 적용되지 않으며 이전의 세팅을 유지 합니다」.
+   그래서 상세옵션 안의 **수치 칸**은 친 자리에서 바로 안 먹고 여기 담아 두었다가 「저장」 에서 한꺼번에 먹는다.
+   **수치만이다** — 단추·체크(상판 결합·선반 단수·덮기/끼우기·결)는 예전처럼 바로 먹는다.
+   **관계제어판(`#rTable`)도 예전 그대로**다 — 사장님이 짚으신 곳이 아니다.
+   칸이 다시 그려져도 친 값이 안 날아가게 **열쇠별로** 담는다. */
+const 담을값 = new Map();      // 규칙 열쇠 → 아직 저장 안 한 수치
+const 담을상태 = new Map();    // state 열쇠 → 〃 (전면밴드 같은 숫자 칸)
 function 옵션치수(이름){
   const r = 모델 ? bomRows(모델).find(x => x.name === 이름) : null;
   return r ? { 가로:fmt(r.L), 세로:fmt(r.W) } : { 가로:'–', 세로:'–' };
@@ -2703,14 +2724,15 @@ function 옵션치수(이름){
 // 0.5mm 유격 칸 하나 (09-28 사장님 말씀). 이름표와 숫자만 — 설명은 안 붙인다.
 const 유격칸 = (이름표, 열쇠) =>
   `<div class="optnum"><label for="r_${열쇠}">${이름표}</label><div class="num">` +
-  `<input id="r_${열쇠}" data-rule="${열쇠}" type="number" min="0" max="50" step="0.5" value="${규칙[열쇠]}"><span>mm</span></div></div>`;
+  `<input id="r_${열쇠}" data-rule="${열쇠}" type="number" min="0" max="50" step="0.5"` +
+  ` value="${담을값.has(열쇠) ? 담을값.get(열쇠) : 규칙[열쇠]}"><span>mm</span></div></div>`;
 function 줄옵션(이름){
   if (이름 === '상판')
     return `<div class="opthead">상판 결합</div><div class="seg mini" role="group" aria-label="상판 결합">` +
       [['inset','측판 사이'],['overlay','측판 위']].map(([v,글]) =>
         `<label><input type="radio" name="topStyle" value="${v}"${state.topStyle===v?' checked':''}>${글}</label>`).join('') +
       `</div>` +
-      (state.topStyle === 'overlay' ? '' : 유격칸('상판 내림', '상판내림'));
+      (state.topStyle === 'overlay' ? '' : 유격칸('상부유격', '상판내림'));
       // 「측판 들임」 은 측판 상세옵션으로 옮겼다 (09-30 사장님 말씀). 두 군데 두지 않는다.
   if (이름 === '하판')                       // 상판과 같은 꼴이다 — 위아래만 뒤집었다
     return `<div class="opthead">하판 결합</div><div class="seg mini" role="group" aria-label="하판 결합">` +
@@ -2734,7 +2756,7 @@ function 줄옵션(이름){
        이것의 명칭을 **상판유격** 으로 … 상판의 사이즈가 늘어나는것이 아니라 그냥 측판의 간격이 줄어드는것일뿐」.
        **화면 이름만 바꿨다 — 담는 열쇠는 `측판들임` 그대로**라 사장님이 저장해 두신 값이 안 깨진다.
        그 아래 새 칸 「측판 들임」 은 **깊이**를 줄인다(`측판깊이들임`). 둘은 서로 다른 것이다. */
-    return (위 ? '' : 유격칸('측판 내밈', '측판내밈'))
+    return (위 ? '' : 유격칸('측판유격', '측판내밈'))
       + (위 ? 유격칸('상판유격', '측판들임') : '')
       + (아래 ? 유격칸('측판 들임 (하판)', '하판측판들임') : '')
       + (위 && 아래 ? '<div class="opthead"><small>큰 쪽만 들어갑니다</small></div>' : '')
@@ -2744,11 +2766,11 @@ function 줄옵션(이름){
     const k = 이름 === '고정선반' ? 'shelves' : 'shelvesM';
     return `<div class="optwide"><label for="${k}"><b id="${k}Val" class="mono">${state[k]}</b>단</label>` +
       `<input id="${k}" data-key="${k}" type="range" min="0" max="8" step="1" value="${state[k]}"></div>` +
-      유격칸('선반 들임', 이름 === '고정선반' ? '고정선반들임' : '이동선반들임');
+      유격칸('선반유격', 이름 === '고정선반' ? '고정선반들임' : '이동선반들임');
   }
   if (이름 === '전면밴드')
     return `<div class="optwide"><div class="num"><input id="plinth" data-key="plinth" type="number" ` +
-      `min="0" max="200" step="1" value="${state.plinth}"><span>mm</span></div></div>`;
+      `min="0" max="200" step="1" value="${담을상태.has('plinth') ? 담을상태.get('plinth') : state.plinth}"><span>mm</span></div></div>`;
   if (이름 === '문짝')
     return `<div class="seg mini" role="group" aria-label="문짝">` +
       [['0','0'],['1','1'],['2','2']].map(([v,글]) =>
@@ -2785,7 +2807,9 @@ function 옵션칸(이름){
     `<label class="optrow"><input type="checkbox" data-grainon="${esc(이름)}"${켬 ? ' checked' : ''}><span>결 있음</span></label>` +
     (켬 ? `<div class="opthead">결 방향</div>` +
       결방향값.map(v => `<label class="optrow"><input type="checkbox" data-grain="${esc(이름)}" value="${v}">` +
-        `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('') : '');
+        `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('') : '') +
+    `<div class="optbtns"><button type="button" class="primary" data-optsave="${esc(이름)}">저장</button>` +
+    `<button type="button" data-optclose="${esc(이름)}">닫기</button></div>`;
 }
 function 결단추갱신(){
   document.querySelectorAll('.opt[data-opt]').forEach(el => {
@@ -2804,13 +2828,30 @@ function 결단추갱신(){
   document.querySelectorAll('input[data-grain]').forEach(el => { el.checked = 결설정[el.dataset.grain] === el.value; });
   document.querySelectorAll('input[data-grainon]').forEach(el => { el.checked = 결있음(el.dataset.grainon); });
 }
-// 부속명을 누르면 그 줄의 상세옵션이 펴지고 접힌다. 길게 누르기(지시 손잡이)는 click 을 안 쓰므로 안 뺏긴다.
+// 그 판에 뜬 수치 칸의 열쇠들 — 담아 둔 값을 먹이거나 버릴 때 쓴다
+const 판칸들 = 이름 => { const el = document.querySelector(`.opt[data-opt="${CSS.escape(이름)}"]`);
+  return el ? [...el.querySelectorAll('input[data-rule],input[data-key][type=number]')] : []; };
+const 판닫기 = 이름 => {                                   // 안 저장한 수치는 버린다
+  판칸들(이름).forEach(i => { 담을값.delete(i.dataset.rule); 담을상태.delete(i.dataset.key); });
+  열린옵션.delete(이름); 결단추갱신(); };
+/* 10-01 사장님 말씀 — 「저장」 을 눌러야 수치가 먹는다. 「닫기」 는 친 것을 버리고 이전 세팅을 그대로 둔다.
+   부속명을 다시 눌러 접는 것도 닫기와 같다. */
 document.addEventListener('click', e => {
-  const b = e.target.closest ? e.target.closest('.pname[data-opt]') : null;
+  const t = e.target.closest ? e.target : null;
+  if (!t) return;
+  const 저장 = t.closest('[data-optsave]'), 닫기 = t.closest('[data-optclose]');
+  if (저장){ const 이름 = 저장.dataset.optsave;
+    판칸들(이름).forEach(i => {
+      const r = i.dataset.rule, k = i.dataset.key;
+      if (r !== undefined && 담을값.has(r)){ 규칙[r] = 담을값.get(r); 담을값.delete(r); }
+      if (k !== undefined && 담을상태.has(k)){ state[k] = 담을상태.get(k); 담을상태.delete(k); }
+    });
+    열린옵션.delete(이름); 담기(); 결단추갱신(); update(); return; }
+  if (닫기){ 판닫기(닫기.dataset.optclose); return; }
+  const b = t.closest('.pname[data-opt]');
   if (!b) return;
   const 이름 = b.dataset.opt;
-  if (열린옵션.has(이름)) 열린옵션.delete(이름); else 열린옵션.add(이름);
-  결단추갱신();
+  if (열린옵션.has(이름)) 판닫기(이름); else { 열린옵션.add(이름); 결단추갱신(); }
 });
 document.addEventListener('change', e => {
   const el = e.target;

@@ -79,8 +79,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('① 상판 사이 · 하판 사이 — 예전 그대로');
   { const r = await 판({ topStyle:'inset', botStyle:'inset' });
-    맞나('측판 판', r.측판, ['측판 내밈']);
-    맞나('상판 판 · 하판 판', [r.상판, r.하판], [['상판 내림'], ['하판 올림']]);
+    맞나('측판 판', r.측판, ['측판유격']);
+    맞나('상판 판 · 하판 판', [r.상판, r.하판], [['상부유격'], ['하판 올림']]);
     맞나('한 마디', r.말, []); }
 
   console.log('② 상판 위 · 하판 사이 — 측판 판에 (상판) 줄이 뜬다');
@@ -94,9 +94,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('③ 상판 사이 · 하판 아래 — 측판 판에 (하판) 줄이 뜬다');
   { const r = await 판({ topStyle:'inset', botStyle:'under' });
-    맞나('측판 판', r.측판, ['측판 내밈', '측판 들임 (하판)']);
+    맞나('측판 판', r.측판, ['측판유격', '측판 들임 (하판)']);
     맞나('하판 판에서 사라짐', r.하판, []);
-    맞나('상판 판은 그대로', r.상판, ['상판 내림']);
+    맞나('상판 판은 그대로', r.상판, ['상부유격']);
     맞나('한 마디', r.말, []); }
 
   console.log('④ 상판 위 · 하판 아래 — 두 줄이 다 뜨고 한 마디가 붙는다');
@@ -111,9 +111,16 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 재 = () => p.evaluate(() => { const m = window.__probe.model();
     return [m.안왼, m.innerW, m.parts.filter(q => q.name === '측판').map(q => q.x)]; });
   // 칸이 없으면 기다리지 않는다 — 고치기 전 판에서는 측판 판에 이 칸이 없어 30초를 멎는다
-  const 넣 = async (r, v) => { const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
+  /* 10-01 사장님 말씀(§4.9893)으로 **수치는 「저장」 을 눌러야 먹는다.** 그래서 친 뒤 저장하고,
+     저장이 판을 접으므로 다시 편다 — 그래야 다음 칸을 찾을 수 있다. */
+  const 펴기 = async () => { const b = p.locator('.pname[data-opt="측판"]');
+    if (await b.getAttribute('aria-expanded') !== 'true'){ await b.click(); await 잠(300); } };
+  const 넣 = async (r, v) => { await 펴기();
+    const 자 = '.opt[data-opt="측판"] input[data-rule="' + r + '"]';
     if (!await p.locator(자).count()){ 맞나('측판 판에 「' + r + '」 칸이 있나', false, true); return false; }
-    await p.fill(자, String(v)); await 잠(300); return true; };
+    await p.fill(자, String(v)); await 잠(150);
+    await p.click('.opt[data-opt="측판"] [data-optsave]'); await 잠(350);
+    await 펴기(); return true; };
   맞나('0 · 0 (고치기 전과 같은 자리)', await 재(), [18, 764, [0, 782]]);
   await 넣('측판들임', 2);      맞나('상판 2 · 하판 0', await 재(), [20, 760, [2, 780]]);
   await 넣('하판측판들임', 3);  맞나('상판 2 · 하판 3 → 큰 쪽 3', await 재(), [21, 758, [3, 779]]);
@@ -136,7 +143,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('측판 위 — 내밈 0 과 같고 담긴 값은 남는다', await 측(), [0, 400, 0, 402.7, 2.5]);
     맞나('측판 위 — 측판 판에 내밈 칸 없다',
       await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="측판"] .optnum label')].map(l => l.textContent)),
-      ['상판유격', '측판 들임']);
+      ['상판유격', '측판 들임']);   // 「측판 내밈」 은 안 나온다
     await 판({ topStyle:'inset' });
     맞나('도로 측판 사이 — 2.5 가 살아난다', await 측(), [0, 400, 2.5, 402.7, 2.5]);
     await 넣('측판내밈', 0);
