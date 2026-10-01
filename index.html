@@ -716,7 +716,9 @@ function buildModel(s){
   //          — 상·하가 같은 x 자리를 다투므로 **큰 쪽**을 쓴다(둘을 더하면 두 번 들어간다)
   //   상내림 측판 사이일 때 상판 윗면이 측판 꼭지보다 낮아지는 길이
   //   하올림 측판 사이일 때 하판 밑면이 **지금 자리(전면밴드 위)** 보다 올라가는 길이
-  //   측밈   측판이 상판보다 **앞으로** 튀어나오는 길이 (뒤는 뒷판 자리라 앞으로만 낸다)
+  //   측밈   측판 앞면과 상판 앞면의 차 — **상판이 그만큼 뒤로 들어간다**
+  //          (10-01 사장님 말씀: 「측판내밈은 제품의 최대외경에 변화가 없어야해 … 사실은
+  //          상판이 들어가는 조정이 되어야 하는거지」). 측판은 겉면 자리 그대로다.
   const 측들 = Math.max(위덮 ? 규칙.측판들임 : 0, 아래덮 ? 규칙.하판측판들임 : 0);
   const 상내림 = 위덮 ? 0 : 규칙.상판내림;
   const 하올림 = 아래덮 ? 0 : 규칙.하판올림;
@@ -734,11 +736,15 @@ function buildModel(s){
   const sideH = 측위끝 - 측아랫끝;
   const parts = [];
   const add = (name,x,y,z,w,d,h,dir,cut) => parts.push({name,x,y,z,w,d,h,dir,cut,pid:parts.length});
-  const 측깊 = CD + 측밈;                    // 측판 깊이 — 앞으로 나온 만큼 길어진다
-  add('측판', 안왼-Tside, -측밈, 측아랫끝, Tside, 측깊, sideH, [-1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
-  add('측판', 안오,       -측밈, 측아랫끝, Tside, 측깊, sideH, [ 1,0,0], {L:sideH, W:측깊, T:Tside, grain:'세로'});
+  /* 측판은 **겉면 자리 그대로**다 — 앞면 y 0, 깊이 CD. 전에는 `-측밈` 으로 끌어내 제품 깊이가 커졌다.
+     이제 **상판이 측밈 만큼 뒤로 들어간다** — 그래서 둘 사이 관계(측판이 상판보다 측밈 만큼 앞)는 그대로이고
+     **제품 최대 외경은 한 톨도 안 커진다**(10-01 사장님 말씀).
+     **하판은 건드리지 않았다** — 사장님이 「상판」 이라고 글자 그대로 말씀하셨다. */
+  add('측판', 안왼-Tside, 0, 측아랫끝, Tside, CD, sideH, [-1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
+  add('측판', 안오,       0, 측아랫끝, Tside, CD, sideH, [ 1,0,0], {L:sideH, W:CD, T:Tside, grain:'세로'});
   const tx = 위덮 ? 0 : 안왼, tw = 위덮 ? W : 안폭;
-  add('상판', tx, 0, 상판밑, tw, CD, Ttop, [0,0,1], {L:tw, W:CD, T:Ttop, grain:'가로'});
+  const 상깊 = CD - 측밈;                    // 상판 깊이 — 뒤로 들어간 만큼 짧아진다
+  add('상판', tx, 측밈, 상판밑, tw, 상깊, Ttop, [0,0,1], {L:tw, W:상깊, T:Ttop, grain:'가로'});
   const bx = 아래덮 ? 0 : 안왼, bwid = 아래덮 ? W : 안폭;   // 상판의 tx·tw 를 뒤집은 것이다
   add('하판', bx, 0, bz, bwid, CD, Tbot, [0,0,-1], {L:bwid, W:CD, T:Tbot, grain:'가로'});
   const innerH = 상판밑 - (bz + Tbot);

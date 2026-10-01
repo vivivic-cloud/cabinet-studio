@@ -121,12 +121,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('도로 0 · 0', await 재(), [18, 764, [0, 782]]);
 
   console.log('⑥ 상판이 측판 위면 「측판 내밈」 은 칸도 없고 셈에서도 0 이다');
+  /* 10-01 사장님 둘째 말씀으로 **측판은 겉면 자리에 그대로 있고 상판이 뒤로 들어간다**(§4.9899 아래).
+     그래서 측판 y 는 늘 0 · 깊이는 CD 고, 실제외경도 측밈 을 넣어도 안 변한다.
+     여기서 보는 것은 **「측판 위」 면 측밈이 0 이 되고 담긴 값은 남는가**이므로 그 자리만 고쳤다. */
   const 측 = () => p.evaluate(() => { const m = window.__probe.model();
     const q = m.parts.filter(x => x.name === '측판')[0];
     return [q.y, q.cut.W, m.측밈, m.외경.D, window.__probe.rule().측판내밈]; });
   { await 판({ topStyle:'inset', botStyle:'inset', doorMode:'in' });   // 인도어라야 외경이 내밈을 따라간다
     await 넣('측판내밈', 2.5);
-    맞나('측판 사이 · 내밈 2.5', await 측(), [-2.5, 402.5, 2.5, 405.2, 2.5]);
+    맞나('측판 사이 · 내밈 2.5', await 측(), [0, 400, 2.5, 402.7, 2.5]);
     await 판({ topStyle:'overlay' });
     // 담긴 값(2.5)은 그대로 두고 **보고 쓰는 것만** 막는다
     맞나('측판 위 — 내밈 0 과 같고 담긴 값은 남는다', await 측(), [0, 400, 0, 402.7, 2.5]);
@@ -134,7 +137,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="측판"] .optnum label')].map(l => l.textContent)),
       ['측판 들임 (상판)']);
     await 판({ topStyle:'inset' });
-    맞나('도로 측판 사이 — 2.5 가 살아난다', await 측(), [-2.5, 402.5, 2.5, 405.2, 2.5]);
+    맞나('도로 측판 사이 — 2.5 가 살아난다', await 측(), [0, 400, 2.5, 402.7, 2.5]);
     await 넣('측판내밈', 0);
     맞나('0 으로 되돌림', await 측(), [0, 400, 0, 402.7, 0]);
     await 판({ doorMode:'out' }); }
