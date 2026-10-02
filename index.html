@@ -325,7 +325,7 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 /* 09-30 사장님 말씀: 「이곳 사이즈 입력칸 아직도 커요 이로인해 부속간 여백이 커져있습니다」(측판 줄을 짚으시고).
    이 고르개가 곧 사장님이 말씀하시는 「사이즈 입력칸」 이다 — §0 의 34px 자를 여기에도 댄다.
    `select` 는 `::after` 를 못 얹으니 제 몸이 곧 닿는 자리다. 그래서 34 로 내렸다. */
-.two select{flex:1;min-width:0;min-height:34px;padding:0 6px;font-size:13px;border-radius:11px}
+.two select,.two input{flex:1;min-width:0;width:0;height:34px;min-height:34px;padding:0 6px;font-size:13px;border-radius:11px}
 .two .x{flex:none;width:28px;height:28px;padding:0;border-radius:50%;line-height:1;font-size:15px;color:var(--ink3);position:relative}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
 .two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:40px}
@@ -673,6 +673,17 @@ const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
       하판 「측판 아래」 에서 전면밴드를 없앨 때와 같은 길이다(`걸레높이 = 아래덮 ? 0 : plinth`). */
 const 품목없는부속 = { 수납장:[], 서랍장:['이동선반'] };
 const 품목밖 = (이름, 품) => (품목없는부속[품 || state.품목] || []).includes(이름);
+/* 품목마다 부속 **명칭**이 다르다 (10-02 사장님 말씀: 「**서랍장 품목의 고정선반의 명칭은 가로대 입니다**」).
+   ⚠ **저장 열쇠는 한 글자도 안 건드린다** — `data-part`·`data-opt`·`data-kill`·`Tshelf`·`규칙.고정선반들임`
+      다 옛 이름 그대로다(§4.85 「전면밴드 = 옛 걸레받이」 와 같은 길 — 열쇠를 바꾸면 담긴 값이 날아간다).
+      바뀌는 것은 **부속의 이름**뿐이다 — 부품표·도면·3D·화면 줄에 그 이름으로 나간다. */
+const 품목이름 = { 수납장:{}, 서랍장:{ 고정선반:'가로대' } };
+const 부속이름 = (이름, 품) => (품목이름[품 || state.품목] || {})[이름] || 이름;   // 본이름 → 그 품목의 명칭
+const 본이름 = (이름, 품) => { const m = 품목이름[품 || state.품목] || {};        // 명칭 → 본이름(저장 열쇠)
+  return Object.keys(m).find(k => m[k] === 이름) || 이름; };
+/* 그 품목에서 **두께(사이즈)를 0.5mm 단위로 임의 입력**하는 부속 (같은 말씀).
+   줄의 두께 고르개(`select`)를 숫자 칸으로 갈아 끼운다 — 담는 열쇠(`Tshelf`)는 그대로다. */
+const 품목자유두께 = { 수납장:[], 서랍장:['고정선반'] };
 /* 옛 한 벌(앞머리만 쓰던 것)을 **수납장** 으로 한 번만 옮겨 담는다.
    값은 한 글자도 안 고치고 통째로 옮긴다. 새 열쇠가 이미 있으면 아무것도 안 한다.
    **사장님이 맞춰 두신 값이 하나도 날아가면 안 된다** — 이것이 제일 중요하다(관리자). */
@@ -909,7 +920,7 @@ function buildModel(s){
     const 옆 = 이동 ? 규칙.이동좌우 : 0, 앞 = (이동 ? 규칙.이동앞뒤 : 0) + 들임;
     선반z += pitch;
     // 앞쪽에서 뺀다 — 뒤는 뒷판에 붙고 앞이 트여야 손으로 들어낼 수 있다
-    add(이동 ? '이동선반' : '고정선반', 안왼 + 옆, 도어물림 + 앞, 선반z,
+    add(이동 ? '이동선반' : 부속이름('고정선반', s.품목), 안왼 + 옆, 도어물림 + 앞, 선반z,
         안폭 - 2*옆, 선반깊이 - 앞, t, [0,-0.55,0], {L:안폭 - 2*옆, W:선반깊이 - 앞, T:t, grain:'가로'});
     if (!이동){ 고정센터.push(선반z + t/2); 고정선반자리.push([선반z, 선반z + t]); }
     선반z += t;
@@ -1143,7 +1154,7 @@ function buildDrawing(s, m, 치수배 = 1){
   dimH(m.안왼 - Tside, m.안왼, H, 120);
   dimV(0, H, W, 250);
   let prev = m.bz + Tbot;
-  목록.filter(p => p.name === '고정선반' || p.name === '이동선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + p.h; });
+  목록.filter(p => p.name === 부속이름('고정선반', s.품목) || p.name === '이동선반').forEach(p => { dimV(prev, p.z, W, 120); prev = p.z + p.h; });
   dimV(prev, m.상판밑, W, 120);
   if (m.bz > 0) dimV(0, m.bz, W, 120);
   제목('정면도  FRONT VIEW', W/2, -270, W);
@@ -1254,9 +1265,10 @@ function buildDrawing(s, m, 치수배 = 1){
   rect(bx, ty0 - 300, 표폭, 300, 'TITLE');
   line(bx, ty0 - 110, bx + 표폭, ty0 - 110, 'TITLE');
   text(`${s.품목 || '수납장'}  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
-  text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
+  const 선반명 = 부속이름('고정선반', s.품목);          // 서랍장에서는 「가로대」 다
+  text(`상판 ${Ttop}T · 측판 ${Tside}T · ${선반명} ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
   text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${m.이동단}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
+  text(`뒷판 ${TB}T · ${선반명} ${s.shelves}단 · 이동선반 ${m.이동단}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + 표폭/2, ty0 - 276, 26, 'TITLE');
   쪽 = 1;
   // 화면·SVG 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
@@ -1269,9 +1281,9 @@ function buildDrawing(s, m, 치수배 = 1){
     // 실제 외경 — 입력과 다를 때만 적는다. 같으면 같은 것을 두 번 적는 셈이라 줄을 접는다.
     ...(m.외경.같나 ? [] : [['실제외경', `W${fmt(m.외경.W)} × D${fmt(m.외경.D)} × H${fmt(m.외경.H)}`]]),
     ['재질·두께',   `상판 ${Ttop}T · 측판 ${Tside}T · 도어 ${Tdoor}T`],
-    ['',            `고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
+    ['',            `${선반명} ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
     ['',            `하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T · 뒷판 ${TB}T`],
-    ['구성',        `고정선반 ${s.shelves}단 · 이동선반 ${m.이동단}단`],
+    ['구성',        `${선반명} ${s.shelves}단 · 이동선반 ${m.이동단}단`],
     ['',            `문짝 ${s.doors}짝 · ${s.doorMode === 'in' ? '인도어' : '아웃도어'}`],
     ['투상법·단위', '제3각법 · mm'],
     ['날짜',        new Date().toISOString().slice(0,10)]
@@ -1327,7 +1339,7 @@ function bomRows(m){
   m.parts.forEach(p => {
     const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
     // 결은 사장님이 켠 것만 적는다 — 안 켰으면 빈칸이다(§4.96)
-    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 비고: (홈글 && 홈부속.includes(p.name)) ? 홈글 : '', ...p.cut, grain:결표기(p.name)});
+    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 비고: (홈글 && 홈부속.includes(p.name)) ? 홈글 : '', ...p.cut, grain:결표기(본이름(p.name))});
     map.get(k).qty += 1 + (p.더 || 0);
   });
   // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
@@ -1438,7 +1450,7 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
-const 부속차례 = ['측판','상판','하판','문짝','고정선반','이동선반','전면밴드','뒷판','밴드'];
+const 부속차례 = ['측판','상판','하판','문짝','고정선반','가로대','이동선반','전면밴드','뒷판','밴드'];
 const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
@@ -1453,7 +1465,7 @@ function 부속행들(m){
   const map = new Map();
   m.parts.forEach(p => {
     const k = `${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`;
-    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut, grain:결표기(p.name)});
+    if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut, grain:결표기(본이름(p.name))});
     map.get(k).qty += 1 + (p.더 || 0);
   });
   만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:결표기(c.이름), 홈:false}); });
@@ -2087,6 +2099,7 @@ function update(){
   숨김바();
   표값갱신();
   비활성갱신();                                                    // 지운 줄을 「비활성 부속」 으로 (사장님 말씀 09-22)
+  이름칸갱신();                                                    // 품목마다 이름표·사이즈 칸 (사장님 말씀 10-02)
   지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
@@ -2789,7 +2802,7 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
 /* ───────── 부속 만들기 · 관계제어판 ─────────
    만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
    제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
-const 붙박이 = ['상판','측판','선반','고정선반','이동선반','도어','하판','전면밴드','뒷판','문짝'];
+const 붙박이 = ['상판','측판','선반','고정선반','가로대','이동선반','도어','하판','전면밴드','뒷판','문짝'];
 const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
   // 밴드의 「상 · 중 · 하」 단추는 09-28 부터 **밴드의 상세옵션 안**에 있다 (사장님 말씀).
@@ -2874,7 +2887,7 @@ const 담을상태 = new Map();    // state 열쇠 → 〃 (전면밴드 같은 
 // 빈 글('')은 「담긴 것을 지운다」 — 그러면 다시 셈한 값을 따라간다(관리자 10-02).
 const 담을부속 = new Map();
 function 옵션치수(이름){
-  const r = 모델 ? bomRows(모델).find(x => x.name === 이름) : null;
+  const r = 모델 ? bomRows(모델).find(x => x.name === 부속이름(이름)) : null;
   return r ? { 가로:fmt(r.L), 세로:fmt(r.W) } : { 가로:'–', 세로:'–' };
 }
 /* 줄에 붙어 있던 옵션은 그 부속의 상세옵션 안으로 들어간다 (사장님 말씀 09-28):
@@ -3087,22 +3100,59 @@ document.addEventListener('change', e => {
    되살리면 제자리에 그대로 돌아온다.
    ⚠ `hidden` 으로는 안 된다 — `.field.gr{display:grid}` 가 `[hidden]` 을 이긴다(§7.5 의 그 탈).
    그래서 **인라인 `style.display`** 다. */
+/* 줄의 **이름표**와 **두께(사이즈) 칸**을 그 품목에 맞춘다 (10-02 사장님 말씀:
+   「서랍장 품목의 고정선반의 명칭은 **가로대** 입니다 — 이 가로대의 **사이즈는 0.5mm단위로 임의 입력**할 수 있습니다」).
+   §4.9895 에 적어 둔 대로 사장님이 「사이즈 입력칸」 이라 부르시는 것은 **줄의 두께 고르개**다.
+   그래서 그 고르개를 숫자 칸으로 갈아 끼운다. **담는 열쇠(`Tshelf`)·`data-*` 는 한 글자도 안 건드린다.**
+   ⚠ 손이 얹힌 칸은 갈지 않는다 — 치는 중에 노드를 갈면 치던 것을 놓친다(§4.94 와 같은 자물쇠). */
+function 이름칸갱신(){
+  document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
+    const 본 = 줄.dataset.part, 글 = 부속이름(본), 이름표 = 줄.querySelector('.pname');
+    if (이름표){
+      if (줄.dataset.이름표 === undefined) 줄.dataset.이름표 = 이름표.textContent;   // 처음 이름표를 붙들어 둔다
+      const 쓸글 = 글 === 본 ? 줄.dataset.이름표 : 글;
+      if (이름표.textContent !== 쓸글) 이름표.textContent = 쓸글;
+    }
+    const 칸 = 줄.querySelector('.two [data-key]');
+    if (!칸 || 칸 === document.activeElement) return;
+    if (줄.dataset.고르개 === undefined && 칸.tagName === 'SELECT') 줄.dataset.고르개 = 칸.outerHTML;
+    const 자유 = (품목자유두께[state.품목] || []).includes(본), 열쇠 = 칸.dataset.key;
+    if (자유 === (칸.tagName === 'INPUT')) {                        // 이미 맞다 — 값만 맞춘다
+      if (칸.tagName === 'SELECT' && ![...칸.options].some(o => Number(o.value) === state[열쇠]))
+        칸.add(new Option(String(state[열쇠]), String(state[열쇠])));   // 목록에 없는 값도 그대로 보인다
+      칸.value = String(state[열쇠]); return;
+    }
+    let 새;
+    if (자유){
+      새 = document.createElement('input');
+      새.id = 칸.id; 새.dataset.key = 열쇠; 새.type = 'number';
+      새.min = '0.5'; 새.max = '200'; 새.step = '0.5'; 새.value = String(state[열쇠]);
+    } else {
+      새 = document.createElement('div'); 새.innerHTML = 줄.dataset.고르개; 새 = 새.firstElementChild;
+      if (![...새.options].some(o => Number(o.value) === state[열쇠]))
+        새.add(new Option(String(state[열쇠]), String(state[열쇠])));
+      새.value = String(state[열쇠]);
+    }
+    새.setAttribute('aria-label', `${글} 사이즈`);
+    칸.replaceWith(새);
+  });
+}
 function 비활성갱신(){
   const 죽은 = new Set(되살릴것().map(x => x.이름));
   // 그 품목에 발생하지 않는 부속은 줄째 안 보인다 — 지움·숨김 손질과 **섞지 않는다**
   // (사장님이 수납장에서 지워 두신 것이 서랍장에 묻으면 안 된다).
   document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
-    줄.style.display = (품목밖(줄.dataset.part) || 죽은.has(줄.dataset.part)) ? 'none' : '';
+    줄.style.display = (품목밖(줄.dataset.part) || 죽은.has(부속이름(줄.dataset.part))) ? 'none' : '';
   });
 }
 function 지우기단추갱신(){
   const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
   document.querySelectorAll('.params .two .x[data-kill]').forEach(el =>
-    el.classList.toggle('없음', !선것.has(el.dataset.kill)));
+    el.classList.toggle('없음', !선것.has(부속이름(el.dataset.kill))));
 }
 document.querySelectorAll('.params .two .x[data-kill]').forEach(el => el.addEventListener('click', () => {
-  if (el.classList.contains('없음')){ toast(`${el.dataset.kill} 은 이미 빠져 있습니다 — 「부속추가」 칸을 누르면 되살립니다`); return; }
-  부속지우기(el.dataset.kill);
+  if (el.classList.contains('없음')){ toast(`${부속이름(el.dataset.kill)} 은 이미 빠져 있습니다 — 「부속추가」 칸을 누르면 되살립니다`); return; }
+  부속지우기(부속이름(el.dataset.kill));
 }));
 function 부속지우기(이름){
   const i = 만든부속.findIndex(c => c.이름 === 이름);

@@ -100,7 +100,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('② 진짜 손가락으로 서랍장 — 이동선반이 발생하지 않는다');
   맞나('서랍장을 눌렀나', await 품목고르기('서랍장'), true);
   맞나('state.품목', await p.evaluate(() => window.__probe.st().품목), '서랍장');
-  맞나('이동선반 0장 · 고정선반 3장', [await 장수('이동선반'), await 장수('고정선반')], [0, 3]);
+  // 서랍장에서 고정선반의 명칭은 「가로대」 다 (10-02 사장님 말씀 · §4.9874)
+  맞나('이동선반 0장 · 가로대 3장', [await 장수('이동선반'), await 장수('가로대')], [0, 3]);
   맞나('m.이동단 0', await 이동단(), 0);
   맞나('도면 머리·표제란 0단', await 도면단(), ['0', '0']);
   맞나('부품표에 이동선반 줄 없다', (await 표이름()).includes('이동선반'), false);
@@ -129,7 +130,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => window.__probe.set({ shelves: 0, shelvesM: 2 })); await 잠(300);
   맞나('수납장 · 고정 0 이동 2', [await 장수('고정선반'), await 장수('이동선반')], [0, 2]);
   await 품목고르기('서랍장');
-  맞나('서랍장 · 선반 0장 · pitch = 안높이', [await 장수('고정선반'), await 장수('이동선반'),
+  맞나('서랍장 · 선반 0장 · pitch = 안높이', [await 장수('가로대'), await 장수('이동선반'),
     await p.evaluate(() => +window.__probe.model().pitch.toFixed(1) === +window.__probe.model().innerH.toFixed(1))], [0, 0, true]);
   맞나('#stPitch 는 안높이를 적는다', await p.evaluate(() => document.querySelector('#stPitch').textContent), '1684 mm');
   await p.evaluate(() => window.__probe.set({ shelves: 3, shelvesM: 2 })); await 잠(300);
@@ -157,8 +158,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 이동없음 = await p.evaluate(() => window.__probe.model().parts
     .map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n'));
   await p.evaluate(() => window.__probe.set({ shelvesM: 2 })); await 품목고르기('서랍장');
-  맞나('서랍장(이동 2단) 이 수납장 이동 0단과 한 톨도 같다', await p.evaluate(() =>
-    window.__probe.model().parts.map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n')) === 이동없음, true);
+  맞나('서랍장(이동 2단) 이 수납장 이동 0단과 같다 (이름만 가로대)', (await p.evaluate(() =>
+    window.__probe.model().parts.map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n')))
+    .split('가로대').join('고정선반') === 이동없음, true);
 
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();

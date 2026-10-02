@@ -119,7 +119,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   // 처음 고르는 품목이면 **수납장 것을 베껴** 시작한다 (10-02 관리자)
   맞나('서랍장 — 수납장 것을 베껴 왔다 (우라홈 15 · 만든 부속 1)', await p.evaluate(() =>
     [window.__probe.rule().우라홈, window.__probe.model().parts.filter(x => x.name === '밴드').length]), [15, 1]);
-  맞나('⑤ 서랍장의 부속·치수가 그때 수납장과 글자까지 같다', await 모양() === 수납지금, true);
+  // ⚠ 이름 하나만 다르다 — 서랍장의 고정선반은 「가로대」 다(10-02 사장님 말씀 · §4.9874)
+  맞나('⑤ 서랍장의 부속·치수가 그때 수납장과 같다 (이름만 가로대)',
+    (await 모양()).split('가로대').join('고정선반') === 수납지금, true);
 
   // 서랍장에서 다른 값을 고친다
   await p.evaluate(() => { window.__probe.rule().우라홈 = 20; window.__probe.set({}); }); await 잠(300);
