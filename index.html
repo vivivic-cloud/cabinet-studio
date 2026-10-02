@@ -474,6 +474,13 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 
   <aside class="params" aria-label="치수 설정">
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
+    <div class="group" id="itemBox">
+      <h2>품목</h2>
+      <div class="field wide"><div class="seg mini" role="group" aria-label="품목">
+        <label><input type="radio" name="품목" value="수납장" checked>수납장</label>
+        <label><input type="radio" name="품목" value="서랍장">서랍장</label>
+      </div></div>
+    </div>
     <div class="group" id="boardBox">
       <h2>보드선택</h2>
       <div class="field gr" data-home="0" data-part="상판"><button type="button" class="pname" data-opt="상판" aria-expanded="false">상판</button><div class="two"><select id="Ttop" data-key="Ttop" aria-label="상판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="상판" aria-label="상판 지우기">×</button></div><div class="opt" data-opt="상판" hidden></div></div>
@@ -714,7 +721,7 @@ function 담기(){ try {
   localStorage.setItem(곳간 + '.결', JSON.stringify(결설정));
 } catch (e) {} }
 
-const state = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
+const state = { 품목:'수납장', W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1155,7 +1162,7 @@ function buildDrawing(s, m, 치수배 = 1){
   쪽 = 2;
   rect(bx, ty0 - 300, 표폭, 300, 'TITLE');
   line(bx, ty0 - 110, bx + 표폭, ty0 - 110, 'TITLE');
-  text(`수납장  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
+  text(`${s.품목 || '수납장'}  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
   text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
   text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
   text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
@@ -1166,7 +1173,7 @@ function buildDrawing(s, m, 치수배 = 1){
   // 값 칸 폭은 780 이다. 한글은 글자당 24 쯤 먹으므로 한 줄에 서른 자를 넘기지 않게 끊어 적는다.
   const ty = yEnd - 160, tw = 표폭, lw = 240, rh2 = 58;
   const 표제 = [
-    ['품명',        규칙.이름 || '수납장', 36],
+    ['품명',        규칙.이름 || s.품목 || '수납장', 36],
     ['치수',        `W${W} × D${D} × H${H}`],
     // 실제 외경 — 입력과 다를 때만 적는다. 같으면 같은 것을 두 번 적는 셈이라 줄을 접는다.
     ...(m.외경.같나 ? [] : [['실제외경', `W${fmt(m.외경.W)} × D${fmt(m.외경.D)} × H${fmt(m.외경.H)}`]]),
@@ -2174,6 +2181,10 @@ document.addEventListener('change', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (!el) return;
+  /* 10-02 사장님 말씀 — 「품목에 서랍장을 추가해 … 품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이
+     나타나게 … 서랍장의 기본세팅은 일단 현재 수납장과 동일하게」. 그래서 **지금은 이름만 갈린다.**
+     `buildModel` 은 한 글자도 안 건드렸다 — 두 품목이 같은 셈을 쓴다. 서랍장만의 관계가 정해지면 여기서 갈린다. */
+  if (el.name === '품목' && el.checked){ state.품목 = el.value; update(); return; }
   if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); 결단추갱신(); update(); return; }
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
@@ -2426,7 +2437,7 @@ function 부품표SVG(){
   const o = [];
   const 선 = (x1,y1,x2,y2,굵기) => o.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#111110" stroke-width="${굵기}"/>`);
   const 글 = (t,cx,cy,크기,정렬,색,굵게) => o.push(`<text x="${cx}" y="${cy}" font-size="${크기}" text-anchor="${정렬||'middle'}" dominant-baseline="central" fill="${색||'#111110'}"${굵게 ? ' font-weight="700"' : ''}>${esc(String(t))}</text>`);
-  글(`${규칙.이름 || '수납장'}   W${state.W} × D${state.D} × H${state.H}`, 여백, 52, 34, 'start', '#111110', true);
+  글(`${규칙.이름 || state.품목 || '수납장'}   W${state.W} × D${state.D} × H${state.H}`, 여백, 52, 34, 'start', '#111110', true);
   글(`재단 치수 · 결 방향 기준 · 단위 mm · ${new Date().toISOString().slice(0,10)}`, 여백, 100, 22, 'start', '#6E6E6A');
   [머리, ...rows.map(r => [r.name, String(r.qty), fmt(r.L), fmt(r.W), String(r.T), r.grain].concat(비고 ? [r.비고 || ''] : []))]
     .forEach((줄, i) => {
