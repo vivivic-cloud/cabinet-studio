@@ -39,6 +39,11 @@ button.primary:hover{background:var(--ink);border-color:var(--ink)}
 button:disabled{opacity:.5;cursor:default}
 .params{grid-area:params;padding:18px 20px 24px;display:flex;flex-direction:column;gap:18px;overflow:auto}
 .group{display:flex;flex-direction:column;gap:10px}
+/* 10-02 사장님 말씀 「과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼」 — 설정 칸 맨 위 오른쪽.
+   단추라 44px 이다(§0). 되돌릴 것이 없으면 흐리고 안 눌린다. */
+#undoBox{flex-direction:row;justify-content:flex-end;gap:0}
+#undoBox button{min-height:44px;padding:0 14px}
+#undoBox button[disabled]{opacity:.35}
 .group h2{margin:0;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:800;
   display:flex;align-items:center;gap:8px}
 .group h2::after{content:"";flex:1;height:1px;background:var(--line2)}
@@ -474,6 +479,9 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 
   <aside class="params" aria-label="치수 설정">
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
+    <div class="group" id="undoBox">
+      <button type="button" id="btnUndo" disabled>되돌리기</button>
+    </div>
     <div class="group" id="itemBox">
       <h2>품목</h2>
       <div class="field wide"><div class="seg mini" role="group" aria-label="품목">
@@ -814,6 +822,51 @@ const 상태열쇠 = Object.keys(state).filter(k => k !== '품목');
 const 품목상태 = {};
 const 상태담기 = 품 => { const o = {}; 상태열쇠.forEach(k => o[k] = state[k]); 품목상태[품] = o; };
 const 상태읽기 = 품 => { const o = 품목상태[품]; if (o) 상태열쇠.forEach(k => state[k] = o[k]); };
+/* 10-02 사장님 말씀: 「**과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼**을 만들어 주세요」.
+   한 벌을 통째로 글로 적어 쌓는다 — 품목 · `state` · 품목마다 쥔 `state` · 규칙 · 만든부속 · 손질 ·
+   지난부속 · 결. **`update()` 끝에서 적는다** — 값이 바뀌는 길이 거기로 다 모이기 때문이다
+   (칸·끌개·단추·3D 손질·관계제어판·품목 바꾸기가 다 `update()` 로 끝난다).
+   ⚠ **빠르게 치는 것은 한 단계로 묶는다** — 「1200」 을 치면 1·12·120·1200 네 번 바뀌는데
+      그것을 네 단계로 쌓으면 「한단계씩」 이 아니다. 0.6초 안에 또 바뀌면 **맨 위를 덮어쓴다.** */
+const 되돌림쌓기 = [], 되돌림최대 = 50, 되돌림묶음 = 600;
+let 마지막설정 = null, 마지막적은때 = 0, 되돌림중 = false;
+const 지금설정 = () => JSON.stringify({ 품목: 지금품목,
+  상태: 상태열쇠.reduce((o, k) => (o[k] = state[k], o), {}), 품목상태,
+  규칙, 부속: 만든부속, 손질, 지난부속, 결: 결설정 });
+function 되돌림단추(){ const b = document.getElementById('btnUndo'); if (b) b.disabled = !되돌림쌓기.length; }
+function 되돌림적기(){
+  const 지금 = 지금설정();
+  if (마지막설정 === null){ 마지막설정 = 지금; 되돌림단추(); return; }
+  if (지금 === 마지막설정) return;
+  if (!되돌림중){
+    const 때 = Date.now();
+    // 0.6초 안에 또 바뀌면 그 전 것을 덮어쓴다 — 치는 동안은 한 단계다
+    if (!(되돌림쌓기.length && 때 - 마지막적은때 < 되돌림묶음)) 되돌림쌓기.push(마지막설정);
+    while (되돌림쌓기.length > 되돌림최대) 되돌림쌓기.shift();
+    마지막적은때 = 때;
+  }
+  마지막설정 = 지금; 되돌림단추();
+}
+function 설정넣기(글){
+  const o = JSON.parse(글);
+  지금품목 = o.품목; state.품목 = o.품목;
+  상태열쇠.forEach(k => { if (o.상태[k] !== undefined) state[k] = o.상태[k]; });
+  Object.keys(품목상태).forEach(k => delete 품목상태[k]);
+  Object.assign(품목상태, o.품목상태);
+  규칙 = o.규칙; 만든부속 = o.부속; 손질 = o.손질; 지난부속 = o.지난부속; 결설정 = o.결;
+  try { localStorage.setItem(곳간 + '.품목', 지금품목); } catch (e) {}
+  담기();
+  열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
+  const b = document.querySelector(`#itemBox input[name="품목"][value="${CSS.escape(지금품목)}"]`);
+  if (b) b.checked = true;
+  부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
+}
+function 되돌리기한단계(){
+  if (!되돌림쌓기.length) return;
+  되돌림중 = true;
+  try { 설정넣기(되돌림쌓기.pop()); } finally { 되돌림중 = false; }
+  마지막설정 = 지금설정(); 되돌림단추();
+}
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -2134,6 +2187,7 @@ function update(){
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
   밴드살피기();
+  되돌림적기();                                                    // 과거 설정 한 벌 (사장님 말씀 10-02)
 }
 
 /* ───────── 밴드가 측판보다 튀어나오는 것을 경고한다 ─────────
@@ -3441,6 +3495,7 @@ $('#rClose').addEventListener('click', () => $('#rulesDlg').close());
 $('#rX').addEventListener('click', () => $('#rulesDlg').close());
 $('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담기(); 제어판그리기(); update(); });
 $('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
+$('#btnUndo').addEventListener('click', 되돌리기한단계);
 
 // 마지막에 보던 품목에 단추를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
 { const b2 = document.querySelector(`#itemBox input[name="품목"][value="${CSS.escape(state.품목)}"]`);
