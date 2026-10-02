@@ -118,12 +118,20 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 잠(500);
   맞나('state.품목', await p.evaluate(() => window.__probe.st().품목), '서랍장');
   맞나('도면 품명 (서랍장)', await 품명(), ['서랍장  W800 × D400 × H1800', '서랍장']);
-  /* ⚠ 10-02 사장님 말씀(「서랍장 품목의 고정선반의 명칭은 **가로대**」 · §4.9874)으로
-     **이름 하나만** 달라졌다. 자리·치수·수량은 그대로다 — 이름을 되돌려 견준다. */
-  const 되돌림 = x => x.split('가로대').join('고정선반');
-  맞나('이름만 빼면 부속·치수가 수납장과 같나', 되돌림(await 모양()) === 수납모양, true);
-  맞나('이름만 빼면 부품표가 수납장과 같나', 되돌림(await 표()) === 수납표, true);
-  맞나('다른 것은 그 이름 하나뿐이다', [await 모양() === 수납모양, (await 모양()).includes('가로대')], [false, true]);
+  /* ⚠ 「일단 동일하게」 는 10-02 사장님 말씀 **셋**으로 그만큼씩 갈렸다 —
+     이동선반 없음(§4.9875) · 고정선반 → 가로대(§4.9874) · 도어 → 마이다 위아래 분할(§4.9873).
+     그래서 **몸통(상판·측판·하판·전면밴드·뒷판)이 글자까지 같은지**로 견주고, 갈린 셋은 따로 못 박는다. */
+  const 몸통 = 글 => 글.split('\n').filter(x => /^(상판|측판|하판|전면밴드|뒷판)\|/.test(x)).join('\n');
+  맞나('몸통은 수납장과 글자까지 같다', 몸통(await 모양()) === 몸통(수납모양), true);
+  맞나('가로대 자리·치수가 수납장 고정선반과 같다',
+    (await 모양()).split('\n').filter(x => /^가로대\|/.test(x)).join('\n').split('가로대').join('고정선반')
+    === 수납모양.split('\n').filter(x => /^고정선반\|/.test(x)).join('\n'), true);
+  맞나('갈린 셋 — 이동선반 0 · 가로대 있다 · 마이다 있다', await p.evaluate(() => {
+    const n = window.__probe.model().parts.map(x => x.name);
+    return [n.filter(x => x === '이동선반').length, n.includes('가로대'), n.includes('마이다')]; }), [0, true, true]);
+  맞나('부품표도 몸통 줄은 같다',
+    (await 표()).split('|').filter(x => /^(상판|측판|하판|전면밴드|뒷판)/.test(x)).join('|')
+    === 수납표.split('|').filter(x => /^(상판|측판|하판|전면밴드|뒷판)/.test(x)).join('|'), true);
 
   console.log('⑤ 수납장으로 되돌리면 그대로다');
   맞나('수납장을 눌렀나', await 손가락('#itemBox label:has(input[value="수납장"])'), true);

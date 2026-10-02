@@ -158,9 +158,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 이동없음 = await p.evaluate(() => window.__probe.model().parts
     .map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n'));
   await p.evaluate(() => window.__probe.set({ shelvesM: 2 })); await 품목고르기('서랍장');
-  맞나('서랍장(이동 2단) 이 수납장 이동 0단과 같다 (이름만 가로대)', (await p.evaluate(() =>
+  /* 도어는 서랍장에서 마이다로 갈려 자리가 다르다(§4.9873) — 여기서 보는 것은 **선반**이므로 뺀다. */
+  const 도어빼기 = 글 => 글.split('\n').filter(x => !/^(문짝|마이다)\|/.test(x)).join('\n');
+  맞나('서랍장(이동 2단) 의 선반·몸통이 수납장 이동 0단과 같다 (이름만 가로대)', 도어빼기((await p.evaluate(() =>
     window.__probe.model().parts.map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n')))
-    .split('가로대').join('고정선반') === 이동없음, true);
+    .split('가로대').join('고정선반')) === 도어빼기(이동없음), true);
 
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();

@@ -677,13 +677,17 @@ const 품목밖 = (이름, 품) => (품목없는부속[품 || state.품목] || [
    ⚠ **저장 열쇠는 한 글자도 안 건드린다** — `data-part`·`data-opt`·`data-kill`·`Tshelf`·`규칙.고정선반들임`
       다 옛 이름 그대로다(§4.85 「전면밴드 = 옛 걸레받이」 와 같은 길 — 열쇠를 바꾸면 담긴 값이 날아간다).
       바뀌는 것은 **부속의 이름**뿐이다 — 부품표·도면·3D·화면 줄에 그 이름으로 나간다. */
-const 품목이름 = { 수납장:{}, 서랍장:{ 고정선반:'가로대' } };
+const 품목이름 = { 수납장:{}, 서랍장:{ 고정선반:'가로대', 문짝:'마이다' } };
 const 부속이름 = (이름, 품) => (품목이름[품 || state.품목] || {})[이름] || 이름;   // 본이름 → 그 품목의 명칭
 const 본이름 = (이름, 품) => { const m = 품목이름[품 || state.품목] || {};        // 명칭 → 본이름(저장 열쇠)
   return Object.keys(m).find(k => m[k] === 이름) || 이름; };
 /* 그 품목에서 **두께(사이즈)를 0.5mm 단위로 임의 입력**하는 부속 (같은 말씀).
    줄의 두께 고르개(`select`)를 숫자 칸으로 갈아 끼운다 — 담는 열쇠(`Tshelf`)는 그대로다. */
 const 품목자유두께 = { 수납장:[], 서랍장:['고정선반'] };
+/* 도어 방식의 이름 — 서랍장은 「외부 / 내부」 다 (10-02 사장님 말씀: 「도어의 인도어 아웃도어 와
+   **동일 개념의 외부/내부** 선택이 가능하게」). **값(`out`·`in`)과 셈은 한 글자도 안 건드렸다 — 이름만이다.** */
+const 모드값 = { 수납장:{ out:'아웃도어', in:'인도어' }, 서랍장:{ out:'외부', in:'내부' } };
+const 모드글 = (v, 품) => (모드값[품 || state.품목] || 모드값.수납장)[v];
 /* 옛 한 벌(앞머리만 쓰던 것)을 **수납장** 으로 한 번만 옮겨 담는다.
    값은 한 글자도 안 고치고 통째로 옮긴다. 새 열쇠가 이미 있으면 아무것도 안 한다.
    **사장님이 맞춰 두신 값이 하나도 날아가면 안 된다** — 이것이 제일 중요하다(관리자). */
@@ -948,8 +952,17 @@ function buildModel(s){
     add('뒷판', bx0, CD, bz0, bw, TB, bh, [0,1,0], {L:bh, W:bw, T:TB, grain:'세로'});
   }
   let 앞으로 = 0;                            // 도어가 몸통 앞으로 나온 길이 (도면 치수선이 쓴다)
-  if (doors > 0){
-    const n = doors, gap = 규칙.도어사이;
+  /* 10-02 사장님 말씀: 「**서랍장 품목의 도어의 명칭은 마이다 입니다. 마이다는 8개까지 분할이 가능하며
+     분할시 현재 설정된 도어의 높이에서 각 분할 마이다 간 4mm의 빈공간이 생기며 동일사이즈로 분할** 되게
+     해주세요. 도어의 인도어 아웃도어 와 **동일 개념의 외부/내부** 선택이 가능하게 해주세요」.
+     - 수납장 문짝은 **좌우로** 나뉘고(0·1·2), 서랍장 마이다는 **위아래로** 나뉜다(0~8).
+     - 4mm 는 이미 쓰고 있는 `규칙.도어사이`(기본 4) 그대로다 — 같은 뜻이라 값을 새로 만들지 않았다.
+     - 담는 열쇠도 `state.doors` 그대로다. **수납장은 셈에서 2 를 넘지 않게 본다**(단추가 0·1·2 뿐이다) —
+       담긴 숫자는 안 지운다(§4.9875 와 같은 길). `state` 가 품목마다 갈라지면 이 한 줄은 없어도 된다. */
+  const 도어명 = 부속이름('문짝', s.품목), 세로분할 = 도어명 === '마이다';
+  const 문수 = Math.min(doors, 세로분할 ? 8 : 2);
+  if (문수 > 0){
+    const n = 문수, gap = 규칙.도어사이;
     let x0, x1, z0, z1, dy;
     if (s.doorMode === 'in'){                // 인도어 — 몸통 안. 다는 쪽 2mm, 맞닿는 나머지 면 3mm
       // 사장님 말씀(09-28): 「이 옵션은 삭제해주고 관련 로직도 모두 삭제해줘」 — 좌·우 고르개를 없앴다.
@@ -968,14 +981,17 @@ function buildModel(s){
       // 그래서 몸통 앞면에서 `아웃경첩` 만큼 띄우고 그 앞에 도어를 세운다. 도어 재단 치수는 안 바뀐다.
       dy = -(Tdoor + 규칙.아웃경첩); 앞으로 = Tdoor + 규칙.아웃경첩;   // 몸통 앞으로 나온 길이 = 유격 + 두께
     }
-    const dw = (x1 - x0 - (n-1)*gap) / n, dh = z1 - z0;
+    // 마이다는 폭을 다 쓰고 **높이**를 고르게 나눈다 — 문짝은 높이를 다 쓰고 **폭**을 나눈다.
+    const dw = 세로분할 ? (x1 - x0) : (x1 - x0 - (n-1)*gap) / n;
+    const dh = 세로분할 ? (z1 - z0 - (n-1)*gap) / n : (z1 - z0);
     for (let k = 0; k < n; k++){
-      add('문짝', x0 + k*(dw+gap), dy, z0, dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
+      add(도어명, 세로분할 ? x0 : x0 + k*(dw+gap), dy, 세로분할 ? z0 + k*(dh+gap) : z0,
+          dw, Tdoor, dh, [0,-1.7,0], {L:dh, W:dw, T:Tdoor, grain:'세로'});
       // 인도어 ↔ 아웃도어 로 바꾸면 문짝 자리(x,y,z)가 통째로 달라진다. 자리 열쇠만 쓰면
       // 한쪽에서 숨기거나 지운 것이 다른 쪽에서 되살아나고 되돌아오면 또 사라진다
       // — 사장님 말씀(09-22) 「아웃도어 선택시 도어 자체가 사라진다」 가 이것이다.
       // 그래서 짝 번호로 붙잡는 열쇠를 따로 붙인다(밴드의 단 열쇠와 같은 길).
-      parts[parts.length-1].단열쇠 = `문짝@짝:${k}`;
+      parts[parts.length-1].단열쇠 = `${도어명}@짝:${k}`;
     }
   }
   // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」 (09-16 고쳐 주신 규칙).
@@ -1081,7 +1097,7 @@ function buildModel(s){
   const 자 = (앞, 뒤) => 보임.length ? +(Math.max(...보임.map(뒤)) - Math.min(...보임.map(앞))).toFixed(3) : 0;
   const 외경 = { W: 자(p => p.x, p => p.x + p.w), D: 자(p => p.y, p => p.y + p.d), H: 자(p => p.z, p => p.z + p.h) };
   외경.같나 = Math.abs(외경.W - W) < 0.001 && Math.abs(외경.D - D) < 0.001 && Math.abs(외경.H - H) < 0.001;
-  return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊, 이동단,
+  return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊, 이동단, 문수,
            앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 밴드높, 걸림자리, 외경 };
 }
 
@@ -1144,8 +1160,9 @@ function buildDrawing(s, m, 치수배 = 1){
      **꾸밈 클래스(`굵기`)로만 준다** — 층(`OUTLINE`·`HATCH`)은 그대로라 **DXF 는 한 바이트도 안 변한다**(§2).
      DXF 에는 투명도가 없고, 층을 새로 만들면 네 기준값이 움직인다. */
   const 옅게 = p => p.name === '이동선반' ? '옅음' : undefined;
-  const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== '문짝');
-  const doors = 목록.filter(p => p.name === '문짝');
+  const 도어명 = 부속이름('문짝', s.품목);          // 서랍장에서는 「마이다」 다
+  const carcass = 목록.filter(p => p.name !== '뒷판' && p.name !== 도어명);
+  const doors = 목록.filter(p => p.name === 도어명);
 
   // 정면도 — 문짝은 숨은선
   carcass.forEach(p => 부속(p, () => rect(p.x, p.z, p.w, p.h, 'OUTLINE', 옅게(p))));
@@ -1268,7 +1285,7 @@ function buildDrawing(s, m, 치수배 = 1){
   const 선반명 = 부속이름('고정선반', s.품목);          // 서랍장에서는 「가로대」 다
   text(`상판 ${Ttop}T · 측판 ${Tside}T · ${선반명} ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
   text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · ${선반명} ${s.shelves}단 · 이동선반 ${m.이동단}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
+  text(`뒷판 ${TB}T · ${선반명} ${s.shelves}단 · 이동선반 ${m.이동단}단 · ${도어명} ${m.문수}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + 표폭/2, ty0 - 276, 26, 'TITLE');
   쪽 = 1;
   // 화면·SVG 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
@@ -1284,7 +1301,7 @@ function buildDrawing(s, m, 치수배 = 1){
     ['',            `${선반명} ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
     ['',            `하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T · 뒷판 ${TB}T`],
     ['구성',        `${선반명} ${s.shelves}단 · 이동선반 ${m.이동단}단`],
-    ['',            `문짝 ${s.doors}짝 · ${s.doorMode === 'in' ? '인도어' : '아웃도어'}`],
+    ['',            `${도어명} ${m.문수}${도어명 === '마이다' ? '개' : '짝'} · ${모드글(s.doorMode, s.품목)}`],
     ['투상법·단위', '제3각법 · mm'],
     ['날짜',        new Date().toISOString().slice(0,10)]
   ];
@@ -1450,7 +1467,7 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
-const 부속차례 = ['측판','상판','하판','문짝','고정선반','가로대','이동선반','전면밴드','뒷판','밴드'];
+const 부속차례 = ['측판','상판','하판','문짝','마이다','고정선반','가로대','이동선반','전면밴드','뒷판','밴드'];
 const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
@@ -2048,7 +2065,7 @@ function rebuild3D(m){
   m.parts.forEach(p => {
     if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 다 나온다)
     const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
-    const base = mat(p.cut.T, p.name === '문짝', p.name === '이동선반');
+    const base = mat(p.cut.T, p.name === 부속이름('문짝'), p.name === '이동선반');
     const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
@@ -2802,7 +2819,7 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
 /* ───────── 부속 만들기 · 관계제어판 ─────────
    만든 부속은 이름이 겹칠 수 없다. 처음부터 있던 일곱은 지울 수 없다.
    제어판은 보드선택 아래 작은 고리 하나로만 들어간다 — 평소 화면에는 규칙 숫자를 늘어놓지 않는다. */
-const 붙박이 = ['상판','측판','선반','고정선반','가로대','이동선반','도어','하판','전면밴드','뒷판','문짝'];
+const 붙박이 = ['상판','측판','선반','고정선반','가로대','이동선반','도어','마이다','하판','전면밴드','뒷판','문짝'];
 const 두께값 = [12,15,18,23,24,25,28,55];
 function 부속그리기(){
   // 밴드의 「상 · 중 · 하」 단추는 09-28 부터 **밴드의 상세옵션 안**에 있다 (사장님 말씀).
@@ -2957,12 +2974,16 @@ function 줄옵션(이름){
          옛 `걸레앞` 을 **옮겨 담았다**(관리자가 정했다 — 같은 값이 관계제어판과 둘이어서 하나로 모았다).
          관계제어판의 같은 줄은 뺐다 — 같은 것을 두 군데 두지 않는다(§0). */
       유격칸('전면밴드유격', '전면밴드유격', 200);
-  if (이름 === '문짝')
-    return `<div class="seg mini" role="group" aria-label="문짝">` +
-      [['0','0'],['1','1'],['2','2']].map(([v,글]) =>
-        `<label><input type="radio" name="doors" value="${v}"${String(state.doors)===v?' checked':''}>${글}</label>`).join('') +
-      `</div><div class="opthead">도어 방식</div><div class="seg mini" role="group" aria-label="도어 방식">` +
-      [['out','아웃도어'],['in','인도어']].map(([v,글]) =>
+  if (이름 === '문짝'){
+    // 서랍장 마이다는 **8개까지 분할**이다 (10-02 사장님 말씀). 수납장 문짝은 0·1·2 그대로.
+    const 끝 = 부속이름('문짝') === '마이다' ? 8 : 2;
+    const 모드 = 모드값[state.품목] || 모드값.수납장;
+    return `<div class="seg mini" role="group" aria-label="${esc(부속이름('문짝'))}">` +
+      [...Array(끝 + 1).keys()].map(v =>
+        `<label><input type="radio" name="doors" value="${v}"${state.doors===v?' checked':''}>${v}</label>`).join('') +
+      `</div><div class="opthead">${끝 === 8 ? '마이다 방식' : '도어 방식'}</div>` +
+      `<div class="seg mini" role="group" aria-label="도어 방식">` +
+      [['out',모드.out],['in',모드.in]].map(([v,글]) =>
         `<label><input type="radio" name="doorMode" value="${v}"${state.doorMode===v?' checked':''}>${글}</label>`).join('') +
       `</div>`
       /* 10-02 사장님 말씀: 「도어옵션에 도어의 **상 하부 유격높이**를 조정하는 옵션을 만들어 주세요.
@@ -2973,6 +2994,7 @@ function 줄옵션(이름){
       + 유격칸('도어 위 유격', state.doorMode === 'in' ? '인위' : '아웃위')
       + 유격칸('도어 아래 유격', state.doorMode === 'in' ? '인아래'
           : ((state.botStyle !== 'under' && state.plinth > 0) ? '아웃아래걸레' : '아웃아래없음'));
+  }
   if (이름 === '뒷판')
     // 10-01 사장님 말씀: 「우라홈은 뒷판 끼우기 옵션 적용시 뒷판의 옵션조정에 나타나게 해줘」.
     // 줄 밑에 홀로 서 있던 칸(`#backInWrap`)을 여기로 들였다 — 부속마다 있는 옵션은 그 부속 판 안이다(§4.94).
