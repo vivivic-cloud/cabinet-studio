@@ -30,7 +30,7 @@ const 손질 = () => {
   s = s.replace(/\s*<script[^>]*viggle[^>]*><\/script>/i, '');
   const 못 = 'init3D();';
   if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
-  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),rule:()=>규칙,st:()=>state,draw:()=>drawing,svgf:()=>svgForFile(drawing),dxf:()=>buildDXF(drawing)};' + 못);
+  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),rule:()=>규칙,st:()=>state,parts:()=>만든부속,draw:()=>drawing,svgf:()=>svgForFile(drawing),dxf:()=>buildDXF(drawing)};' + 못);
 };
 
 const 띄우기 = (html) => new Promise(res => {
@@ -132,9 +132,29 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   })(), [20, 1]);
   // 베끼는 것은 **처음 한 번**뿐이다 — 그 뒤 수납장을 고쳐도 서랍장에 안 묻는다
   await 품목고르기('수납장'); await 잠(500);
-  await p.evaluate(() => { window.__probe.rule().우라홈 = 7; window.__probe.set({}); }); await 잠(300);
+  await p.evaluate(() => { window.__probe.rule().우라홈 = 30; window.__probe.set({}); }); await 잠(300);
   await 품목고르기('서랍장'); await 잠(500);
-  맞나('수납장을 7 로 고쳐도 서랍장은 20 그대로', await p.evaluate(() => window.__probe.rule().우라홈), 20);
+  맞나('수납장을 30 으로 고쳐도 서랍장은 20 그대로', await p.evaluate(() => window.__probe.rule().우라홈), 20);
+  await 품목고르기('수납장'); await 잠(500);
+  맞나('수납장은 30 그대로', await p.evaluate(() => window.__probe.rule().우라홈), 30);
+
+  console.log('③-2 두 품목이 같은 객체를 함께 쥐지 않는다');
+  // 서랍장에서 밴드 두께를 고쳐도 수납장 밴드는 안 따라 바뀐다 (얕은 복사 사고 막이)
+  await p.evaluate(() => { const c = window.__probe.parts().find(x => x.이름 === '밴드');
+    if (c) c.T = 18; window.__probe.set({}); }); await 잠(300);
+  await 품목고르기('서랍장'); await 잠(500);
+  await p.evaluate(() => { const c = window.__probe.parts().find(x => x.이름 === '밴드');
+    if (c) c.T = 55; window.__probe.set({}); }); await 잠(300);
+  await 품목고르기('수납장'); await 잠(500);
+  맞나('수납장 밴드 두께 (서랍장에서 55 로 고쳤다)', await p.evaluate(() => {
+    const c = window.__probe.parts().find(x => x.이름 === '밴드'); return c ? c.T : null; }), 18);
+  await 품목고르기('서랍장'); await 잠(500);
+  맞나('서랍장 밴드 두께', await p.evaluate(() => {
+    const c = window.__probe.parts().find(x => x.이름 === '밴드'); return c ? c.T : null; }), 55);
+  맞나('손질·결도 따로 쥐나 (같은 객체면 둘이 같아진다)', await p.evaluate(() => {
+    const a2 = localStorage.getItem('cabinet-studio.수납장.부속');
+    const b2 = localStorage.getItem('cabinet-studio.서랍장.부속');
+    return a2 !== b2; }), true);
 
   console.log('② 곳간이 품목마다 갈라진다');
   맞나('담긴 열쇠들', Object.keys(await 곳간들()).sort(),
@@ -182,6 +202,25 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
               m.parts.filter(x => x.name === '상판').length]; }), ['옛 설정', 12, 3, 2, 1]);
     맞나('품목은 수납장이다', await p2.evaluate(() => window.__probe.st().품목), '수납장');
     await ctx2.close(); }
+
+  console.log('⑦ 아무것도 담긴 것 없이 처음 여는 분 — 규칙기본에서 시작한다');
+  { const ctx4 = await b.newContext({ viewport:{ width:375, height:780 }, hasTouch:true, isMobile:true });
+    const p4 = await ctx4.newPage();
+    const cdp4 = await ctx4.newCDPSession(p4);
+    await p4.goto(주소, { waitUntil:'domcontentloaded' });
+    await p4.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
+    const 기본 = await p4.evaluate(() => { const r = window.__probe.rule();
+      return [r.우라홈, r.인위, r.보호대유격, window.__probe.parts().length]; });
+    맞나('빈 브라우저 — 수납장 기본값', 기본, [9, 3, 0, 0]);
+    // 서랍장을 처음 골라도 베낄 것이 없으니 같은 기본값이다
+    const e4 = await p4.$('#itemBox label:has(input[value="서랍장"])');
+    await e4.scrollIntoViewIfNeeded(); const r4 = await e4.boundingBox();
+    await cdp4.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r4.x + r4.width/2, y:r4.y + r4.height/2 }] });
+    await cdp4.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
+    await 잠(600);
+    맞나('빈 브라우저 — 서랍장도 같은 기본값', await p4.evaluate(() => { const r = window.__probe.rule();
+      return [r.우라홈, r.인위, r.보호대유격, window.__probe.parts().length]; }), [9, 3, 0, 0]);
+    await ctx4.close(); }
 
   await b.close(); 서버.close();
   console.log(깬것 ? '\n✘ 깨진 것 ' + 깬것 + '개' : '\n✔ 다 맞다');
