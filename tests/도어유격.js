@@ -219,6 +219,37 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       await ctx3.close(); return v; })(), [8, 5]);
     await ctx2.close(); }
 
+  /* ⑩ 10-02 사장님 말씀: 「**서랍장 - 마이다 - 도어위유격 명칭을 상부유격, 도어아래유격 명칭을 하부유격**」.
+        **화면 이름만이다** — 담는 열쇠도 값도 셈도 그대로다. 수납장 도어는 옛 이름 그대로다. */
+  console.log('⑩ 서랍장 마이다는 「상부유격」·「하부유격」 · 수납장 도어는 그대로');
+  { const 접기 = async 이름 => { const b2 = p.locator(`.pname[data-opt="${이름}"]`);
+      if (await b2.getAttribute('aria-expanded') === 'true') await 손가락(`.pname[data-opt="${이름}"]`); };
+    await p.evaluate(() => window.__probe.set({ doorMode:'out', plinth:80 })); await 잠(400);
+    await 펴기('문짝');
+    맞나('수납장 — 옛 이름 그대로', await 칸들(),
+      [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]);
+    await 접기('문짝');
+    await 손가락('input[name="품목"][value="서랍장"]'); await 잠(600);
+    await 펴기('문짝');
+    맞나('서랍장 외부 — 이름만 갈린다', await 칸들(),
+      [['상부유격','아웃위','2'], ['하부유격','아웃아래걸레','5']]);
+    await p.evaluate(() => window.__probe.set({ doorMode:'in' })); await 잠(400);
+    맞나('서랍장 내부 — 이름만 갈린다', await 칸들(),
+      [['상부유격','인위','3'], ['하부유격','인아래','3']]);
+    맞나('값이 먹는다 — 상부유격 9', await (async () => {
+      await 쳐넣기('.opt[data-opt="문짝"] input[data-rule="인위"]', 9);
+      await 누르기('.opt[data-opt="문짝"] [data-optsave]');
+      return p.evaluate(() => { const m = window.__probe.model();
+        const d = m.parts.filter(x => x.name === '마이다');          // 분할된 맨 윗장의 윗끝
+        return [+Math.max(...d.map(q => q.z + q.h)).toFixed(1), window.__probe.rule().인위]; }); })(), [1773, 9]);
+    await p.evaluate(() => { window.__probe.rule().인위 = 3; window.__probe.set({ doorMode:'out' }); }); await 잠(400);
+    await 접기('문짝');
+    await 손가락('input[name="품목"][value="수납장"]'); await 잠(600);
+    await 펴기('문짝');
+    맞나('수납장으로 돌아오면 옛 이름', await 칸들(),
+      [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]);
+    await 접기('문짝'); }
+
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();
   console.log(깬것 ? '\n✘ 깨진 것 ' + 깬것 + '개' : '\n✔ 다 맞다');
