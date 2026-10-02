@@ -98,7 +98,7 @@ select:focus{border-color:var(--head)}
    **그래서 입력칸은 34px 이었다. 44px 규칙은 단추에만 쓴다** (관리자가 제 말을 물렸다 · 사장님 글자가 이긴다).
    × · 세그먼트 · 「추가」 같은 **단추는 44px 그대로 둔다** — 사장님이 짚으신 것은 글자 넣는 칸이다.
    10-02 사장님 말씀: 「**입력부 칸의 높이가 여전히 큽니다. 현재의 3분의 2 수준으로 줄여줘**」.
-   **그래서 입력칸은 이제 23px 이다**(34 × 2/3 = 22.67 → 23). 줄(`.optnum`)도 36 → 25 로 같이 내렸다 —
+   **그래서 입력칸은 이제 23px 이다**(34 × 2/3 = 22.67 → 23). 줄(`.optnum`)도 36 → **24** 로 같이 내렸다 —
    칸만 줄이고 줄을 그대로 두면 **사장님 눈에 아무것도 안 바뀐다**(09-28 에 그렇게 한 번 헛일했다).
    **34 로도 46 으로도 되돌리지 마라.** */
 .opt{display:flex;flex-direction:column;gap:2px;margin-top:-4px;padding:5px 8px 6px;
@@ -119,7 +119,11 @@ select:focus{border-color:var(--head)}
 /* 전면밴드 칸이 칸 폭을 다 먹고 있었다(305px · 입력 39.8px). 폭을 유격 칸과 같이 맞추고 높이를 44 로 되찾는다. */
 .optwide>.num{width:82px;border-radius:11px}
 .optwide>.num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
-.optnum{display:flex;align-items:center;gap:8px;min-height:25px;padding:0 4px}
+.optnum{display:flex;align-items:center;gap:8px;min-height:24px;padding:0 4px}
+/* 칸이 23px 로 낮아졌다 — **닿는 자리는 줄 전체**다(10-02 관리자). 이름표에 `for` 가 붙어 있어
+   줄 어디를 밟아도 그 줄의 칸에 초점이 잡힌다(맨 위·가운데·맨 아래를 진짜 손가락으로 밟아 3/3 확인).
+   ⚠ `::after` 로 44px 을 얹지 마라 — **줄 피치가 27px 이라 윗줄·아랫줄 것을 17px 씩 뺏는다.**
+   `input` 에는 `::after` 가 아예 안 먹는다(§4.9895 의 `select` 와 같다). */
 .optnum label{flex:1;min-width:0;font-size:13px;color:var(--ink)}
 .optnum .num{flex:none;width:82px;border-radius:11px}
 .optnum .num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
