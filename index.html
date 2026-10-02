@@ -792,15 +792,28 @@ function 담기(){ try {
 function 품목바꾸기(새){
   if (!품목값.includes(새) || 새 === 지금품목) return;
   담기();
+  상태담기(지금품목);                 // 보시던 품목의 외경·두께·단수를 쥐어 둔다 (10-02 사장님 말씀)
   지금품목 = 새; state.품목 = 새;
   try { localStorage.setItem(곳간 + '.품목', 새); } catch (e) {}
   곳간읽기();                         // 그 품목 칸이 비었으면 여기서 수납장 한 벌을 베껴 온다
+  상태읽기(새);                       // 처음 고르는 품목이면 아무것도 안 한다 — 보시던 값을 그대로 이어받는다
   열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
   열쇠옮기기();                       // 그 품목에 담긴 옛 자리 열쇠도 굳은 열쇠로 옮겨 담는다 (§4.865)
-  부속그리기(); 결단추갱신(); update();
+  부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
 }
 
 const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
+/* 10-02 사장님 말씀: 「**수납장과 서랍장은 다른개념의 제품이므로 동일 외경입력치를 적용받지 않습니다.
+   품목변환시 각각의 입력에 맞는 제품도면이 나타나야 합니다.**」
+   그래서 `state`(폭·깊이·높이·두께·단수·결합 방식·도어)를 **품목마다 따로 쥔다.**
+   ⚠ **담지는 않는다** — `state` 는 이 집에서 원래 저장 안 하는 값이다(§7.5). 새로 열면 두 품목 다 기본값이다.
+      사장님 말씀이 「**품목변환시**」 라 거기까지만 했다. 담아야 하면 `상태담기`·`상태읽기` 에 한 줄씩이다.
+   **처음 고르는 품목은 보시던 품목 것을 그대로 이어받는다** — 담긴 것이 없으면 `상태읽기` 가 아무것도 안 한다.
+   곳간을 베끼는 것과 같은 길이다(§4.9876). 그 뒤로는 서로 안 묻는다. */
+const 상태열쇠 = Object.keys(state).filter(k => k !== '품목');
+const 품목상태 = {};
+const 상태담기 = 품 => { const o = {}; 상태열쇠.forEach(k => o[k] = state[k]); 품목상태[품] = o; };
+const 상태읽기 = 품 => { const o = 품목상태[품]; if (o) 상태열쇠.forEach(k => state[k] = o[k]); };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -3127,6 +3140,12 @@ document.addEventListener('change', e => {
    §4.9895 에 적어 둔 대로 사장님이 「사이즈 입력칸」 이라 부르시는 것은 **줄의 두께 고르개**다.
    그래서 그 고르개를 숫자 칸으로 갈아 끼운다. **담는 열쇠(`Tshelf`)·`data-*` 는 한 글자도 안 건드린다.**
    ⚠ 손이 얹힌 칸은 갈지 않는다 — 치는 중에 노드를 갈면 치던 것을 놓친다(§4.94 와 같은 자물쇠). */
+/* 외경 띠(폭·깊이·높이)의 보이는 값을 `state` 에 맞춘다 — **품목을 바꿀 때만** 부른다.
+   `update()` 에서 부르면 치는 중에 값이 되돌아간다(§4.94 의 그 자물쇠와 같은 까닭).
+   줄의 두께 칸은 `이름칸갱신()` 이 맞추고, 상세옵션 안은 `결단추갱신()` 이 다시 그린다. */
+function 상태칸맞추기(){
+  document.querySelectorAll('.dims [data-key]').forEach(el => { el.value = String(state[el.dataset.key]); });
+}
 function 이름칸갱신(){
   document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
     const 본 = 줄.dataset.part, 글 = 부속이름(본), 이름표 = 줄.querySelector('.pname');

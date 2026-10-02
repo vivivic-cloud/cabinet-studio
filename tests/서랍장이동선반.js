@@ -130,6 +130,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => window.__probe.set({ shelves: 0, shelvesM: 2 })); await 잠(300);
   맞나('수납장 · 고정 0 이동 2', [await 장수('고정선반'), await 장수('이동선반')], [0, 2]);
   await 품목고르기('서랍장');
+  // ⚠ 10-02 사장님 말씀(§4.9872)으로 `state` 가 품목마다 갈렸다 — 그 품목에 다시 넣어야 한다
+  await p.evaluate(() => window.__probe.set({ shelves: 0, shelvesM: 2 })); await 잠(300);
   맞나('서랍장 · 선반 0장 · pitch = 안높이', [await 장수('가로대'), await 장수('이동선반'),
     await p.evaluate(() => +window.__probe.model().pitch.toFixed(1) === +window.__probe.model().innerH.toFixed(1))], [0, 0, true]);
   맞나('#stPitch 는 안높이를 적는다', await p.evaluate(() => document.querySelector('#stPitch').textContent), '1684 mm');
@@ -147,17 +149,21 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 서랍중8 = await 장수('밴드');
   await p.evaluate(() => window.__probe.set({ shelvesM: 2 })); await 잠(300);
   await 품목고르기('수납장');
+  await p.evaluate(() => window.__probe.set({ shelves: 3, shelvesM: 2 })); await 잠(300);
   const 수납중 = await 중밴드();
   맞나('「중」 밴드는 고정선반 3장만큼 — 서랍장·이동8단·수납장이 다 같다', [서랍중, 서랍중8, 수납중], [3, 3, 3]);
   await p.evaluate(() => { window.__probe.parts().length = 0; window.__probe.set({ backMode:'cover' }); }); await 잠(300);
 
   console.log('⑦ 고정선반은 두 품목에서 똑같다');
+  await p.evaluate(() => window.__probe.set({ shelves: 3, shelvesM: 2, backMode: 'cover' })); await 잠(300);
   맞나('수납장 고정선반 자리', await p.evaluate(() =>
     window.__probe.model().parts.filter(x => x.name === '고정선반').map(x => x.z).join(',')), 고정자리);
   await p.evaluate(() => window.__probe.set({ shelvesM: 0 })); await 잠(300);
   const 이동없음 = await p.evaluate(() => window.__probe.model().parts
     .map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n'));
   await p.evaluate(() => window.__probe.set({ shelvesM: 2 })); await 품목고르기('서랍장');
+  // 품목마다 state 가 갈렸으니(§4.9872) 견줄 값을 서랍장에도 똑같이 넣는다
+  await p.evaluate(() => window.__probe.set({ shelves: 3, shelvesM: 2, backMode: 'cover' })); await 잠(300);
   /* 도어는 서랍장에서 마이다로 갈려 자리가 다르다(§4.9873) — 여기서 보는 것은 **선반**이므로 뺀다. */
   const 도어빼기 = 글 => 글.split('\n').filter(x => !/^(문짝|마이다)\|/.test(x)).join('\n');
   맞나('서랍장(이동 2단) 의 선반·몸통이 수납장 이동 0단과 같다 (이름만 가로대)', 도어빼기((await p.evaluate(() =>

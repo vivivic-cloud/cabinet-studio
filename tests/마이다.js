@@ -160,10 +160,18 @@ const 반 = n => Math.round(n * 1000) / 1000;
   맞나('표제란이 마이다·가로대·외부로', await 표제(), ['마이다',
     '뒷판 2.7T · 가로대 3단 · 이동선반 0단 · 마이다 3', '마이다 3개 · 외부']);
   await p.evaluate(() => window.__probe.set({ doors: 8 })); await 잠(300);
-  맞나('수납장으로 가면 문짝 2짝으로 본다 (담긴 8 은 안 지운다)', await 품목고르기('수납장') &&
-    [(await 도어들('문짝')).length, await p.evaluate(() => window.__probe.st().doors)], [2, 8]);
+  /* ⚠ 10-02 사장님 말씀(§4.9872)으로 `doors` 도 품목마다 갈렸다 —
+     수납장은 **제 값(2)** 을 쥐고 있고 서랍장의 8 은 서랍장에 남는다. */
+  맞나('수납장은 제 값(문짝 2짝)이다', await 품목고르기('수납장') &&
+    [(await 도어들('문짝')).length, await p.evaluate(() => window.__probe.st().doors)], [2, 2]);
   await 품목고르기('서랍장');
-  맞나('도로 서랍장이면 8분할', (await 도어들('마이다')).length, 8);
+  맞나('도로 서랍장이면 8분할 그대로', [(await 도어들('마이다')).length,
+    await p.evaluate(() => window.__probe.st().doors)], [8, 8]);
+  // 수납장에서 8 을 넣으면 셈으로만 2 로 본다 (담긴 숫자는 안 지운다)
+  await 품목고르기('수납장');
+  await p.evaluate(() => window.__probe.set({ doors: 8 })); await 잠(300);
+  맞나('수납장에 8 을 넣으면 문짝 2짝으로 본다 · 담긴 8 은 그대로',
+    [(await 도어들('문짝')).length, await p.evaluate(() => window.__probe.st().doors)], [2, 8]);
 
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();
