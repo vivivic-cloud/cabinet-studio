@@ -664,6 +664,15 @@ const 품목값 = ['수납장', '서랍장'];
 let 지금품목 = '수납장';
 try { const v = localStorage.getItem(곳간 + '.품목'); if (품목값.includes(v)) 지금품목 = v; } catch (e) {}
 const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
+/* ───────── 품목마다 갈리는 관계 ─────────
+   10-02 사장님 말씀: 「**서랍장 품목에는 이동선반 부속이 발생하지 않습니다.**」
+   품목마다 갈리는 첫 관계다. 앞으로 늘어날 자리이므로 **이 한 자리에 모아 둔다.**
+   ⚠ **`state` 값을 품목 때문에 0 으로 볼 때는 담긴 값을 절대 지우지 않는다.**
+      `state.shelvesM = 0` 으로 고쳐 버리면 사장님이 수납장에 맞춰 둔 단수가 날아간다
+      (`state` 는 품목마다 안 갈라진다 · §7.5). **셈에서만 0 으로 본다** —
+      하판 「측판 아래」 에서 전면밴드를 없앨 때와 같은 길이다(`걸레높이 = 아래덮 ? 0 : plinth`). */
+const 품목없는부속 = { 수납장:[], 서랍장:['이동선반'] };
+const 품목밖 = (이름, 품) => (품목없는부속[품 || state.품목] || []).includes(이름);
 /* 옛 한 벌(앞머리만 쓰던 것)을 **수납장** 으로 한 번만 옮겨 담는다.
    값은 한 글자도 안 고치고 통째로 옮긴다. 새 열쇠가 이미 있으면 아무것도 안 한다.
    **사장님이 맞춰 두신 값이 하나도 날아가면 안 된다** — 이것이 제일 중요하다(관리자). */
@@ -872,8 +881,10 @@ function buildModel(s){
   const innerH = 상판밑 - (bz + Tbot);
   // 선반은 두 갈래다. 고정 선반은 측판에 체결해 박히고, 이동 선반은 체결 없이 철물 위에 얹힌다.
   // 얹히는 것이라 좌우로 조금 작게 짜는 집이 있어 그 값을 규칙에 두었다(기본 0 — 안 건드리면 예전과 같다).
-  const 단수 = shelves + shelvesM;
-  const pitch = (innerH - shelves*Tshelf - shelvesM*Tshelf2) / (단수 + 1);
+  // 그 품목에 이동선반이 발생하지 않으면 **셈에서만 0 단으로 본다** (담긴 shelvesM 은 안 지운다).
+  const 이동단 = 품목밖('이동선반', s.품목) ? 0 : shelvesM;
+  const 단수 = shelves + 이동단;
+  const pitch = (innerH - shelves*Tshelf - 이동단*Tshelf2) / (단수 + 1);
   // 인도어는 도어가 몸통 앞면 안쪽(y 0~Tdoor)에 앉아 선반과 겹친다. 겹치는 만큼 선반을 뒤로 물리고
   // 깊이를 줄인다 — 재단 치수(cut.W)도 같이 줄어든다. 겹치는 부속은 선반뿐임을 설정 8748가지로 확인했다.
   const 도어물림 = (doors > 0 && s.doorMode === 'in' && 규칙.인선반줄임) ? Tdoor : 0;
@@ -885,7 +896,7 @@ function buildModel(s){
      **칸 나눔(`pitch`)은 한 글자도 안 건드렸다** — 고정·이동을 합쳐 고르게 나누던 그대로다.
      M = 0 이거나 M = N 이면 집합이 비거나 다 차서 **고치기 전과 한 톨도 같다.** */
   const 이동자리 = new Set();
-  for (let j = 0; j < shelvesM; j++) 이동자리.add(Math.round((j + 0.5) * 단수 / shelvesM - 0.5));
+  for (let j = 0; j < 이동단; j++) 이동자리.add(Math.round((j + 0.5) * 단수 / 이동단 - 0.5));
   // 이동 선반은 넣고 뺄 여유가 있어야 하므로 좌우로 한 쪽씩, 뒤로 한 번 물려 짠다.
   let 선반z = bz + Tbot;
   const 고정센터 = [];                       // 밴드 「중」 이 이 높이에 맞춰 선다
@@ -1059,7 +1070,7 @@ function buildModel(s){
   const 자 = (앞, 뒤) => 보임.length ? +(Math.max(...보임.map(뒤)) - Math.min(...보임.map(앞))).toFixed(3) : 0;
   const 외경 = { W: 자(p => p.x, p => p.x + p.w), D: 자(p => p.y, p => p.y + p.d), H: 자(p => p.z, p => p.z + p.h) };
   외경.같나 = Math.abs(외경.W - W) < 0.001 && Math.abs(외경.D - D) < 0.001 && Math.abs(외경.H - H) < 0.001;
-  return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊,
+  return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊, 이동단,
            앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 밴드높, 걸림자리, 외경 };
 }
 
@@ -1245,7 +1256,7 @@ function buildDrawing(s, m, 치수배 = 1){
   text(`${s.품목 || '수납장'}  W${W} × D${D} × H${H}`, bx + 표폭/2, ty0 - 55, 46, 'TITLE');
   text(`상판 ${Ttop}T · 측판 ${Tside}T · 고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`, bx + 표폭/2, ty0 - 150, 26, 'TITLE');
   text(`도어 ${Tdoor}T · 하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T`, bx + 표폭/2, ty0 - 192, 26, 'TITLE');
-  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
+  text(`뒷판 ${TB}T · 고정선반 ${s.shelves}단 · 이동선반 ${m.이동단}단 · 문짝 ${s.doors}`, bx + 표폭/2, ty0 - 234, 26, 'TITLE');
   text(`UNIT mm · 3각법 · ${new Date().toISOString().slice(0,10)}`, bx + 표폭/2, ty0 - 276, 26, 'TITLE');
   쪽 = 1;
   // 화면·SVG 표제란 — 이름표 칸(왼쪽)과 값 칸(오른쪽)을 갈라 왼끝 맞춰 적는다.
@@ -1260,7 +1271,7 @@ function buildDrawing(s, m, 치수배 = 1){
     ['재질·두께',   `상판 ${Ttop}T · 측판 ${Tside}T · 도어 ${Tdoor}T`],
     ['',            `고정선반 ${Tshelf}T · 이동선반 ${s.Tshelf2}T`],
     ['',            `하판 ${Tbot}T · 전면밴드 ${s.Tplinth}T · 뒷판 ${TB}T`],
-    ['구성',        `고정선반 ${s.shelves}단 · 이동선반 ${s.shelvesM}단`],
+    ['구성',        `고정선반 ${s.shelves}단 · 이동선반 ${m.이동단}단`],
     ['',            `문짝 ${s.doors}짝 · ${s.doorMode === 'in' ? '인도어' : '아웃도어'}`],
     ['투상법·단위', '제3각법 · mm'],
     ['날짜',        new Date().toISOString().slice(0,10)]
@@ -2061,7 +2072,7 @@ function update(){
   $('#bomBody').innerHTML = rows.map(r => `<tr data-key="${r.name}|${r.L}|${r.W}|${r.T}"><td>${r.name}</td><td class="mono">${r.qty}</td><td class="mono">${fmt(r.L)}</td><td class="mono">${fmt(r.W)}</td><td class="mono">${r.T}</td><td class="grain">${r.grain}</td>` + (비고있나 ? `<td class="mono">${esc(r.비고 || '')}</td>` : '') + `</tr>`).join('');
   const area = {}; rows.forEach(r => area[r.T] = (area[r.T]||0) + r.qty*r.L*r.W/1e6);
   $('#bomFoot').textContent = `총 ${rows.reduce((a,r)=>a+r.qty,0)}개`;
-  $('#stPitch').textContent = (state.shelves + state.shelvesM) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
+  $('#stPitch').textContent = (state.shelves + m.이동단) ? fmt(m.pitch) + ' mm' : fmt(m.innerH) + ' mm';
   $('#stInner').textContent = `${fmt(m.innerW)} × ${fmt(m.CD)}`;
   // 실제 외경은 입력과 다를 때만 보인다 — 같은 숫자를 두 번 적지 않는다.
   $('#stOuter').textContent = `${fmt(m.외경.W)} × ${fmt(m.외경.D)} × ${fmt(m.외경.H)}`;
@@ -3078,8 +3089,10 @@ document.addEventListener('change', e => {
    그래서 **인라인 `style.display`** 다. */
 function 비활성갱신(){
   const 죽은 = new Set(되살릴것().map(x => x.이름));
+  // 그 품목에 발생하지 않는 부속은 줄째 안 보인다 — 지움·숨김 손질과 **섞지 않는다**
+  // (사장님이 수납장에서 지워 두신 것이 서랍장에 묻으면 안 된다).
   document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
-    줄.style.display = 죽은.has(줄.dataset.part) ? 'none' : '';
+    줄.style.display = (품목밖(줄.dataset.part) || 죽은.has(줄.dataset.part)) ? 'none' : '';
   });
 }
 function 지우기단추갱신(){
@@ -3105,14 +3118,14 @@ function 부속지우기(이름){
 }
 function 되살릴것(){                              // 도면에 없는 것만 나온다
   const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
-  const 목록 = [];
+  const 목록 = [];                                // 그 품목에 없는 부속은 되살릴 것도 아니다
   지난부속.forEach(c => { if (!선것.has(c.이름) && !만든부속.some(x => x.이름 === c.이름))
     목록.push({ 이름:c.이름, 갈래:'만든', 쪽지:`두께 ${c.T}mm` }); });
   const 지운이름 = [];
   손질.지움.forEach(k => { const n = k.split('@')[0]; if (!지운이름.includes(n)) 지운이름.push(n); });
   지운이름.forEach(n => { if (!선것.has(n) && !목록.some(x => x.이름 === n))
     목록.push({ 이름:n, 갈래:'붙박이', 쪽지:'지운 것 되돌리기' }); });
-  return 목록;
+  return 목록.filter(x => !품목밖(x.이름));
 }
 function 되살리기(것){
   if (것.갈래 === '만든'){
@@ -3202,7 +3215,7 @@ const 관계표 = [
     규칙:'우라홈', 최소:0, 최대:40, 걸음:0.5 },
   { 갈래:'몸통', 사이:'고정 선반 ↔ 측판', 말:'측판 안쪽면 사이에 꽉 차게 들어가 체결한다.', 값:m => `폭 ${fmt(m.innerW)}` },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 철물', 말:'조립할 때 체결하지 않는다. 다보 같은 철물 위에 얹혀 손으로 들어 옮긴다.',
-    값:(m,s) => `${s.shelvesM}장`, 어디:'이동 선반 옵션 단수' },
+    값:m => `${m.이동단}장`, 어디:'이동 선반 옵션 단수' },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 측판', 말:'넣고 뺄 여유가 있어야 하므로 측판 안쪽면에서 한 쪽씩 뗀다. 폭은 그만큼 두 배로 작아진다.',
     규칙:'이동좌우', 최소:0, 최대:20, 걸음:0.5 },
   { 갈래:'몸통', 사이:'이동 선반 ↔ 몸통', 말:'뒤는 뒷판에 붙이고 앞쪽에서 그만큼 뺀다. 앞이 트여야 손으로 들어낼 수 있다.',
@@ -3233,7 +3246,7 @@ const 관계표 = [
       return (세 + 가) ? `세로 ${세} · 가로 ${가} · 없음 ${r.length - 세 - 가}` : `없음 ${r.length}`; },
     어디:'보드선택' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 선반', 말:'고정 선반과 이동 선반은 따로 센다. 두께도 따로 고른다.',
-    값:(m,s) => `고정 ${s.shelves}단 · 이동 ${s.shelvesM}단`, 어디:'보드선택 · 부속 옵션' },
+    값:(m,s) => `고정 ${s.shelves}단 · 이동 ${m.이동단}단`, 어디:'보드선택 · 부속 옵션' },
   { 갈래:'재단·부품표', 사이:'재단 치수 ↔ 부속', 말:'길이 × 폭 × 두께로 낸다. 두께는 부속마다 보드선택에서 고른다. 재단 여유는 넣지 않는다.',
     값:m => `${m.parts.length}조각`, 어디:'보드선택' },
   { 갈래:'재단·부품표', 사이:'부품표 ↔ 부속', 말:'이름과 재단 치수가 똑같은 것끼리 한 줄로 묶어 수량을 센다.',
