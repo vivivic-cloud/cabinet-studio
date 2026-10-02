@@ -39,11 +39,10 @@ button.primary:hover{background:var(--ink);border-color:var(--ink)}
 button:disabled{opacity:.5;cursor:default}
 .params{grid-area:params;padding:18px 20px 24px;display:flex;flex-direction:column;gap:18px;overflow:auto}
 .group{display:flex;flex-direction:column;gap:10px}
-/* 10-02 사장님 말씀 「과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼」 — 설정 칸 맨 위 오른쪽.
+/* 10-02 사장님 말씀 「과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼」 — 머리의 「저장」 곁이다.
    단추라 44px 이다(§0). 되돌릴 것이 없으면 흐리고 안 눌린다. */
-#undoBox{flex-direction:row;justify-content:flex-end;gap:0}
-#undoBox button{min-height:44px;padding:0 14px}
-#undoBox button[disabled]{opacity:.35}
+#btnUndo{min-height:44px}
+#btnUndo[disabled]{opacity:.35}
 .group h2{margin:0;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:800;
   display:flex;align-items:center;gap:8px}
 .group h2::after{content:"";flex:1;height:1px;background:var(--line2)}
@@ -472,6 +471,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     </div>
     <div class="toolbar">
       <button id="btnBomOpen" type="button">부품표</button>
+      <button id="btnUndo" type="button" disabled>되돌리기</button>
       <button id="btnSvg" type="button">SVG 도면 저장</button>
       <button id="btnDxf" type="button" class="primary">DXF 내보내기</button>
     </div>
@@ -479,9 +479,6 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 
   <aside class="params" aria-label="치수 설정">
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
-    <div class="group" id="undoBox">
-      <button type="button" id="btnUndo" disabled>되돌리기</button>
-    </div>
     <div class="group" id="itemBox">
       <h2>품목</h2>
       <div class="field wide"><div class="seg mini" role="group" aria-label="품목">
@@ -792,14 +789,28 @@ try {
 } catch (e) {}
 }
 // ⚠ 첫 `곳간읽기()` 는 `state`·`상태넣기` 가 선 **뒤**에 부른다 — 상태도 같이 읽기 때문이다.
-function 담기(){ try {
-  localStorage.setItem(칸('규칙'), JSON.stringify(규칙));
-  localStorage.setItem(칸('부속'), JSON.stringify(만든부속));
-  localStorage.setItem(칸('손질'), JSON.stringify(손질));
-  localStorage.setItem(칸('지난부속'), JSON.stringify(지난부속));
-  localStorage.setItem(칸('결'), JSON.stringify(결설정));
-  localStorage.setItem(칸('상태'), JSON.stringify(상태열쇠.reduce((o, k) => (o[k] = state[k], o), {})));
-} catch (e) {} }
+/* 지금 품목의 한 벌을 담는다 — 여섯이다. **설정을 먼저 담고 역사를 뒤에 담는다**
+   (역사가 터져도 설정은 안 잃는다 · 관리자 10-02).
+   **한 걸음 = 담기() 한 번**이다 — 값이 실제로 달라졌을 때만 바로 전 한 벌을 역사에 민다. */
+function 담기(){
+  const 글 = (typeof 한벌 === 'function') ? 한벌() : null;
+  try {
+    localStorage.setItem(칸('규칙'), JSON.stringify(규칙));
+    localStorage.setItem(칸('부속'), JSON.stringify(만든부속));
+    localStorage.setItem(칸('손질'), JSON.stringify(손질));
+    localStorage.setItem(칸('지난부속'), JSON.stringify(지난부속));
+    localStorage.setItem(칸('결'), JSON.stringify(결설정));
+    localStorage.setItem(칸('상태'), JSON.stringify(상태열쇠.reduce((o, k) => (o[k] = state[k], o), {})));
+  } catch (e) {}
+  if (글 === null) return;
+  if (!되돌림중 && 마지막한벌 !== null && 글 !== 마지막한벌){
+    const h = 역사읽기(); h.push(마지막한벌);
+    while (h.length > 역사최대) h.shift();
+    역사담기(h);
+  }
+  마지막한벌 = 글;
+  되돌림단추();
+}
 /* 품목을 바꾼다 — 그 품목의 한 벌을 통째로 다시 읽는다.
    **보던 품목 것을 먼저 담는다**(안 담으면 날아간다). 안 저장한 수치도 턴다 — 다른 품목에 묻으면 안 된다.
    `state` 도 곳간의 여섯째라 여기서 그 품목 것으로 갈린다 (10-02 사장님 말씀 · §4.9872). */
@@ -809,6 +820,7 @@ function 품목바꾸기(새){
   지금품목 = 새; state.품목 = 새;
   try { localStorage.setItem(곳간 + '.품목', 새); } catch (e) {}
   곳간읽기();                         // 그 품목 칸이 비었으면 여기서 수납장 한 벌(상태까지)을 베껴 온다
+  마지막한벌 = 한벌();                // 품목마다 역사가 따로다 — 여기서 다시 센다
   열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
   열쇠옮기기();                       // 그 품목에 담긴 옛 자리 열쇠도 굳은 열쇠로 옮겨 담는다 (§4.865)
   부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
@@ -839,47 +851,63 @@ function 상태넣기(o){
 }
 곳간읽기();                      // 지금 품목의 한 벌을 읽는다 — 상태까지 여섯이다
 /* 10-02 사장님 말씀: 「**과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼**을 만들어 주세요」.
-   한 벌을 통째로 글로 적어 쌓는다 — 품목 · `state` · 품목마다 쥔 `state` · 규칙 · 만든부속 · 손질 ·
-   지난부속 · 결. **`update()` 끝에서 적는다** — 값이 바뀌는 길이 거기로 다 모이기 때문이다
-   (칸·끌개·단추·3D 손질·관계제어판·품목 바꾸기가 다 `update()` 로 끝난다).
-   ⚠ **빠르게 치는 것은 한 단계로 묶는다** — 「1200」 을 치면 1·12·120·1200 네 번 바뀌는데
-      그것을 네 단계로 쌓으면 「한단계씩」 이 아니다. 0.6초 안에 또 바뀌면 **맨 위를 덮어쓴다.** */
-const 되돌림쌓기 = [], 되돌림최대 = 50, 되돌림묶음 = 600;
-let 마지막설정 = null, 마지막적은때 = 0, 되돌림중 = false;
-const 지금설정 = () => JSON.stringify({ 품목: 지금품목,
-  상태: 상태열쇠.reduce((o, k) => (o[k] = state[k], o), {}),
-  규칙, 부속: 만든부속, 손질, 지난부속, 결: 결설정 });
-function 되돌림단추(){ const b = document.getElementById('btnUndo'); if (b) b.disabled = !되돌림쌓기.length; }
-function 되돌림적기(){
-  const 지금 = 지금설정();
-  if (마지막설정 === null){ 마지막설정 = 지금; 되돌림단추(); return; }
-  if (지금 === 마지막설정) return;
-  if (!되돌림중){
-    const 때 = Date.now();
-    // 0.6초 안에 또 바뀌면 그 전 것을 덮어쓴다 — 치는 동안은 한 단계다
-    if (!(되돌림쌓기.length && 때 - 마지막적은때 < 되돌림묶음)) 되돌림쌓기.push(마지막설정);
-    while (되돌림쌓기.length > 되돌림최대) 되돌림쌓기.shift();
-    마지막적은때 = 때;
+   관리자가 10-02 에 규격을 정했다 — 그대로다.
+   - **한 걸음 = `담기()` 한 번.** 이 집에서 설정이 굳는 자리는 거기 하나다. 다른 데 걸지 않는다.
+   - **되돌릴 한 벌 = 그 품목의 여섯**(규칙·부속·손질·지난부속·결·상태). 통째로 되돌린다.
+   - **품목마다 따로 쌓는다** — `cabinet-studio.<품목>.역사`. 수납장에서 되돌려도 서랍장 역사는 그대로다.
+   - **스무 걸음**까지. 넘치면 오래된 것부터 버린다.
+   - **앞으로 가기(redo)는 없다** — 사장님이 안 시키셨다.
+   - **되돌리기 자체는 역사에 안 쌓인다** — 안 그러면 두 번 누르면 제자리로 온다. */
+const 역사최대 = 20;
+let 마지막한벌 = null, 되돌림중 = false;
+const 한벌 = () => JSON.stringify({ 규칙, 부속: 만든부속, 손질, 지난부속, 결: 결설정,
+  상태: 상태열쇠.reduce((o, k) => (o[k] = state[k], o), {}) });
+function 역사읽기(){
+  try { const v = JSON.parse(localStorage.getItem(칸('역사')) || '[]');
+    return Array.isArray(v) ? v.filter(x => typeof x === 'string') : []; } catch (e) { return []; }
+}
+/* 역사를 담는다. **설정 담기는 이미 끝난 뒤**라 여기서 터져도 설정은 안 잃는다.
+   `localStorage` 가 넘치면 **조용히 오래된 것을 더 버리고** 다시 해 보고,
+   그래도 안 되면 **역사만 포기한다**(관리자가 못 박았다 — 역사 때문에 설정을 잃으면 안 된다). */
+function 역사담기(h){
+  for (let i = 0; i < 24; i++){
+    try { localStorage.setItem(칸('역사'), JSON.stringify(h)); return; }
+    catch (e) { if (!h.length){ try { localStorage.removeItem(칸('역사')); } catch (e2) {} return; } h.shift(); }
   }
-  마지막설정 = 지금; 되돌림단추();
+}
+function 되돌림단추(){
+  const 있나 = 역사읽기().length > 0;
+  document.querySelectorAll('#btnUndo').forEach(b => { b.disabled = !있나; });
 }
 function 설정넣기(글){
   const o = JSON.parse(글);
-  지금품목 = o.품목; state.품목 = o.품목;
+  규칙 = { ...규칙기본, ...(o.규칙 || {}) };
+  만든부속 = Array.isArray(o.부속) ? o.부속 : [];
+  지난부속 = Array.isArray(o.지난부속) ? o.지난부속 : [];
+  손질 = (o.손질 && typeof o.손질 === 'object')
+    ? { 숨김: o.손질.숨김 || [], 지움: o.손질.지움 || [], 복제: o.손질.복제 || {} }
+    : { 숨김:[], 지움:[], 복제:{} };
+  결설정 = {}; if (o.결 && typeof o.결 === 'object')
+    Object.keys(o.결).forEach(k => { if (결방향값.includes(o.결[k])) 결설정[k] = o.결[k]; });
   상태넣기(o.상태);
-  규칙 = o.규칙; 만든부속 = o.부속; 손질 = o.손질; 지난부속 = o.지난부속; 결설정 = o.결;
-  try { localStorage.setItem(곳간 + '.품목', 지금품목); } catch (e) {}
-  담기();
-  열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
-  const b = document.querySelector(`#itemBox input[name="품목"][value="${CSS.escape(지금품목)}"]`);
-  if (b) b.checked = true;
-  부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
 }
+/* 한 걸음 되돌린다. **`곳간읽기()` 뒤에 하는 그 일을 그대로 거친다** —
+   하나라도 빠지면 화면과 속이 어긋난다(관리자가 못 박았다). */
 function 되돌리기한단계(){
-  if (!되돌림쌓기.length) return;
+  const h = 역사읽기();
+  if (!h.length) return;
+  const 글 = h.pop();
   되돌림중 = true;
-  try { 설정넣기(되돌림쌓기.pop()); } finally { 되돌림중 = false; }
-  마지막설정 = 지금설정(); 되돌림단추();
+  try {
+    설정넣기(글);
+    역사담기(h);                      // 되돌린 걸음은 역사에서 빠진다 (redo 없음)
+    마지막한벌 = 한벌();
+    담기();
+    열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
+    열쇠옮기기();
+    부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
+  } finally { 되돌림중 = false; }
+  되돌림단추();
 }
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2201,8 +2229,7 @@ function update(){
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
   밴드살피기();
-  담기();                                                          // 바뀐 한 벌을 곳간에 (상태까지 여섯)
-  되돌림적기();                                                    // 과거 설정 한 벌 (사장님 말씀 10-02)
+  담기();                                                          // 바뀐 한 벌을 곳간에 · 한 걸음을 역사에 (10-02)
 }
 
 /* ───────── 밴드가 측판보다 튀어나오는 것을 경고한다 ─────────

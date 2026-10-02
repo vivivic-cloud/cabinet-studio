@@ -153,14 +153,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     ['서랍장', [600, 500, 900], ['600', '500', '900']]);
   await 품목고르기('수납장');
   맞나('수납장도 제 값 그대로', await 외경(), [800, 400, 1800]);
-  맞나('담긴 열쇠 — 품목마다 여섯 + 마지막 품목', await p.evaluate(() => {
+  // 설정 여섯 + 되돌리기 역사(§4.9871) + 마지막 품목
+  맞나('담긴 열쇠 — 품목마다 일곱 + 마지막 품목', await p.evaluate(() => {
     const k = []; for (let i = 0; i < localStorage.length; i++){ const n = localStorage.key(i);
       if (n.indexOf('cabinet-studio') === 0) k.push(n); }
-    return k.sort(); }), ['cabinet-studio.서랍장.결','cabinet-studio.서랍장.规'.replace('规','규칙'),
-      'cabinet-studio.서랍장.부속','cabinet-studio.서랍장.상태','cabinet-studio.서랍장.손질',
-      'cabinet-studio.서랍장.지난부속','cabinet-studio.수납장.결','cabinet-studio.수납장.규칙',
-      'cabinet-studio.수납장.부속','cabinet-studio.수납장.상태','cabinet-studio.수납장.손질',
-      'cabinet-studio.수납장.지난부속','cabinet-studio.품목'].sort());
+    return k.sort(); }), ['cabinet-studio.품목'].concat(['수납장','서랍장'].reduce((a2, 품) =>
+      a2.concat(['결','규칙','부속','상태','손질','역사','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
 
   console.log('⑦ 옛 설정 · 깨진 글에서도 안 터진다');
   await p.evaluate(() => {

@@ -100,11 +100,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 표 = () => p.evaluate(() => [...document.querySelectorAll('#bomBody tr')].map(tr => tr.textContent).join('|'));
 
   console.log('① 설정 칸 맨 위에 「품목」 무리  ② 처음은 수납장');
-  /* ⚠ 10-02 사장님 말씀(§4.9871)으로 **「되돌리기」 무리**가 맨 위에 생겼다 — 이름표(h2)가 없는 무리다
-     (단추 이름이 곧 제 이름이라 머리글을 안 붙였다 · §0). 이름표가 있는 무리의 차례로 견준다. */
-  맞나('무리 차례 (되돌리기 · 품목 · 보드선택)', await p.evaluate(() =>
-    [...document.querySelectorAll('.params .group')].map(g => { const h = g.querySelector('h2');
-      return h ? h.textContent : '#' + g.id; })), ['#undoBox', '품목', '보드선택']);
+  // 「되돌리기」 단추는 머리의 「저장」 곁이다(§4.9871) — 설정 칸 무리는 예전 그대로 둘이다
+  맞나('무리 차례 (설정 칸 맨 위)', await p.evaluate(() =>
+    [...document.querySelectorAll('.params .group')].map(g => g.querySelector('h2').textContent)), ['품목', '보드선택']);
   맞나('단추 둘', await p.evaluate(() =>
     [...document.querySelectorAll('#itemBox input[name="품목"]')].map(i => i.value)), ['수납장', '서랍장']);
   맞나('닿는 자리 44px', await p.evaluate(() => {
