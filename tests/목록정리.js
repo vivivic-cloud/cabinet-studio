@@ -83,10 +83,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('덮기 — 칸 없음', await p.locator('.opt[data-opt="뒷판"] input[data-rule="우라홈"]').count(), 0);
     await p.click('.opt[data-opt="뒷판"] label:has(input[name=backMode][value="insert"])'); await 잠(450);
     await 펴();
-    맞나('끼우기 — 칸 하나 · 34px · 0~40 · 0.5 걸음', await p.evaluate(() => {
+    맞나('끼우기 — 칸 하나 · 23px · 0~40 · 0.5 걸음', await p.evaluate(() => {
       const i = document.querySelector('.opt[data-opt="뒷판"] input[data-rule="우라홈"]');
       if (!i) return null; const r = i.getBoundingClientRect();
-      return [i.value, i.min, i.max, i.step, +r.height.toFixed(0)]; }), ['9', '0', '40', '0.5', 34]);
+      return [i.value, i.min, i.max, i.step, +r.height.toFixed(0)]; }), ['9', '0', '40', '0.5', 23]);
     /* 고치기 전 판에는 이 칸이 뒷판 판에 없다 — 거기서 30초 멎지 않게 먼저 세고 넘어간다.
        (그 판에서는 이 시험이 깨진 것으로 빨개져야 맞다.) */
     const 있나 = await p.locator('.opt[data-opt="뒷판"] input[data-rule="우라홈"]').count() > 0;

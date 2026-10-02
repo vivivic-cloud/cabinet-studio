@@ -3,7 +3,7 @@
      「도어옵션에 도어의 **상 하부 유격높이**를 조정하는 옵션을 만들어 주세요.
       옵션부의 기본 세팅값은 현재 **인도어/아웃도어에 따른 기본값**이 세팅되어 있어야 합니다」
 
-     ① 도어 상세옵션에 「도어 위 유격」·「도어 아래 유격」 두 칸이 있다 (34px · 0.5 걸음)
+     ① 도어 상세옵션에 「도어 위 유격」·「도어 아래 유격」 두 칸이 있다 (23px · 0.5 걸음)
      ② 기본값이 모드에 따라 세팅되어 있다 — 아웃도어 2·5 · 인도어 3·3
      ③ **네 갈래**(인·아웃 × 전면밴드 있음·없음)에서 열어 보면 늘 지금 쓰이는 값이 들어 있다
      ④ 저장하면 도면에 먹는다 — 문짝 z 가 그만큼 움직이고 재단 높이가 따라온다
@@ -109,7 +109,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('입력칸 크기 · 걸음', await p.evaluate(() => {
     const i = document.querySelector('.opt[data-opt="문짝"] .optnum input'); if (!i) return null;
     const r = i.getBoundingClientRect();
-    return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step, i.min]; }), ['52.6×34', '0.5', '0']);
+    return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step, i.min]; }), ['52.6×23', '0.5', '0']);
 
   console.log('③ 네 갈래 — 열어 보면 늘 지금 쓰이는 값이 들어 있다');
   for (const [모드, 밴드, 바람] of [

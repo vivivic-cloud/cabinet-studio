@@ -156,7 +156,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const 자 = '.opt[data-opt="하판"] input[data-rule="하판유격"]';
     맞나('하판유격 칸 크기 · 걸음', await p.evaluate(x => { const i = document.querySelector(x);
       if (!i) return null; const r = i.getBoundingClientRect();
-      return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step]; }, 자), ['52.6×34', '0.5']);
+      return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step]; }, 자), ['52.6×23', '0.5']);
     if (await p.locator(자).count()){
       await 손가락(자);
       await p.keyboard.down('Control'); await p.keyboard.press('a'); await p.keyboard.up('Control');

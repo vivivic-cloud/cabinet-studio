@@ -95,9 +95,12 @@ select:focus{border-color:var(--head)}
 .opt[hidden]{display:none}
  /* 09-28 사장님 말씀 **두 번** — 「이런 입력칸의 높이가 너무 커 … 좀 작게좀 조절해줘」,
    그리고 「이노무 입력칸좀 줄여달라니까」. 첫 판은 44px 을 지켜 46px 줄이 그대로여서 **눈에 안 띄었다.**
-   **그래서 입력칸은 34px 이다. 44px 규칙은 단추에만 쓴다** (관리자가 제 말을 물렸다 · 사장님 글자가 이긴다).
+   **그래서 입력칸은 34px 이었다. 44px 규칙은 단추에만 쓴다** (관리자가 제 말을 물렸다 · 사장님 글자가 이긴다).
    × · 세그먼트 · 「추가」 같은 **단추는 44px 그대로 둔다** — 사장님이 짚으신 것은 글자 넣는 칸이다.
-   **46 으로 되돌리지 마라.** */
+   10-02 사장님 말씀: 「**입력부 칸의 높이가 여전히 큽니다. 현재의 3분의 2 수준으로 줄여줘**」.
+   **그래서 입력칸은 이제 23px 이다**(34 × 2/3 = 22.67 → 23). 줄(`.optnum`)도 36 → 25 로 같이 내렸다 —
+   칸만 줄이고 줄을 그대로 두면 **사장님 눈에 아무것도 안 바뀐다**(09-28 에 그렇게 한 번 헛일했다).
+   **34 로도 46 으로도 되돌리지 마라.** */
 .opt{display:flex;flex-direction:column;gap:2px;margin-top:-4px;padding:5px 8px 6px;
   border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
 .opthead{font-size:12px;font-weight:700;color:var(--ink2);padding-bottom:2px}
@@ -115,11 +118,11 @@ select:focus{border-color:var(--head)}
 .optwide label{font-size:13px;color:var(--ink)}
 /* 전면밴드 칸이 칸 폭을 다 먹고 있었다(305px · 입력 39.8px). 폭을 유격 칸과 같이 맞추고 높이를 44 로 되찾는다. */
 .optwide>.num{width:82px;border-radius:11px}
-.optwide>.num input{min-height:34px;padding:0 6px;font-size:13px}
-.optnum{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 4px}
+.optwide>.num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
+.optnum{display:flex;align-items:center;gap:8px;min-height:25px;padding:0 4px}
 .optnum label{flex:1;min-width:0;font-size:13px;color:var(--ink)}
 .optnum .num{flex:none;width:82px;border-radius:11px}
-.optnum .num input{min-height:34px;padding:0 6px;font-size:13px}
+.optnum .num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
 /* 「12.5」 가 1px 잘렸다 — 「mm」 꼬리표 여백과 글자를 깎아 숫자 자리를 넓힌다(관계제어판은 안 건드린다) */
 .optnum .num span,.optwide>.num span{padding:0 6px 0 0;font-size:11px}
 /* 10-01 사장님 말씀 — 상세옵션의 수치는 「저장」 을 눌러야 적용된다.
@@ -198,7 +201,7 @@ input[type=range]{width:100%;accent-color:var(--head)}
 /* 폰 2D 에서 칸이 85px 까지 좁아진다 — 네 자리(1800)가 안 잘리게 글자를 줄이고 여백을 깎았다. */
 .dims input{flex:1 1 0;min-width:34px;width:100%;border:0;background:transparent;color:var(--ink);
   font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-variant-numeric:tabular-nums;
-  font-size:13px;padding:0 1px;text-align:right;-moz-appearance:textfield;min-height:34px}
+  font-size:13px;padding:0 1px;text-align:right;-moz-appearance:textfield;min-height:23px;height:23px}
 .dims input::-webkit-outer-spin-button,.dims input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .dims span{font-size:9.5px;color:var(--ink3);flex:none}
 /* 쪽 오른쪽 위 「크게」 단추(56×44)를 덮으면 아예 안 눌린다 — 그래서 띠는 왼쪽에 짧게 둔다(재서 확인했다).
@@ -320,16 +323,16 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
   background:transparent;text-align:left;font-size:14px;color:var(--ink)}
 .namedrop button+button{border-top:1px solid var(--line)}
 .namedrop button:hover,.namedrop button.on{background:var(--fill2)}
-.addrow input{flex:1;min-width:0;min-height:34px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:0 10px}
+.addrow input{flex:1;min-width:0;min-height:23px;height:23px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:0 10px}
 .addrow input:focus{outline:none;border-color:var(--head)}
-.addrow button{flex:none;min-height:44px}   /* 단추는 44px 그대로 — 칸만 34 로 내렸다 */
+.addrow button{flex:none;min-height:44px}   /* 단추는 44px 그대로 — 칸만 23 으로 내렸다 */
 .two{display:flex;gap:10px;align-items:center}   /* 두께 칸과 × 를 띄운다 — 잘못 눌리지 않게 */
 /* 보이는 것은 줄이고 닿는 자리는 44px 을 지킨다 (09-28 사장님 말씀 · 집 규칙 §0).
    select 는 ::after 를 못 얹으므로 **제 몸이 곧 닿는 자리**다 — 높이 44 는 지키고 폭·글자를 줄였다. */
 /* 09-30 사장님 말씀: 「이곳 사이즈 입력칸 아직도 커요 이로인해 부속간 여백이 커져있습니다」(측판 줄을 짚으시고).
-   이 고르개가 곧 사장님이 말씀하시는 「사이즈 입력칸」 이다 — §0 의 34px 자를 여기에도 댄다.
-   `select` 는 `::after` 를 못 얹으니 제 몸이 곧 닿는 자리다. 그래서 34 로 내렸다. */
-.two select,.two input{flex:1;min-width:0;width:0;height:34px;min-height:34px;padding:0 6px;font-size:13px;border-radius:11px}
+   이 고르개가 곧 사장님이 말씀하시는 「사이즈 입력칸」 이다 — §0 의 입력칸 자를 여기에도 댄다.
+   `select` 는 `::after` 를 못 얹으니 제 몸이 곧 닿는 자리다. 10-02 에 **23** 으로 내렸다. */
+.two select,.two input{flex:1;min-width:0;width:0;height:23px;min-height:23px;padding:0 6px;font-size:13px;border-radius:11px}
 .two .x{flex:none;width:28px;height:28px;padding:0;border-radius:50%;line-height:1;font-size:15px;color:var(--ink3);position:relative}
 /* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
 .two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:40px}

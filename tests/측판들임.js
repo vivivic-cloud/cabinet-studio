@@ -75,7 +75,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       return { 측판: 읽('측판'), 상판: 읽('상판'), 하판: 읽('하판'),
                말: [...document.querySelectorAll('.opt[data-opt="측판"] small')].map(x => x.textContent),
                낮은칸: [...document.querySelectorAll('.opt[data-opt="측판"] .optnum input')]
-                 .filter(i => Math.abs(i.getBoundingClientRect().height - 34) > 0.6).length }; }); };
+                 .filter(i => Math.abs(i.getBoundingClientRect().height - 23) > 0.6).length }; }); };
 
   console.log('① 상판 사이 · 하판 사이 — 예전 그대로');
   { const r = await 판({ topStyle:'inset', botStyle:'inset' });
@@ -105,7 +105,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('같은 이름 두 줄', r.측판.length - new Set(r.측판).size, 0);
     맞나('상판 판 · 하판 판', [r.상판, r.하판], [['상판유격'], []]);
     맞나('한 마디 (어느 것과 다투는지 적는다 — 판이 갈렸다)', r.말, ['「상판유격」 과 큰 쪽만 들어갑니다']);
-    맞나('34px 아닌 입력칸', r.낮은칸, 0); }
+    맞나('23px 아닌 입력칸', r.낮은칸, 0); }
 
   console.log('⑤ 값이 도면에 먹는다 — 둘은 한 자리를 다퉈 큰 쪽만 먹는다');
   const 재 = () => p.evaluate(() => { const m = window.__probe.model();

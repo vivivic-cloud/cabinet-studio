@@ -4,7 +4,7 @@
       현재 설절된 사이즈가 기본 세팅값입니다.」
      「보호대 위치를 현재의 측판끝에서 0.5mm단위로 안쪽으로 이동시킬 수 있는 옵션 부를 만들어 주세요」
 
-     ① 밴드 판에 「밴드 높이」 칸이 있다 (34px · 0.5 걸음 · 최소 0.5) · 담긴 것 없으면 지금 셈한 값이 보인다
+     ① 밴드 판에 「밴드 높이」 칸이 있다 (23px · 0.5 걸음 · 최소 0.5) · 담긴 것 없으면 지금 셈한 값이 보인다
      ② 담긴 것이 없으면 **고치기 전과 한 톨도 같다**
      ③ 150 으로 — **아랫면은 하판 윗면 그대로**, 윗면만 올라간다 · 부품표 W 150
      ④ **비우고 저장하면 다시 따라간다** (되돌아갈 길)
@@ -121,7 +121,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const i = document.querySelector('.opt[data-opt="밴드"] input[data-cpart="밴드"]'); if (!i) return null;
     const r = i.getBoundingClientRect();
     return [i.closest('.optnum').querySelector('label').textContent, i.value, i.step, i.min,
-            +r.width.toFixed(1) + '×' + r.height.toFixed(0)]; }), ['밴드 높이', '98', '0.5', '0.5', '52.6×34']);
+            +r.width.toFixed(1) + '×' + r.height.toFixed(0)]; }), ['밴드 높이', '98', '0.5', '0.5', '52.6×23']);
   맞나('담긴 것 없음', await 담긴높이(), null);
   // 「추가」 로 세운 밴드는 「하」 하나다(§4.8 — 옛 기본값)
   맞나('기본 자리 (덮기 · 하)', await 밴(), { 장수:1, 아랫끝:[98], 높이:[98], 부품표W:[98],

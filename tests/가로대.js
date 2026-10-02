@@ -5,7 +5,7 @@
 
      ① 수납장은 한 톨도 안 바뀐다 — 줄 이름표 「고정 선반」 · 고르개(select) · 부품표·도면 이름 「고정선반」
      ② **진짜 손가락**으로 서랍장을 고르면 줄 이름표·부품표·도면·3D 이름이 다 **「가로대」** 다
-     ③ 고르개가 **숫자 칸(step 0.5 · 34px)** 으로 갈린다
+     ③ 고르개가 **숫자 칸(step 0.5 · 23px)** 으로 갈린다
      ④ **0.5 단위 임의 값이 그대로 먹는다** — 7.5 를 치면 재단 두께가 7.5 다
      ⑤ 수납장으로 도로 가면 고르개로 돌아오고 **목록에 없는 값도 그대로 보인다**(거짓말 안 한다)
      ⑥ 단수 슬라이더·선반유격·× 가 그대로 먹는다 · 결은 **본이름으로 담겨** 부품표에 그대로 나온다
@@ -94,7 +94,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('① 수납장은 예전 그대로');
   맞나('줄 이름표', await 이름표(), '고정 선반');
-  맞나('두께 고르개 (select · 34px)', await 칸꼴(), { 태그:'SELECT', 열쇠:'Tshelf', step:null, 높이:34, 값:'18' });
+  맞나('두께 고르개 (select · 23px)', await 칸꼴(), { 태그:'SELECT', 열쇠:'Tshelf', step:null, 높이:23, 값:'18' });
   맞나('부속 이름에 고정선반', (await 부속이름들()).includes('고정선반'), true);
   맞나('도면 이름표 다섯', await 도면이름(), ['고정선반', '상판 18T · 측판 18T · 고정선반 18T · 이동선반 18T',
     '뒷판 2.7T · 고정선반 3단 · 이동선반 0단 · 문짝 2', '고정선반 18T · 이동선반 18T', '고정선반 3단 · 이동선반 0단']);
@@ -110,7 +110,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('부품표 줄', (await 표()).find(x => /가로대/.test(x)), '가로대 3 ');
 
   console.log('③ 사이즈 칸 — 0.5 단위 숫자 칸');
-  맞나('숫자 칸 (34px · step 0.5)', await 칸꼴(), { 태그:'INPUT', 열쇠:'Tshelf', step:'0.5', 높이:34, 값:'18' });
+  맞나('숫자 칸 (23px · step 0.5)', await 칸꼴(), { 태그:'INPUT', 열쇠:'Tshelf', step:'0.5', 높이:23, 값:'18' });
   맞나('가로 넘침 0', await p.evaluate(() => { const el = document.querySelector('.field[data-part="고정선반"] .two [data-key]');
     return el.scrollWidth - el.clientWidth; }), 0);
 

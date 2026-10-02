@@ -188,7 +188,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       맞나('칸에 들어갔나', await p.evaluate(x => document.querySelector(x).value, 자), '12.5');
       맞나('칸 크기 · 걸음', await p.evaluate(x => { const i = document.querySelector(x);
         if (!i) return null; const r = i.getBoundingClientRect();
-        return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step]; }, 자), ['52.6×34', '0.5']);
+        return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step]; }, 자), ['52.6×23', '0.5']);
       맞나('치는 동안에는 안 먹는다 (§4.9893)',
         await p.evaluate(() => window.__probe.model().bz), 62);
       await 손가락('.opt[data-opt="전면밴드"] [data-optsave]');

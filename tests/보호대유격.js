@@ -2,7 +2,7 @@
 /* 10-02 사장님 말씀
      「보호대 위치를 현재의 측판끝에서 0.5mm단위로 안쪽으로 이동시킬 수 있는 옵션 부를 만들어 주세요」
 
-     ① 보호대 상세옵션에 「보호대유격」 칸이 있다 (34px · 0.5 걸음) · 기본 0
+     ① 보호대 상세옵션에 「보호대유격」 칸이 있다 (23px · 0.5 걸음) · 기본 0
      ② 기본 0 이면 고치기 전과 **한 톨도 같다** — 뒤끝이 측판 끝(CD)에 딱 맞는다
      ③ 저장하면 **안으로만** 물린다 — y 가 그만큼 줄고 뒤끝도 같이 줄어든다
      ④ 두께·폭·키·재단 치수는 **안 바뀐다** · 넘침은 그대로 0
@@ -111,7 +111,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('보호대가 섰나', await p.evaluate(() =>
     window.__probe.model().parts.filter(x => x.name === '보호대').length), 1);
 
-  console.log('① 칸이 있다 (34px · 0.5 걸음 · 기본 0)  ② 기본 0 이면 뒤끝이 측판 끝에 딱 맞는다');
+  console.log('① 칸이 있다 (23px · 0.5 걸음 · 기본 0)  ② 기본 0 이면 뒤끝이 측판 끝에 딱 맞는다');
   await 펴기('보호대');
   맞나('칸 (이름 · 열쇠 · 값)', await p.evaluate(() =>
     [...document.querySelectorAll('.opt[data-opt="보호대"] .optnum')].map(e =>
@@ -120,7 +120,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('입력칸 크기 · 걸음', await p.evaluate(() => {
     const i = document.querySelector('.opt[data-opt="보호대"] .optnum input'); if (!i) return null;
     const r = i.getBoundingClientRect();
-    return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step, i.min]; }), ['52.6×34', '0.5', '0']);
+    return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step, i.min]; }), ['52.6×23', '0.5', '0']);
   const 처음 = await 보();
   맞나('기본 자리 (덮기 · 뒷판 2.7T)', 처음,
     { y:382, 뒤끝:400, 두께:18, 폭:764, 키:80, 재단:[764, 80, 18], 넘침:0 });
