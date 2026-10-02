@@ -923,21 +923,34 @@ function buildModel(s){
     /* 10-02 사장님 말씀: 「보호대 위치를 현재의 측판끝에서 0.5mm단위로 **안쪽으로 이동**시킬 수 있는 옵션 부를 만들어 주세요」.
        `보호대유격` 만큼 **앞으로(안으로)** 물린다. 기본 0 이라 예전 자리 그대로다 — 뒤끝에 딱 맞는다.
        두께·폭·키는 한 톨도 안 바뀐다. 넘침은 그대로 0 이고 더 물리면 더 들어가므로 경고는 영영 안 뜬다. */
-    const y = CD - c.T - 규칙.보호대유격;
+    // 앞을 넘지 못하게 붙잡는다 — 음수 자리에 부속이 서면 도면이 깨진다(관리자 10-02).
+    // 붙잡는 것은 셈에서만이고 **담긴 숫자는 사장님이 넣으신 그대로** 둔다.
+    const y = Math.max(0, CD - c.T - 규칙.보호대유격);
     넘침들['보호대'] = Math.max(0, (y + c.T) - CD);   // 늘 0 이다 — 뒤끝에 맞추고 안으로만 물리므로
     add('보호대', 안왼, y, 0, 폭, c.T, 키, [0,-1,0], {L:폭, W:키, T:c.T, grain:'가로'});
   });
   // 밴드가 오르내릴 수 있는 칸과, 「걸리는」 자리 (밴드 아랫끝 기준).
   // 사장님 말씀(09-17): 덮기에서 뒷판 라인을 따라 위아래로 자유롭게, 단 하판·상판을 벗어나지 않게.
-  const 밴드키 = bz + Tbot;
-  const 밴드바닥 = 밴드키, 밴드천장 = 상판밑 - 밴드키;       // 하판 위 ~ 상판 아래
+  /* 10-02 사장님 말씀: 「**밴드의 높이 사이즈를 0.5단위로 변경**할 수 있는 옵션부를 추가해 주세요.
+     현재 설정된 사이즈가 기본 세팅값입니다」.
+     ⚠ 전에는 `밴드키` 한 변수가 **두 가지 다른 일**을 했다 — 「자리」(하판 윗면)와 「높이」.
+     안 가르고 높이만 고치면 **밴드가 하판에서 떠오른다.** 그래서 둘로 갈랐다(관리자가 짚었다).
+       `밴드바닥` = 자리 (하판 윗면 `bz + Tbot`) — 높이를 고쳐도 **안 따라간다**
+       `밴드높`   = 높이 — 새 값은 **여기만** 들어간다. 담긴 것이 없으면 예전 그대로 `bz + Tbot` 이다
+     `밴드천장`(상판 밑에 붙는 자리)과 「선반 밑에 달기」 는 밴드 **아랫끝**이라 높이를 따라간다. */
+  const 밴드바닥 = bz + Tbot;
+  const 밴드칸 = 만든부속.find(c => c.이름 === '밴드');
+  const 담긴높이 = 밴드칸 ? Number(밴드칸.높이) : NaN;
+  const 밴드높 = (Number.isFinite(담긴높이) && 담긴높이 > 0) ? 담긴높이 : bz + Tbot;
+  // 높이가 몸통보다 크면 천장이 바닥 밑으로 내려간다 — 그 자리에 세우면 도면이 깨지므로 바닥에서 멈춘다
+  const 밴드천장 = Math.max(밴드바닥, 상판밑 - 밴드높);
   const 걸림 = [밴드바닥, 밴드천장];                          // 하판 윗면 · 상판 밑면
-  고정선반자리.forEach(([z0, z1]) => { 걸림.push(z1); 걸림.push(z0 - 밴드키); });  // 선반 위에 얹기 · 선반 밑에 달기
+  고정선반자리.forEach(([z0, z1]) => { 걸림.push(z1); 걸림.push(z0 - 밴드높); });  // 선반 위에 얹기 · 선반 밑에 달기
   const 걸림자리 = [...new Set(걸림.filter(z => z >= 밴드바닥 - 0.01 && z <= 밴드천장 + 0.01)
                                   .map(z => +z.toFixed(3)))].sort((a,b) => a-b);
   만든부속.forEach(c => {
     if (c.이름 !== '밴드') return;
-    const 밴드폭 = 안폭, 밴드높 = 밴드키;
+    const 밴드폭 = 안폭;
     const 밴드y = 끼움 ? 홈뒤 : CD - c.T;
     const 넘침 = Math.max(0, (밴드y + c.T) - CD);        // 측판 뒤끝(CD)을 넘어 나온 길이
     const 놓기 = (z, 단이름) => { 밴드넘침 = 넘침; 넘침들['밴드'] = 넘침;
@@ -992,7 +1005,7 @@ function buildModel(s){
   const 외경 = { W: 자(p => p.x, p => p.x + p.w), D: 자(p => p.y, p => p.y + p.d), H: 자(p => p.z, p => p.z + p.h) };
   외경.같나 = Math.abs(외경.W - W) < 0.001 && Math.abs(외경.D - D) < 0.001 && Math.abs(외경.H - H) < 0.001;
   return { parts: 산것, pitch, CD, bz, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊,
-           앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 걸림자리, 외경 };
+           앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 밴드높, 걸림자리, 외경 };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -2159,6 +2172,14 @@ new ResizeObserver(() => {                                // 실제로 바뀔 �
 document.addEventListener('input', e => {
   const el = e.target;
   if (!el || !el.dataset) return;
+  if (el.dataset.cpart !== undefined){        // 만든 부속 제 칸 (밴드 높이) — 「저장」 을 눌러야 먹는다
+    const 열 = el.dataset.cpart + '|' + el.dataset.cfield;
+    if (el.value === ''){ 담을부속.set(열, ''); return; }   // 비우면 다시 셈한 값을 따라간다
+    const v = Number(el.value);
+    if (!Number.isFinite(v)) return;
+    담을부속.set(열, Math.min(Number(el.max), Math.max(Number(el.min), v)));
+    return;
+  }
   if (el.dataset.rule !== undefined){          // 상세옵션 안의 0.5mm 칸 (관계제어판 것은 제 리스너가 받는다)
     if (el.closest('#rTable')) return;
     const v = Number(el.value);
@@ -2778,6 +2799,9 @@ const 열린옵션 = new Set();                       // 지금 펴져 있는 �
    칸이 다시 그려져도 친 값이 안 날아가게 **열쇠별로** 담는다. */
 const 담을값 = new Map();      // 규칙 열쇠 → 아직 저장 안 한 수치
 const 담을상태 = new Map();    // state 열쇠 → 〃 (전면밴드 같은 숫자 칸)
+// 만든 부속 제 칸(밴드 높이 같은 것) → 〃. 열쇠는 `부속이름|칸이름` 이다.
+// 빈 글('')은 「담긴 것을 지운다」 — 그러면 다시 셈한 값을 따라간다(관리자 10-02).
+const 담을부속 = new Map();
 function 옵션치수(이름){
   const r = 모델 ? bomRows(모델).find(x => x.name === 이름) : null;
   return r ? { 가로:fmt(r.L), 세로:fmt(r.W) } : { 가로:'–', 세로:'–' };
@@ -2875,15 +2899,24 @@ function 줄옵션(이름){
   // 10-02 사장님 말씀 — 보호대를 측판 끝에서 안으로 물리는 칸. 만든 부속이지만 자리가 정해진 부속이라
   // 다른 부속과 같은 꼴로 제 판 안에 둔다(§4.94). 담는 곳은 `규칙` 이라 「저장」 을 눌러야 먹는다(§4.9893).
   if (이름 === '보호대')
-    return 만든부속.some(c => c.이름 === '보호대') ? 유격칸('보호대유격', '보호대유격') : '';
+    return 만든부속.some(c => c.이름 === '보호대') ? 유격칸('보호대유격', '보호대유격', 200) : '';
   if (이름 === '밴드'){
     const i = 만든부속.findIndex(c => c.이름 === '밴드');
     if (i < 0) return '';
     const c = 만든부속[i], 중됨 = state.backMode === 'insert';
+    /* 10-02 사장님 말씀 — 「밴드의 높이 사이즈를 0.5단위로 변경할 수 있는 옵션부 … 현재 설정된 사이즈가 기본 세팅값」.
+       담는 곳은 **그 부속 칸**(`c.높이`)이다 — 두께(`c.T`)·단(`c.단`)이 이미 거기 있다. `규칙` 이 아니다.
+       비어 있으면 예전처럼 `bz + Tbot` 을 따라간다. **비우고 저장하면 다시 따라간다** — 되돌아갈 길이다. */
+    const 담긴 = 담을부속.has('밴드|높이') ? 담을부속.get('밴드|높이')
+      : (Number.isFinite(Number(c.높이)) && Number(c.높이) > 0 ? c.높이 : '');
+    const 지금높이 = 모델 ? fmt(모델.밴드높) : '';
     return `<div class="seg mini" role="group" aria-label="밴드 단">` +
       밴드단값.map(v => `<label class="${v === '중' && !중됨 ? '못씀' : ''}">` +
         `<input type="checkbox" data-bi="${i}" value="${v}"${밴드단(c).includes(v)?' checked':''}>${v}</label>`).join('') +
-      `</div>`;
+      `</div>` +
+      `<div class="optnum"><label for="c_밴드높이">밴드 높이</label><div class="num">` +
+      `<input id="c_밴드높이" data-cpart="밴드" data-cfield="높이" type="number" min="0.5" max="${state.H}" step="0.5"` +
+      ` value="${담긴 === '' ? 지금높이 : 담긴}"><span>mm</span></div></div>`;
   }
   return '';
 }
@@ -2922,9 +2955,10 @@ function 결단추갱신(){
 }
 // 그 판에 뜬 수치 칸의 열쇠들 — 담아 둔 값을 먹이거나 버릴 때 쓴다
 const 판칸들 = 이름 => { const el = document.querySelector(`.opt[data-opt="${CSS.escape(이름)}"]`);
-  return el ? [...el.querySelectorAll('input[data-rule],input[data-key][type=number]')] : []; };
+  return el ? [...el.querySelectorAll('input[data-rule],input[data-key][type=number],input[data-cpart]')] : []; };
 const 판닫기 = 이름 => {                                   // 안 저장한 수치는 버린다
-  판칸들(이름).forEach(i => { 담을값.delete(i.dataset.rule); 담을상태.delete(i.dataset.key); });
+  판칸들(이름).forEach(i => { 담을값.delete(i.dataset.rule); 담을상태.delete(i.dataset.key);
+    if (i.dataset.cpart !== undefined) 담을부속.delete(i.dataset.cpart + '|' + i.dataset.cfield); });
   열린옵션.delete(이름); 결단추갱신(); };
 /* 10-01 사장님 말씀 — 「저장」 을 눌러야 수치가 먹는다. 「닫기」 는 친 것을 버리고 이전 세팅을 그대로 둔다.
    부속명을 다시 눌러 접는 것도 닫기와 같다. */
@@ -2937,6 +2971,14 @@ document.addEventListener('click', e => {
       const r = i.dataset.rule, k = i.dataset.key;
       if (r !== undefined && 담을값.has(r)){ 규칙[r] = 담을값.get(r); 담을값.delete(r); }
       if (k !== undefined && 담을상태.has(k)){ state[k] = 담을상태.get(k); 담을상태.delete(k); }
+      if (i.dataset.cpart !== undefined){                 // 만든 부속 제 칸 (밴드 높이)
+        const 열 = i.dataset.cpart + '|' + i.dataset.cfield;
+        if (담을부속.has(열)){
+          const c = 만든부속.find(x => x.이름 === i.dataset.cpart), v = 담을부속.get(열);
+          if (c){ if (v === '') delete c[i.dataset.cfield]; else c[i.dataset.cfield] = v; }
+          담을부속.delete(열);
+        }
+      }
     });
     열린옵션.delete(이름); 담기(); 결단추갱신(); update(); return; }
   if (닫기){ 판닫기(닫기.dataset.optclose); return; }
