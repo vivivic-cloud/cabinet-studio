@@ -477,7 +477,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <div class="group" id="itemBox">
       <h2>품목</h2>
       <div class="field wide"><div class="seg mini" role="group" aria-label="품목">
-        <label><input type="radio" name="품목" value="수납장" checked>수납장</label>
+        <label><input type="radio" name="품목" value="수납장">수납장</label>
         <label><input type="radio" name="품목" value="서랍장">서랍장</label>
       </div></div>
     </div>
@@ -654,7 +654,27 @@ const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:
                   // 10-01 사장님 말씀 — 상판이 측판 위일 때 **측판 깊이가 줄어든다**(화면 이름 「측판 들임」).
                   // 열쇠를 새로 둔 것은 옛 `측판들임`(= 이제 화면 이름 「상판유격」)이 좌우 자리를 맡고 있어서다.
                   측판깊이들임:0 };
+/* 10-02 사장님 말씀 — 「품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이 나타나게」.
+   **앞머리(`cabinet-studio`)는 안 건드린다**(§0). 품목 한 마디를 **뒤에** 더하는 것뿐이다.
+     cabinet-studio.품목                       ← 마지막에 보던 품목
+     cabinet-studio.<품목>.규칙 · .부속 · .손질 · .지난부속 · .결
+   설계는 §4.9876 에 적어 두었다. */
 const 곳간 = 'cabinet-studio';
+const 품목값 = ['수납장', '서랍장'];
+let 지금품목 = '수납장';
+try { const v = localStorage.getItem(곳간 + '.품목'); if (품목값.includes(v)) 지금품목 = v; } catch (e) {}
+const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
+/* 옛 한 벌(앞머리만 쓰던 것)을 **수납장** 으로 한 번만 옮겨 담는다.
+   값은 한 글자도 안 고치고 통째로 옮긴다. 새 열쇠가 이미 있으면 아무것도 안 한다.
+   **사장님이 맞춰 두신 값이 하나도 날아가면 안 된다** — 이것이 제일 중요하다(관리자). */
+try {
+  const 다섯 = ['규칙', '부속', '손질', '지난부속', '결'];
+  if (localStorage.getItem(칸('규칙', '수납장')) === null
+      && 다섯.some(k => localStorage.getItem(곳간 + '.' + k) !== null)){
+    다섯.forEach(k => { const v = localStorage.getItem(곳간 + '.' + k);
+      if (v !== null){ localStorage.setItem(칸(k, '수납장'), v); localStorage.removeItem(곳간 + '.' + k); } });
+  }
+} catch (e) {}
 let 규칙 = { ...규칙기본 }, 만든부속 = [];
 // 도면에서 부속을 골라 손질한 것. 자리(이름+좌표)로 짚는다 — 치수를 바꿔 그 자리가 없어지면 저절로 풀린다.
 let 손질 = { 숨김:[], 지움:[], 복제:{} };
@@ -670,8 +690,13 @@ const 자리 = p => `${p.name}@${Math.round(p.x)},${Math.round(p.y)},${Math.roun
 // 옮길 수 있는 부속(밴드)과 설정에 따라 자리가 통째로 옮겨 앉는 부속(문짝)은 **굳은 열쇠**를 앞에 두되,
 // **옛 자리 열쇠도 같이 본다** — 예전에 담아 둔 손질이 풀리면 안 된다.
 const 열쇠들 = p => p.단열쇠 ? [p.단열쇠, 자리(p)] : [자리(p)];
+/* 지금 품목의 한 벌을 통째로 읽는다. 품목을 바꿀 때 다시 부른다 — 그래서 함수다.
+   **먼저 기본값으로 비운다** — 안 비우면 보던 품목 것이 새 품목에 묻는다. */
+function 곳간읽기(){
+  규칙 = { ...규칙기본 }; 만든부속 = []; 지난부속 = [];
+  손질 = { 숨김:[], 지움:[], 복제:{} }; 결설정 = {};
 try {
-  const r = JSON.parse(localStorage.getItem(곳간 + '.규칙') || 'null');
+  const r = JSON.parse(localStorage.getItem(칸('규칙')) || 'null');
   if (r && typeof r === 'object') 규칙 = { ...규칙기본, ...r };
   /* 10-01 사장님 말씀 — 「뒷판 들어감」(`홈뒤살`)이 「우라홈」 이 되었다. **재던 자리가 다르다** —
      홈뒤살은 홈의 **뒤쪽 벽**까지였고 우라홈은 홈의 **안쪽 마감선**까지다.
@@ -695,33 +720,48 @@ try {
     if (!(r && r.우라홈 !== undefined) && Number.isFinite(규칙.홈뒤살)) 규칙.우라홈 = 규칙.홈뒤살;
     delete 규칙.홈뒤살;
   }
-  const c = JSON.parse(localStorage.getItem(곳간 + '.부속') || 'null');
+  const c = JSON.parse(localStorage.getItem(칸('부속')) || 'null');
   if (Array.isArray(c)) 만든부속 = c.filter(x => x && typeof x.이름 === 'string');
-  const 지 = JSON.parse(localStorage.getItem(곳간 + '.지난부속') || 'null');
+  const 지 = JSON.parse(localStorage.getItem(칸('지난부속')) || 'null');
   if (Array.isArray(지)) 지난부속 = 지.filter(x => x && typeof x.이름 === 'string');
-  const h = JSON.parse(localStorage.getItem(곳간 + '.손질') || 'null');
+  const h = JSON.parse(localStorage.getItem(칸('손질')) || 'null');
   if (h && typeof h === 'object') 손질 = { 숨김:Array.isArray(h.숨김) ? h.숨김 : [],
                                            지움:Array.isArray(h.지움) ? h.지움 : [],
                                            복제:(h.복제 && typeof h.복제 === 'object') ? h.복제 : {} };
   // 옛 문짝 자리 열쇠(`문짝@2,-18,85` 처럼)는 한 번만 턴다 — 사장님 말씀(09-22)
   // 「아웃도어 선택시 도어 자체가 사라진다」 가 이것이다. 인도어 자리에서 숨기거나 지운 것이
   // 아웃도어 자리 열쇠와 안 맞아 한쪽에서만 사라졌다. 이제는 짝 번호 열쇠(`문짝@짝:0`)를 쓴다.
-  const g = JSON.parse(localStorage.getItem(곳간 + '.결') || 'null');
+  const g = JSON.parse(localStorage.getItem(칸('결')) || 'null');
   if (g && typeof g === 'object') Object.keys(g).forEach(k => { if (결방향값.includes(g[k])) 결설정[k] = g[k]; });
   const 옛문짝 = k => /^문짝@-?\d/.test(k);
   손질.숨김 = 손질.숨김.filter(k => !옛문짝(k));
   손질.지움 = 손질.지움.filter(k => !옛문짝(k));
   Object.keys(손질.복제).forEach(k => { if (옛문짝(k)) delete 손질.복제[k]; });
 } catch (e) {}
+}
+곳간읽기();
 function 담기(){ try {
-  localStorage.setItem(곳간 + '.규칙', JSON.stringify(규칙));
-  localStorage.setItem(곳간 + '.부속', JSON.stringify(만든부속));
-  localStorage.setItem(곳간 + '.손질', JSON.stringify(손질));
-  localStorage.setItem(곳간 + '.지난부속', JSON.stringify(지난부속));
-  localStorage.setItem(곳간 + '.결', JSON.stringify(결설정));
+  localStorage.setItem(칸('규칙'), JSON.stringify(규칙));
+  localStorage.setItem(칸('부속'), JSON.stringify(만든부속));
+  localStorage.setItem(칸('손질'), JSON.stringify(손질));
+  localStorage.setItem(칸('지난부속'), JSON.stringify(지난부속));
+  localStorage.setItem(칸('결'), JSON.stringify(결설정));
 } catch (e) {} }
+/* 품목을 바꾼다 — 그 품목의 한 벌을 통째로 다시 읽는다.
+   **보던 품목 것을 먼저 담는다**(안 담으면 날아간다). 안 저장한 수치도 턴다 — 다른 품목에 묻으면 안 된다.
+   `state`(폭·깊이·높이·두께·단수·결합 방식)는 원래 저장 안 하므로(§7.5) 품목을 바꿔도 그대로다. */
+function 품목바꾸기(새){
+  if (!품목값.includes(새) || 새 === 지금품목) return;
+  담기();
+  지금품목 = 새; state.품목 = 새;
+  try { localStorage.setItem(곳간 + '.품목', 새); } catch (e) {}
+  곳간읽기();
+  열린옵션.clear(); 결켬.clear(); 담을값.clear(); 담을상태.clear(); 담을부속.clear();
+  열쇠옮기기();                       // 그 품목에 담긴 옛 자리 열쇠도 굳은 열쇠로 옮겨 담는다 (§4.865)
+  부속그리기(); 결단추갱신(); update();
+}
 
-const state = { 품목:'수납장', W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
+const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', backMode:'cover', doors:2, doorMode:'out', explode:0 };
 const fmt = n => { const r = Math.round(n*10)/10; return Number.isInteger(r) ? String(r) : r.toFixed(1); };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -2217,7 +2257,7 @@ document.addEventListener('change', e => {
   /* 10-02 사장님 말씀 — 「품목에 서랍장을 추가해 … 품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이
      나타나게 … 서랍장의 기본세팅은 일단 현재 수납장과 동일하게」. 그래서 **지금은 이름만 갈린다.**
      `buildModel` 은 한 글자도 안 건드렸다 — 두 품목이 같은 셈을 쓴다. 서랍장만의 관계가 정해지면 여기서 갈린다. */
-  if (el.name === '품목' && el.checked){ state.품목 = el.value; update(); return; }
+  if (el.name === '품목' && el.checked){ 품목바꾸기(el.value); return; }
   if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); 결단추갱신(); update(); return; }
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
@@ -3283,6 +3323,9 @@ $('#rX').addEventListener('click', () => $('#rulesDlg').close());
 $('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담기(); 제어판그리기(); update(); });
 $('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
 
+// 마지막에 보던 품목에 단추를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
+{ const b2 = document.querySelector(`#itemBox input[name="품목"][value="${CSS.escape(state.품목)}"]`);
+  if (b2) b2.checked = true; }
 부속그리기();
 열쇠옮기기();                 // 담겨 있던 옛 자리 열쇠를 굳은 열쇠로 한 번만 옮겨 담는다 (09-22)
 init3D();
