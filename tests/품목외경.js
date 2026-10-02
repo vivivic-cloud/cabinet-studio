@@ -7,7 +7,8 @@
      ③ 수납장 ↔ 서랍장을 오가도 각각 제 값이다 — **칸에 보이는 숫자도 따라간다**
      ④ **도면·3D 가 각각의 입력에 맞게 나온다** (몸통 폭·높이·부속 치수)
      ⑤ 외경만이 아니다 — 두께·단수·결합 방식·뒷판 방식·도어도 품목마다 따로다
-     ⑥ 새로 열면 두 품목 다 기본값이다 (`state` 는 담지 않는다 · §7.5)
+     ⑥ **새로 열면 마지막 품목과 그 품목의 외경이 그대로다** — `state` 가 곳간의 여섯째가 되었다
+     ⑦ **옛 설정(`.상태` 가 없는 것)으로 열면 기본값이다** · 담긴 `.상태` 가 깨져도 안 터진다
 
    돌리는 법:  node tests/품목외경.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -135,14 +136,56 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('마이다 6분할이 선다', await p.evaluate(() =>
     window.__probe.model().parts.filter(x => x.name === '마이다').length), 6);
 
-  console.log('④ 3D 도 따라온다 · ⑥ 새로 열면 두 품목 다 기본값');
+  console.log('④ 3D 도 따라온다 · ⑥ 새로 열면 마지막 품목과 그 외경이 그대로다');
   맞나('부속이 다시 선다 (0 이 아니다)', (await 삼디()) > 0, true);
+  // 관리자가 적어 준 그 값으로 한 번 더 — 수납장 800×400×1800 · 서랍장 600×500×900
+  await p.evaluate(() => window.__probe.set({ Ttop:18, shelves:3, doors:2 })); await 잠(300);
+  await 쳐넣기('#W', 600); await 쳐넣기('#D', 500); await 쳐넣기('#H', 900);
+  await 품목고르기('수납장');
+  await 쳐넣기('#W', 800); await 쳐넣기('#D', 400); await 쳐넣기('#H', 1800);
+  맞나('수납장 800×400×1800', await 외경(), [800, 400, 1800]);
+  await 품목고르기('서랍장');
+  맞나('서랍장 600×500×900', await 외경(), [600, 500, 900]);
   await p.reload({ waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__probe, null, { timeout: 20000 }); await 잠(600);
-  맞나('새로 열면 마지막 품목(서랍장) · 외경은 기본값', [await p.evaluate(() => window.__probe.st().품목), await 외경()],
-    ['서랍장', [800, 400, 1800]]);
+  맞나('새로 열면 마지막 품목(서랍장)과 그 외경이 그대로',
+    [await p.evaluate(() => window.__probe.st().품목), await 외경(), await 칸값()],
+    ['서랍장', [600, 500, 900], ['600', '500', '900']]);
   await 품목고르기('수납장');
-  맞나('수납장도 기본값', await 외경(), [800, 400, 1800]);
+  맞나('수납장도 제 값 그대로', await 외경(), [800, 400, 1800]);
+  맞나('담긴 열쇠 — 품목마다 여섯 + 마지막 품목', await p.evaluate(() => {
+    const k = []; for (let i = 0; i < localStorage.length; i++){ const n = localStorage.key(i);
+      if (n.indexOf('cabinet-studio') === 0) k.push(n); }
+    return k.sort(); }), ['cabinet-studio.서랍장.결','cabinet-studio.서랍장.规'.replace('规','규칙'),
+      'cabinet-studio.서랍장.부속','cabinet-studio.서랍장.상태','cabinet-studio.서랍장.손질',
+      'cabinet-studio.서랍장.지난부속','cabinet-studio.수납장.결','cabinet-studio.수납장.규칙',
+      'cabinet-studio.수납장.부속','cabinet-studio.수납장.상태','cabinet-studio.수납장.손질',
+      'cabinet-studio.수납장.지난부속','cabinet-studio.품목'].sort());
+
+  console.log('⑦ 옛 설정 · 깨진 글에서도 안 터진다');
+  await p.evaluate(() => {
+    localStorage.clear();
+    // 옛 설정 — `.상태` 가 아예 없다
+    localStorage.setItem('cabinet-studio.규칙', JSON.stringify({ 이름:'옛 설정', 아웃좌우:3 }));
+  });
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__probe, null, { timeout: 20000 }); await 잠(600);
+  맞나('옛 설정 — 외경은 공장 기본값 · 규칙은 살아난다',
+    [await 외경(), await p.evaluate(() => [window.__probe.rule().이름, window.__probe.rule().아웃좌우])],
+    [[800, 400, 1800], ['옛 설정', 3]]);
+  await p.evaluate(() => {
+    localStorage.setItem('cabinet-studio.수납장.상태', JSON.stringify({
+      W:'여덟백', D:-500, H:null, Ttop:'x', shelves:4, topStyle:5, backMode:'insert', 없는열쇠:9 }));
+  });
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__probe, null, { timeout: 20000 }); await 잠(600);
+  맞나('깨진 글 — 꼴이 맞는 것만 먹고 나머지는 기본값', await p.evaluate(() => { const s2 = window.__probe.st();
+    return [s2.W, s2.D, s2.H, s2.Ttop, s2.shelves, s2.topStyle, s2.backMode]; }),
+    [800, 400, 1800, 18, 4, 'inset', 'insert']);
+  await p.evaluate(() => localStorage.setItem('cabinet-studio.수납장.상태', '{깨진 글'));
+  await p.reload({ waitUntil: 'domcontentloaded' });
+  await p.waitForFunction(() => window.__probe, null, { timeout: 20000 }); await 잠(600);
+  맞나('글이 통째로 깨져도 안 터진다', [await 외경(), (await 삼디()) > 0], [[800,400,1800], true]);
 
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();

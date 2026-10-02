@@ -162,8 +162,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('② 곳간이 품목마다 갈라진다');
   맞나('담긴 열쇠들', Object.keys(await 곳간들()).sort(),
     ['cabinet-studio.품목'].concat(
+      // 10-02 사장님 말씀(§4.9872)으로 `상태` 가 **여섯째**로 들어왔다
       ['수납장','서랍장'].reduce((a2, 품) =>
-        a2.concat(['결','규칙','부속','손질','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
+        a2.concat(['결','규칙','부속','상태','손질','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
 
   console.log('④ 새로 열면 마지막에 보던 품목이 그대로다');
   await p.reload({ waitUntil:'domcontentloaded' });
@@ -190,12 +191,16 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       const 다섯 = ['규칙','부속','손질','지난부속','결'];
       return [다섯.every(k => localStorage.getItem('cabinet-studio.수납장.' + k) !== null),
               다섯.every(k => localStorage.getItem('cabinet-studio.' + k) === null)]; }), [true, true]);
-    맞나('값이 글자까지 같나', await p2.evaluate(() => [
-      localStorage.getItem('cabinet-studio.수납장.규칙'),
+    /* ⚠ `규칙` 글은 이제 **온 한 벌**로 다시 담긴다 — `state` 가 곳간의 여섯째가 되면서
+       `update()` 끝에서 `담기()` 를 부르기 때문이다(§4.9872). **담긴 값은 하나도 안 날아간다** —
+       옛 열쇠 셋이 그대로 있고 나머지는 `규칙기본` 으로 채워진다. 나머지 셋은 글자까지 같다. */
+    맞나('옛 규칙 값 셋이 그대로 있나', await p2.evaluate(() => {
+      const r = JSON.parse(localStorage.getItem('cabinet-studio.수납장.규칙'));
+      return [r.이름, r.우라홈, r.아웃좌우]; }), ['옛 설정', 12, 3]);
+    맞나('나머지 셋은 글자까지 같나', await p2.evaluate(() => [
       localStorage.getItem('cabinet-studio.수납장.부속'),
       localStorage.getItem('cabinet-studio.수납장.지난부속'),
       localStorage.getItem('cabinet-studio.수납장.결')]), [
-      JSON.stringify({ 이름:'옛 설정', 우라홈:12, 아웃좌우:3 }),
       JSON.stringify([{ 이름:'밴드', T:25, 단:['상','하'] }]),
       JSON.stringify([{ 이름:'덧판', T:25 }]),
       JSON.stringify({ 측판:'세로' })]);
