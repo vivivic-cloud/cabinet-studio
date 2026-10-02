@@ -2212,13 +2212,63 @@ function init3D(){
     renderer.render(scene, camera);
   })(performance.now());
 }
+/* ───────── 3D 에도 홈을 판다 (10-02 사장님 말씀 — 「3d에는 안보여」) ─────────
+   홈 가공이 2D·부품표·DXF 에는 다 들어갔는데 **3D 만 민짜 상자**였다(`BoxGeometry`).
+   **모델이 아는 것을 2D 만 쓰고 3D 가 안 쓰면 반쪽이다** — 가공을 더할 때는 두 쪽을 같이 본다(§0).
+
+   **선을 긋는 것이 아니라 진짜로 판다.** 홈은 곧은 한 줄이라 단면을 그려 밀어내면 그만이다
+   (`THREE.Shape` + `ExtrudeGeometry`). **CSG 는 안 쓴다** — 무겁고 이 집에 라이브러리가 없다.
+
+   단면은 (a, b) 로 그린다 — `a` 는 **깊이축**, `b` 는 **판 두께축**이다. 홈은 b 의 한 끝면에 있다.
+   둘레는 **늘 반시계**로 돈다(면 뒤집힘을 막는다). */
+function 홈모양(길이, 두께, g0, g1, 깊이, 위쪽){
+  const aB = -길이/2, aT = 길이/2, bB = -두께/2, bT = 두께/2;
+  /* 홈이 판 밖으로 나가면 **그 끝에서 잘라 쓴다** — 그러면 홈이 그 면으로 **뚫려 나간 꼴**로 선다.
+     뒷판이 두꺼워 홈 폭이 우라홈보다 커지면 실제로 그렇게 된다(1쪽 홈 가공도의 「뒤 끝에서 −0.8」 · §4.9894).
+     **메꾸지 않는다** — 프로그램이 아는 그대로 보여 주는 것이 사장님이 보실 것이다. */
+  const c0 = Math.max(aB, Math.min(g0, aT)), c1 = Math.max(aB, Math.min(g1, aT));
+  const 점 = 위쪽
+    ? [[aB,bB],[aT,bB],[aT,bT],[c1,bT],[c1,bT-깊이],[c0,bT-깊이],[c0,bT],[aB,bT]]
+    : [[aB,bB],[c0,bB],[c0,bB+깊이],[c1,bB+깊이],[c1,bB],[aT,bB],[aT,bT],[aB,bT]];
+  // 홈이 끝에 닿으면 같은 점이 잇따라 생긴다 — 그대로 두면 삼각 나누기가 깨진다
+  const 줄인 = 점.filter((q, i) => i === 0 || Math.abs(q[0]-점[i-1][0]) > 1e-6 || Math.abs(q[1]-점[i-1][1]) > 1e-6);
+  const s = new THREE.Shape();
+  s.moveTo(줄인[0][0], 줄인[0][1]);
+  for (let i = 1; i < 줄인.length; i++) s.lineTo(줄인[i][0], 줄인[i][1]);
+  s.closePath(); return s;
+}
+/* 그 부속의 3D 꼴을 만든다. 홈이 없으면 **예전 그대로 민짜 상자**다.
+   세우는 자리·크기는 한 톨도 안 바뀐다 — 홈은 **안으로 파는 것**이지 판을 키우거나 줄이는 것이 아니다.
+   ⚠ three 의 축은 모델과 다르다 — X=폭(p.w) · Y=높이(p.z) · **Z=깊이이고 뒤집혀 있다**
+     (`local Z = (p.y + p.d/2) − 모델 y`). 그래서 홈 자리를 그 식으로 옮긴다. */
+function 조각꼴(p, m){
+  const 상자 = () => new THREE.BoxGeometry(p.w, p.h, p.d);
+  if (!m.홈 || !홈부속.includes(p.name)) return 상자();
+  const 깊이 = m.홈.깊이;
+  const g0 = (p.y + p.d/2) - m.홈.뒤, g1 = (p.y + p.d/2) - m.홈.앞;   // 깊이축(local Z) 에서의 홈 자리
+  const aB = -p.d/2, aT = p.d/2;
+  const 두께 = (p.name === '측판') ? p.w : p.h;
+  // 홈이 판 밖에 통째로 있거나 두께를 다 먹으면 **그리지 않는다** — 예전 그대로 민짜 상자다.
+  // (판 끝을 조금 넘는 것은 `홈모양` 이 끝에서 잘라 **뚫린 꼴**로 그린다.)
+  if (!(g1 > aB + 0.01 && g0 < aT - 0.01 && g1 - g0 > 0.01 && 깊이 > 0.01 && 깊이 < 두께 - 0.01)) return 상자();
+  // 어느 면에 파는가 — 양 측판은 **둘 다 몸통 안쪽**을 본다(왼쪽은 +X 면, 오른쪽은 −X 면)
+  const 위쪽 = (p.name === '측판') ? (p.dir[0] < 0) : (p.name === '하판');
+  const geo = new THREE.ExtrudeGeometry(홈모양(p.d, 두께, g0, g1, 깊이, 위쪽),
+    { depth: (p.name === '측판') ? p.h : p.w, bevelEnabled:false, curveSegments:1 });
+  if (p.name === '측판'){            // 단면 (a,b) → (Z,X) · 밀어내는 쪽은 Y(높이)
+    geo.rotateZ(-Math.PI/2); geo.rotateX(-Math.PI/2); geo.translate(0, -p.h/2, 0);
+  } else {                           // 단면 (a,b) → (Z,Y) · 밀어내는 쪽은 X(폭)
+    geo.rotateY(-Math.PI/2); geo.translate(p.w/2, 0, 0);
+  }
+  return geo;
+}
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
     if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 다 나온다)
-    const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
+    const geo = 조각꼴(p, m);               // 끼우기의 홈 파는 세 부속은 진짜로 홈이 파인다 (10-02)
     const base = mat(p.cut.T, p.name === 부속이름('문짝'), p.name === '이동선반');
     const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
