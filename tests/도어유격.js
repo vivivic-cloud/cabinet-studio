@@ -3,13 +3,15 @@
      「도어옵션에 도어의 **상 하부 유격높이**를 조정하는 옵션을 만들어 주세요.
       옵션부의 기본 세팅값은 현재 **인도어/아웃도어에 따른 기본값**이 세팅되어 있어야 합니다」
 
-     ① 도어 상세옵션에 「상부유격」·「하부유격」 두 칸이 있다 (34px · 0.5 걸음)
+     ① 도어 상세옵션에 「도어 위 유격」·「도어 아래 유격」 두 칸이 있다 (34px · 0.5 걸음)
      ② 기본값이 모드에 따라 세팅되어 있다 — 아웃도어 2·5 · 인도어 3·3
-     ③ 아웃도어 아래는 전면밴드가 없으면 `아웃아래없음`(2) 로 바뀐다
+     ③ **네 갈래**(인·아웃 × 전면밴드 있음·없음)에서 열어 보면 늘 지금 쓰이는 값이 들어 있다
      ④ 저장하면 도면에 먹는다 — 문짝 z 가 그만큼 움직이고 재단 높이가 따라온다
      ⑤ **좌우는 안 따라 움직인다** — 인도어에서 위·아래를 갈라 `인나머지` 는 좌우만 잰다
      ⑥ 기본값에서는 고치기 전과 **한 톨도 같다**
-     ⑦ 관계제어판에 **같은 줄이 없다** (두 군데 두지 않는다 · §0)
+     ⑦ 관계제어판에 **같은 줄이 없다** (두 군데 두지 않는다 · §0) · `인나머지` 줄은 남는다
+     ⑧ 도어 **재단 치수**가 유격을 따라온다 · **제품 최대 외경은 안 변한다**
+     ⑨ 옛 설정의 `인나머지` 를 `인위`·`인아래` 가 **이어받는다**
 
    돌리는 법:  node tests/도어유격.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -100,23 +102,30 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     .map(e => [e.querySelector('label').textContent, e.querySelector('input').dataset.rule,
                e.querySelector('input').value]));
 
-  console.log('① 도어 상세옵션에 「상부유격」·「하부유격」 두 칸이 있다  ② 아웃도어 기본값 2 · 5');
+  console.log('① 도어 상세옵션에 「도어 위 유격」·「도어 아래 유격」 두 칸이 있다  ② 아웃도어 기본값 2 · 5');
   await 펴기('문짝');
   맞나('칸 (이름 · 열쇠 · 값)', await 칸들(),
-    [['상부유격','아웃위','2'], ['하부유격','아웃아래걸레','5']]);
+    [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]);
   맞나('입력칸 크기 · 걸음', await p.evaluate(() => {
     const i = document.querySelector('.opt[data-opt="문짝"] .optnum input'); if (!i) return null;
     const r = i.getBoundingClientRect();
     return [+r.width.toFixed(1) + '×' + r.height.toFixed(0), i.step, i.min]; }), ['52.6×34', '0.5', '0']);
 
-  console.log('③ 전면밴드가 없으면 아래 칸이 `아웃아래없음`(2) 으로 바뀐다');
-  await p.evaluate(() => window.__probe.set({ plinth:0 })); await 잠(400);
-  맞나('전면밴드 0 일 때', await 칸들(), [['상부유격','아웃위','2'], ['하부유격','아웃아래없음','2']]);
-  await p.evaluate(() => window.__probe.set({ plinth:80 })); await 잠(400);
-
-  console.log('② 인도어 기본값 3 · 3');
-  await p.evaluate(() => window.__probe.set({ doorMode:'in' })); await 잠(400);
-  맞나('인도어일 때', await 칸들(), [['상부유격','인위','3'], ['하부유격','인아래','3']]);
+  console.log('③ 네 갈래 — 열어 보면 늘 지금 쓰이는 값이 들어 있다');
+  for (const [모드, 밴드, 바람] of [
+      ['out', 80, [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]],
+      ['out', 0,  [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래없음','2']]],
+      ['in',  80, [['도어 위 유격','인위','3'],   ['도어 아래 유격','인아래','3']]],
+      ['in',  0,  [['도어 위 유격','인위','3'],   ['도어 아래 유격','인아래','3']]]]){
+    await p.evaluate(v => window.__probe.set({ doorMode:v.m, plinth:v.b }), { m:모드, b:밴드 }); await 잠(400);
+    맞나(`${모드 === 'in' ? '인도어' : '아웃도어'} · 전면밴드 ${밴드}`, await 칸들(), 바람);
+    // 칸에 든 값이 **지금 셈에 쓰이는 그 값**인지 규칙에서 되비춰 본다
+    맞나('  칸 값 = 지금 쓰는 규칙 값', await p.evaluate(() => {
+      const r = window.__probe.rule();
+      return [...document.querySelectorAll('.opt[data-opt="문짝"] .optnum input')]
+        .map(i => +i.value === r[i.dataset.rule]); }), [true, true]);
+  }
+  await p.evaluate(() => window.__probe.set({ doorMode:'in', plinth:80 })); await 잠(400);
 
   console.log('④⑤ 저장하면 먹는다 · 좌우는 안 따라 움직인다 (인도어)');
   const 인전 = await 문짝();
@@ -165,7 +174,51 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('좌우·경첩·도어사이 줄은 그대로 있다', await p.evaluate(() =>
     ['아웃좌우','인경첩','인나머지','도어사이','아웃경첩'].map(k => document.querySelectorAll(`#rTable [data-rule="${k}"]`).length)), [1,1,1,1,1]);
 
+  맞나('`인나머지` 줄은 남는다 (좌우만 맡는다)', await p.evaluate(() => {
+    const i = document.querySelector('#rTable [data-rule="인나머지"]');
+    return i ? i.closest('.krow').querySelector('b').textContent : null; }), '문짝 ↔ 측판 (인도어)');
   await 누르기('#rX'); await 잠(300);
+
+  console.log('⑧ 재단 치수가 따라온다 · 제품 최대 외경은 안 변한다');
+  const 외경 = () => p.evaluate(() => { const o = window.__probe.model().외경;
+    return [+o.W.toFixed(1), +o.D.toFixed(1), +o.H.toFixed(1)]; });
+  const 재단 = () => p.evaluate(() => { const d = window.__probe.model().parts.find(x => x.name === '문짝');
+    return [d.cut.L, d.cut.W, d.cut.T]; });
+  for (const 모드 of ['out','in']){
+    await p.evaluate(m => window.__probe.set({ doorMode:m, plinth:80 }), 모드); await 잠(400);
+    const 전외 = await 외경(), 전재 = await 재단();
+    await p.evaluate(m => { const r = window.__probe.rule();
+      if (m === 'in'){ r.인위 = 9; r.인아래 = 7; } else { r.아웃위 = 9; r.아웃아래걸레 = 12; }
+      window.__probe.set({}); }, 모드); await 잠(400);
+    const 후재 = await 재단();
+    맞나(`${모드 === 'in' ? '인도어' : '아웃도어'} 재단 L 이 유격을 따라온다`,
+      [전재[0] - 후재[0], 후재[1] === 전재[1], 후재[2] === 전재[2]],
+      [모드 === 'in' ? (9 - 3) + (7 - 3) : (9 - 2) + (12 - 5), true, true]);
+    맞나(`${모드 === 'in' ? '인도어' : '아웃도어'} 실제 외경은 안 변한다`, await 외경(), 전외);
+    await p.evaluate(m => { const r = window.__probe.rule();
+      if (m === 'in'){ r.인위 = 3; r.인아래 = 3; } else { r.아웃위 = 2; r.아웃아래걸레 = 5; }
+      window.__probe.set({}); }, 모드); await 잠(400);
+  }
+
+  console.log('⑨ 옛 설정의 `인나머지` 를 위·아래가 이어받는다');
+  { const ctx2 = await b.newContext({ viewport:{ width:375, height:780 }, hasTouch:true, isMobile:true });
+    await ctx2.addInitScript(() => localStorage.setItem('cabinet-studio.규칙',
+      JSON.stringify({ 이름:'옛 설정', 인나머지:5, 아웃좌우:3 })));
+    const p2 = await ctx2.newPage();
+    await p2.goto(주소, { waitUntil:'domcontentloaded' });
+    await p2.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(600);
+    맞나('옛 `인나머지` 5 → 인위·인아래 5 · 인나머지 그대로 5 · 아웃좌우 3', await p2.evaluate(() => {
+      const r = window.__probe.rule(); return [r.인위, r.인아래, r.인나머지, r.아웃좌우]; }), [5, 5, 5, 3]);
+    맞나('담긴 값이 있으면 그것이 이긴다', await (async () => {
+      const ctx3 = await b.newContext({ viewport:{ width:375, height:780 } });
+      await ctx3.addInitScript(() => localStorage.setItem('cabinet-studio.규칙',
+        JSON.stringify({ 이름:'옛 설정', 인나머지:5, 인위:8 })));
+      const p3 = await ctx3.newPage(); await p3.goto(주소, { waitUntil:'domcontentloaded' });
+      await p3.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(500);
+      const v = await p3.evaluate(() => { const r = window.__probe.rule(); return [r.인위, r.인아래]; });
+      await ctx3.close(); return v; })(), [8, 5]);
+    await ctx2.close(); }
+
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();
   console.log(깬것 ? '\n✘ 깨진 것 ' + 깬것 + '개' : '\n✔ 다 맞다');
