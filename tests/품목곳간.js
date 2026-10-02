@@ -114,10 +114,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('수납장 — 우라홈 15 · 만든 부속 1', await p.evaluate(() =>
     [window.__probe.rule().우라홈, window.__probe.model().parts.filter(x => x.name === '밴드').length]), [15, 1]);
 
+  const 수납지금 = await 모양();
   맞나('서랍장을 골랐나', await 품목고르기('서랍장'), true); await 잠(500);
-  맞나('서랍장 — 기본값이다 (우라홈 9 · 만든 부속 0)', await p.evaluate(() =>
-    [window.__probe.rule().우라홈, window.__probe.model().parts.filter(x => x.name === '밴드').length]), [9, 0]);
-  맞나('⑤ 서랍장의 부속·치수가 수납장 기본과 글자까지 같다', await 모양() === 수납모양, true);
+  // 처음 고르는 품목이면 **수납장 것을 베껴** 시작한다 (10-02 관리자)
+  맞나('서랍장 — 수납장 것을 베껴 왔다 (우라홈 15 · 만든 부속 1)', await p.evaluate(() =>
+    [window.__probe.rule().우라홈, window.__probe.model().parts.filter(x => x.name === '밴드').length]), [15, 1]);
+  맞나('⑤ 서랍장의 부속·치수가 그때 수납장과 글자까지 같다', await 모양() === 수납지금, true);
 
   // 서랍장에서 다른 값을 고친다
   await p.evaluate(() => { window.__probe.rule().우라홈 = 20; window.__probe.set({}); }); await 잠(300);
@@ -127,7 +129,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('서랍장을 다시 골라도 그 값이 산다', await (async () => {
     await 품목고르기('서랍장'); await 잠(500);
     return p.evaluate(() => [window.__probe.rule().우라홈, window.__probe.model().parts.filter(x => x.name === '밴드').length]);
-  })(), [20, 0]);
+  })(), [20, 1]);
+  // 베끼는 것은 **처음 한 번**뿐이다 — 그 뒤 수납장을 고쳐도 서랍장에 안 묻는다
+  await 품목고르기('수납장'); await 잠(500);
+  await p.evaluate(() => { window.__probe.rule().우라홈 = 7; window.__probe.set({}); }); await 잠(300);
+  await 품목고르기('서랍장'); await 잠(500);
+  맞나('수납장을 7 로 고쳐도 서랍장은 20 그대로', await p.evaluate(() => window.__probe.rule().우라홈), 20);
 
   console.log('② 곳간이 품목마다 갈라진다');
   맞나('담긴 열쇠들', Object.keys(await 곳간들()).sort(),
