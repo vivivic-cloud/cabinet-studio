@@ -222,6 +222,34 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     { const e = await q2.$('#btnUndo'); if (e){ const r = await e.boundingBox();
         await cdp2.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r.x + r.width/2, y:r.y + r.height/2 }] });
         await cdp2.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(700); } }
+    /* ⚠ 합친 값이 전면밴드 칸의 위 한도를 넘으면 안 된다 — 넘으면 그 칸이 **성하지 않은 칸**이 되고
+          눈금이 죽는다(재서 봤다: 고치기 전 판에서 눈금을 올려도 210 그대로). 한도를 250 으로 열었다. */
+    { const c3 = await b.newContext({ viewport:{ width:375, height:900 }, hasTouch:true, isMobile:true });
+      await c3.addInitScript(`localStorage.setItem('cabinet-studio.품목','수납장');
+        localStorage.setItem('cabinet-studio.수납장.규칙', JSON.stringify({이름:'옛 설정', 하판올림:20}));
+        localStorage.setItem('cabinet-studio.수납장.상태', JSON.stringify({plinth:190}));`);
+      const q3 = await c3.newPage(); const cdp3 = await c3.newCDPSession(q3);
+      await q3.goto(주소, { waitUntil:'domcontentloaded' });
+      await q3.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
+      const 손3 = async 자 => { const e = await q3.$(자); if (!e) return false;
+        await e.scrollIntoViewIfNeeded(); const r = await e.boundingBox();
+        await cdp3.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r.x + r.width/2, y:r.y + r.height/2 }] });
+        await cdp3.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(350); return true; };
+      await 손3('.pname[data-opt="전면밴드"]');
+      const 칸 = () => q3.evaluate(() => { const i = document.querySelector('#plinth');
+        return i ? [i.value, i.max, i.checkValidity()] : null; });
+      맞나('합친 210 이 칸에 들어가고 성하다', await 칸(), ['210', '250', true]);
+      await 손3('#plinth');                                        // 진짜 손가락으로 초점
+      await 손3('.opt[data-opt="전면밴드"] input[data-rule]');        // 옆 칸으로 옮겨 손을 뗀다
+      맞나('손을 떼어도 210 그대로', await 칸(), ['210', '250', true]);
+      맞나('눈금이 산다 (210 → 211)', await q3.evaluate(() => { const i = document.querySelector('#plinth');
+        i.focus(); i.stepUp(); return i.value; }), '211');
+      맞나('도면이 210 에 맞다', await q3.evaluate(() => { const m = window.__probe.model(),
+          밴 = m.parts.find(x => x.name === '전면밴드');
+        return [window.__probe.st().plinth, m.bz, 밴.h, 밴.cut.W,
+                m.parts.find(x => x.name === '하판').z]; }), [210, 210, 210, 210, 210]);
+      await c3.close(); }
+
     맞나('되돌리기 역사의 옛 한 벌도 합쳐진다', await q2.evaluate(() => {
       const m = window.__probe.model(), R = window.__probe.rule(), S = window.__probe.st();
       return [S.plinth, R.하판올림 === undefined, m.bz,

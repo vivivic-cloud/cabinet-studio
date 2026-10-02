@@ -3175,8 +3175,12 @@ function 줄옵션(이름){
   }
   if (이름 === '전면밴드'){
     const 꼴보임 = state.botStyle !== 'under' && state.plinth > 0, 꼴커버 = 꼴보임 && state.밴드꼴 === '하판커버';
+    /* ⚠ 위 한도는 **250** 이다 — 옛 `하판올림` 을 여기로 합치면서(§4.9870) 담긴 값이 200 을 넘을 수 있다.
+       합쳐서 나올 수 있는 **가장 큰 값**이 `plinth` 옛 한도 200 + 「하판 올림」 칸 한도 50 = **250** 이라 그만큼 열었다.
+       **한도를 `H` 같은 것으로 묶지 마라** — 얇은 판에서는 넉넉하지만 상·하판이 55T 이고 H 가 300 이면
+       `H − Ttop − Tbot` 이 **190** 이라 250 보다 작아져 **지금 메우는 그 구멍이 도로 생긴다**(재서 봤다). */
     return `<div class="optwide"><div class="num"><input id="plinth" data-key="plinth" type="number" ` +
-      `min="0" max="200" step="1" value="${담을상태.has('plinth') ? 담을상태.get('plinth') : state.plinth}"><span>mm</span></div></div>` +
+      `min="0" max="250" step="1" value="${담을상태.has('plinth') ? 담을상태.get('plinth') : state.plinth}"><span>mm</span></div></div>` +
       /* 10-02 사장님 말씀 — 「하판이 측판사이 인경우 전면밴드에 두가지 형태를 선택하게 해줘 하판아래/하판커버」.
          **하판이 「측판 사이」 이고 전면밴드 높이가 0 이 아닐 때만** 보인다 — 「측판 아래」 에서는 밴드가 아예 없다.
          꼴에 따라 아래 유격 칸이 **가리키는 열쇠가 바뀐다** — 도어의 「도어 위 유격」 과 같은 길이다(§4.9882).
