@@ -12,6 +12,7 @@
      ③ 측판 들임을 고치면 하판이 **따라 움직인다**
      ④ 전면밴드 앞면 = 하판 앞면 + 전면밴드유격(`걸레앞`) — 하판을 따라간다
      ⑤ **「하판 올림」 은 10-02 에 지웠다** — 칸도 없고 담긴 옛 값도 안 먹는다
+     ⑩ 옛 `하판올림` 은 **`plinth` 로 합쳐진다** — 도면이 한 톨도 안 바뀐다 (되돌리기 역사도)
      ⑥ 「하판 측판 아래」 에서는 하판 앞면 0 그대로 · 칸도 안 선다
      ⑦ 실제 외경이 안 변한다 · 재단 치수(cut.W)가 따라간다
      ⑧ 화면 — 네 갈래의 칸 · 관계제어판에서 `걸레앞` 줄이 빠졌다 · **진짜 손가락**으로 저장하면 먹는다
@@ -37,7 +38,7 @@ const 손질 = () => {
   s = s.replace(/\s*<script[^>]*viggle[^>]*><\/script>/i, '');
   const 못 = 'init3D();';
   if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
-  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),rule:()=>규칙};' + 못);
+  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),rule:()=>규칙,st:()=>state};' + 못);
 };
 
 const 띄우기 = (html) => new Promise(res => {
@@ -182,6 +183,50 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         return [R.전면밴드유격, R.걸레앞 === undefined, R.아웃좌우,
                 window.__probe.model().parts.find(q => q.name === '전면밴드').y]; }), [45, true, 3, 45]);
     await ctx2.close(); }
+
+  /* ⑩ 10-02 관리자 — **그냥 지우면 사장님 도면의 하판이 그만큼 뚝 떨어진다.**
+        둘이 같은 일을 하므로 담긴 `하판올림` 을 `plinth` 에 **합치고** 열쇠를 버린다. 도면은 한 톨도 안 바뀐다. */
+  console.log('⑩ 옛 `하판올림` 은 `plinth` 로 합쳐진다 — 도면이 안 바뀐다');
+  { const 열기 = async (올, pl, 아래, 다시) => {
+      const c = await b.newContext({ viewport:{ width:375, height:780 } });
+      await c.addInitScript(`localStorage.setItem('cabinet-studio.품목','수납장');
+        localStorage.setItem('cabinet-studio.수납장.규칙', JSON.stringify({이름:'옛 설정', 하판올림:${올}, 아웃좌우:3}));
+        localStorage.setItem('cabinet-studio.수납장.상태', JSON.stringify({plinth:${pl}, botStyle:'${아래}'}));`);
+      const q = await c.newPage();
+      await q.goto(주소, { waitUntil:'domcontentloaded' });
+      await q.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(600);
+      if (다시){ await q.reload({ waitUntil:'domcontentloaded' });
+        await q.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(600); }
+      const r = await q.evaluate(() => { const m = window.__probe.model(), R = window.__probe.rule(), S = window.__probe.st();
+        const 밴 = m.parts.find(x => x.name === '전면밴드');
+        return [S.plinth, R.하판올림 === undefined, m.bz, 밴 ? 밴.h : null, R.이름, R.아웃좌우]; });
+      await c.close(); return r; };
+    맞나('하판올림 20 · plinth 80 → 합쳐진다', await 열기(20, 80, 'inset', false),
+      [100, true, 100, 100, '옛 설정', 3]);
+    맞나('다시 열어도 또 안 더해진다', await 열기(20, 80, 'inset', true),
+      [100, true, 100, 100, '옛 설정', 3]);
+    맞나('하판올림 0 — 아무것도 안 더한다', await 열기(0, 80, 'inset', false),
+      [80, true, 80, 80, '옛 설정', 3]);
+    맞나('「측판 아래」 — 전면밴드가 없으니 도면이 안 변한다', await 열기(20, 80, 'under', false),
+      [100, true, 0, null, '옛 설정', 3]);
+
+    // 되돌리기 역사에 담긴 옛 한 벌도 같은 길로 지나간다
+    const 옛한벌 = JSON.stringify({ 규칙:{ 이름:'옛 설정', 하판올림:20, 아웃좌우:3 }, 부속:[],
+      손질:{ 숨김:[], 지움:[], 복제:{} }, 지난부속:[], 결:{}, 상태:{ plinth:80 } });
+    const c2 = await b.newContext({ viewport:{ width:375, height:780 }, hasTouch:true, isMobile:true });
+    await c2.addInitScript(`localStorage.setItem('cabinet-studio.품목','수납장');
+      localStorage.setItem('cabinet-studio.수납장.역사', JSON.stringify([${JSON.stringify(옛한벌)}]));`);
+    const q2 = await c2.newPage(); const cdp2 = await c2.newCDPSession(q2);
+    await q2.goto(주소, { waitUntil:'domcontentloaded' });
+    await q2.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
+    { const e = await q2.$('#btnUndo'); if (e){ const r = await e.boundingBox();
+        await cdp2.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r.x + r.width/2, y:r.y + r.height/2 }] });
+        await cdp2.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(700); } }
+    맞나('되돌리기 역사의 옛 한 벌도 합쳐진다', await q2.evaluate(() => {
+      const m = window.__probe.model(), R = window.__probe.rule(), S = window.__probe.st();
+      return [S.plinth, R.하판올림 === undefined, m.bz,
+              m.parts.find(x => x.name === '전면밴드').h, R.이름]; }), [100, true, 100, 100, '옛 설정']);
+    await c2.close(); }
 
   맞나('오류', 터짐, []);
   await b.close(); 서버.close();
