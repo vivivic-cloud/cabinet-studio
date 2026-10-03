@@ -105,11 +105,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
     console.log('③ 단추 — 「추가」·알약·체크 줄·모드는 그대로다');
     await 펴('측판');
-    // 10-03 사장님 말씀으로 × 는 28 → 20(넓이 절반) · 닿는 자리는 10-03 관리자 숫자로 22×20 이다 (§4.9866)
+    // 10-03 사장님 말씀으로 × 는 28 → 20(넓이 절반) · 닿는 자리는 40×27 이다 — 보이는 크기와 닿는 자리는 다른 것이다 (§4.9866)
     맞나('× — 보이는 것 · 닿는 자리', await p.evaluate(() => {
       const x = document.querySelector('.field[data-part="측판"] .x'); const r = x.getBoundingClientRect();
       const a = getComputedStyle(x, '::after');
-      return [Math.round(r.width) + '×' + Math.round(r.height), a.width + '×' + a.height]; }), ['20×20', '22px×20px']);
+      return [Math.round(r.width) + '×' + Math.round(r.height), a.width + '×' + a.height]; }), ['20×20', '40px×27px']);
     맞나('「추가」 단추', await 높('.addrow button'), 44);
     맞나('체크 줄', await 높('.opt[data-opt="측판"] .optrow'), 44);
     // 10-03 부터 부속명 단추도 입력칸과 같은 23 이다 — 부속 사이를 좁히려면 이것이 따라 내려가야 한다
