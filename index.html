@@ -491,6 +491,29 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .params{padding-left:0;padding-right:0;overflow-x:hidden}
   #svgwrap{padding-left:0;padding-right:0}
 }
+/* ── 10-03 사장님 말씀 — 「이런 도면조절 옵션들 모바일에서는 도면 밖으로 빼야지 이게뭐냐 화면 다가리고」 ──
+   폰에서는 도면 위에 떠 있던 것을 **도면 아래 띠로 내린다** — 치수 띠 · 모드 · 도구줄 · 시점줄 ·
+   숨김바 · 분해도. **아무것도 없애지 않았다. 자리만 옮긴 것이다** — 닿는 자리 44px 그대로다.
+   ⚠ 캔버스 높이는 **그대로 둔다**(60vh · 집중 84vh). 띠는 **덧붙는 높이**다.
+      띠가 캔버스를 깎으면 가리던 것이 비켜도 쓸 자리가 되레 준다
+      (잰 값: 깎으면 141,345 → 125,625px² 로 준다). 그래서 3D 칸 줄을 `auto` 로 바꾸고 캔버스에 높이를 박았다.
+   ⚠ 2D 는 줄을 안 건드렸다 — 쪽이 **폭에 걸려 있어**(375×530) 세로에 여유가 있다. 띠가 그 여유에서 난다.
+   ⚠ 넓은 화면(≥1101px)은 한 줄도 안 바뀐다 — 거기는 안 가린다. */
+@media screen and (max-width:1100px){
+  .app.m3d{grid-template-rows:auto auto auto}
+  .view3d{display:flex;flex-direction:column;gap:8px;min-height:0;padding-bottom:8px}
+  .view3d canvas{position:relative;inset:auto;flex:none;width:100%;height:60vh;min-height:380px}
+  .app.집중 .view3d canvas{height:84vh}
+  .view3d>.dims,.view3d>.hud,.view3d>.explode,.draw>.dims{
+    position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0}
+  .draw>.dims{margin-top:8px}   /* 틈은 margin 으로 — 띠 **크기**가 두 모드에서 같아야 한다(§4.9888) */
+  .view3d>.explode{margin-top:0}
+  /* 2D 도 같다 — 띠가 도면을 깎으면 안 된다. 칸 줄을 `auto` 로 두고 도면에 84vh 를 그대로 준다.
+     잰 값(375×780): 띠가 깎으면 A4 가 329×465 → 305×432 로 **준다**. 이렇게 두면 **351×497 로 는다**. */
+  .app.m2d{grid-template-rows:auto auto auto}
+  .app.m2d .draw{min-height:0}
+  .app.m2d #svgwrap{flex:none;height:84vh;min-height:380px}
+}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 
@@ -1982,11 +2005,14 @@ function init3D(){
   makeGrid();
   const wrap = cv.parentElement;
   // 칸이 숨겨지면 크기가 0 으로 온다. 그대로 두면 aspect 가 NaN 이 되어 다시 켤 때 까맣게 남는다.
-  const resize = () => { const w = wrap.clientWidth, h = wrap.clientHeight;
+  /* 10-03 — 폰에서는 조절 띠가 캔버스 **아래**에 깔려 칸과 캔버스 크기가 다르다.
+     그래서 칸이 아니라 **캔버스 제 네모**를 잰다. 넓은 화면은 캔버스가 칸을 꽉 채워 값이 같다. */
+  const resize = () => { const r = cv.getBoundingClientRect(),
+      w = Math.round(r.width), h = Math.round(r.height);
     if (!w || !h) return;                         // 숨은 동안에는 아무것도 안 한다
     renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); 그리자(); };
   삼디크기맞추기 = resize;                          // 모드를 바꿔 다시 보일 때 밖에서 부른다
-  new ResizeObserver(resize).observe(wrap); resize();
+  const 크기지킴 = new ResizeObserver(resize); 크기지킴.observe(wrap); 크기지킴.observe(cv); resize();
 
   // 좌우(tTheta)는 그대로. 상하만 뒤집는다 — 끄는 손을 모델이 따라와야 한다.
   // 아래로 끌면 모델의 윗면이 이쪽으로 넘어와 위에서 내려다보게 된다.
@@ -2629,7 +2655,11 @@ document.querySelectorAll('.views button').forEach(b => b.addEventListener('clic
     if (값 !== 목표) requestAnimationFrame(프레임); else { 돈다 = false; 마지막 = 0; }
   }
   function 목표로(v){ 목표 = v; if (!돈다 && 값 !== 목표){ 돈다 = true; 마지막 = 0; requestAnimationFrame(프레임); } }
-  function 재우기(){ if (쓰는중()){ 시계 = setTimeout(재우기, 머무름); return; } 목표로(0); }
+  /* 10-03 — 폰에서는 이 칸들이 **도면 아래 띠**에 있어 가리는 것이 없다(사장님 말씀).
+     거기서 조용히 사라지면 단추를 잃는다. 그래서 폰에서는 늘 보인다. */
+  const 폰띠 = () => matchMedia('(max-width:1100px)').matches;
+  function 재우기(){ if (폰띠()){ 목표로(1); 시계 = setTimeout(재우기, 머무름); return; }
+    if (쓰는중()){ 시계 = setTimeout(재우기, 머무름); return; } 목표로(0); }
   function 깨우기(){ 목표로(1); clearTimeout(시계); 시계 = setTimeout(재우기, 머무름); }
 
   ['pointermove','pointerdown','wheel'].forEach(t => 뷰.addEventListener(t, 깨우기, {passive:true}));

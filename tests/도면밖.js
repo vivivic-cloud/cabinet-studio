@@ -1,0 +1,174 @@
+#!/usr/bin/env node
+/* 10-03 사장님 말씀: 「**이런 도면조절 옵션들 모바일에서는 도면 밖으로 빼야지 이게뭐냐 화면 다가리고**」
+
+     ① 폰 3D — 도면 위에 떠 있는 것이 **0개** · 덮은 넓이 0 · 캔버스 375×540 그대로
+     ② 폰 3D — 쓸 자리가 148,972 → **202,500px²** 로 는다 · 칸 811 (띠가 덧붙는 높이다)
+     ③ 띠의 단추가 다 44px 이상이고 **진짜 손가락으로 다 눌린다** (모드·도구·시점·숨김바·치수칸·분해도)
+     ④ 폰 2D — 띠가 **도면 아래** · A4 가 안 준다 · 가린 도면 글자 0
+     ⑤ 폰에서는 **조용히 사라지지 않는다** (도면을 안 가리므로)
+     ⑥ **1280 은 한 톨도 안 바뀐다** — 띠가 떠 있고 `.hud` 도 떠 있다
+     ⑦ 가로 넘침 375 · 오류 0
+
+   돌리는 법:  node tests/도면밖.js
+   three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
+const fs = require('fs'), path = require('path'), http = require('http');
+
+const 뿌리 = path.join(__dirname, '..');
+let chromium;
+try { chromium = require(process.env.PW || '/opt/node22/lib/node_modules/playwright').chromium; }
+catch { try { chromium = require('playwright').chromium; }
+  catch { console.log('건너뜀 — playwright 가 없다 (PW=<경로> 로 알려 줄 수 있다)'); process.exit(0); } }
+
+const 스리 = process.env.TH || path.join(뿌리, 'tests', 'three.min.js');
+if (!fs.existsSync(스리)){
+  console.log('건너뜀 — three.min.js 사본이 없다 (TH=<경로> 로 알려 줄 수 있다)'); process.exit(0); }
+
+const 손질 = () => {
+  let s = fs.readFileSync(process.env.SRC || path.join(뿌리, 'index.html'), 'utf8');
+  s = s.replace(/https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/three[^"']+/, 'three.min.js');
+  s = s.replace(/\s*<script[^>]*jszip[^>]*><\/script>/i, '');
+  s = s.replace(/\s*<script[^>]*viggle[^>]*><\/script>/i, '');
+  const 못 = 'init3D();';
+  if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
+  return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),aim:()=>({r:cam.tR,phi:cam.tPhi}),sel:()=>selPid};' + 못);
+};
+
+const 띄우기 = (html) => new Promise(res => {
+  const 서버 = http.createServer((q, a) => {
+    if (q.url.indexOf('three.min.js') >= 0){
+      a.writeHead(200, {'Content-Type':'application/javascript'}); return a.end(fs.readFileSync(스리)); }
+    a.writeHead(200, {'Content-Type':'text/html; charset=utf-8'}); a.end(html);
+  });
+  서버.listen(0, '127.0.0.1', () => res({ 서버, 주소: 'http://127.0.0.1:' + 서버.address().port + '/' }));
+});
+
+let 깬것 = 0;
+const 맞나 = (이름, 잰것, 바라는것) => {
+  const ok = JSON.stringify(잰것) === JSON.stringify(바라는것);
+  if (!ok) 깬것++;
+  console.log((ok ? '  ✔ ' : '  ✘ ') + 이름 + ' — 잰 값 ' + JSON.stringify(잰것) + (ok ? '' : ' · 바란 값 ' + JSON.stringify(바라는것)));
+};
+const 잠 = ms => new Promise(r => setTimeout(r, ms));
+
+/* 떠 있는 것 = 캔버스(또는 쪽)와 겹치는 조절 칸. 폰에서는 하나도 없어야 한다. */
+const 덮은것 = `(() => {
+  const 보임 = el => el && el.getBoundingClientRect().width > 0;
+  const 쪽 = document.querySelector('#pageBox>.page.보는쪽') || document.querySelector('#pageBox>.page');
+  const 그림 = 보임(쪽) ? 쪽 : document.querySelector('#c3d');     // 3D 모드에서는 쪽이 0×0 이다
+  if (!그림) return null;
+  const g = 그림.getBoundingClientRect();
+  const 것들 = [...document.querySelectorAll('#dimsBar, .view3d .hud>div, .view3d .explode, #pageBox>.page .big')]
+    .filter(el => el.getBoundingClientRect().width > 0);
+  let 넓이 = 0; const 이름 = [];
+  것들.forEach(el => { const r = el.getBoundingClientRect();
+    const x = Math.max(0, Math.min(g.right, r.right) - Math.max(g.left, r.left));
+    const y = Math.max(0, Math.min(g.bottom, r.bottom) - Math.max(g.top, r.top));
+    if (x > 0.5 && y > 0.5){ 넓이 += x*y; 이름.push(el.id || el.className); } });
+  return { 그림: Math.round(g.width) + '×' + Math.round(g.height), 덮은넓이: Math.round(넓이),
+           덮은것: 이름, 쓸자리: Math.round(g.width*g.height - 넓이) };
+})()`;
+
+(async () => {
+  const { 서버, 주소 } = await 띄우기(손질());
+  const b = await chromium.launch();
+  for (const 폭 of [375, 1280]) {
+    const 폰 = 폭 === 375;
+    console.log(`■ ${폭}px`);
+    const ctx = await b.newContext({ viewport:{ width:폭, height:900 },
+      hasTouch:폰, isMobile:폰, deviceScaleFactor:폰 ? 2 : 1 });
+    const p = await ctx.newPage();
+    const 터짐 = []; p.on('pageerror', e => 터짐.push(String(e)));
+    const cdp = await ctx.newCDPSession(p);
+    const 톡 = async (x, y) => {
+      await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{x, y}] });
+      await 잠(60);
+      await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(280); };
+    const 누르기 = async sel => {           // 폰은 진짜 손가락 · 넓은 화면은 마우스
+      await p.evaluate(s => { const el = document.querySelector(s); if (el) el.scrollIntoView({block:'center'}); }, sel);
+      await 잠(220);
+      const r = await p.evaluate(s => { const el = document.querySelector(s); if (!el) return null;
+        const b2 = el.getBoundingClientRect(); return b2.width ? { x:b2.left + b2.width/2, y:b2.top + b2.height/2 } : null; }, sel);
+      if (!r) return false;
+      if (폰) await 톡(r.x, r.y); else { await p.mouse.click(r.x, r.y); await 잠(280); }
+      return true; };
+    const 모드 = async n => { await p.evaluate(x => {
+        const b2 = [...document.querySelectorAll('.modeseg button[data-mode]')]
+          .filter(y => y.offsetParent !== null).find(y => y.dataset.mode === x);
+        if (b2) b2.click(); }, n); await 잠(1000); };
+
+    await p.goto(주소, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.__probe, null, { timeout: 20000 });
+    await 잠(1000);
+
+    console.log('① 3D — 도면 위에 떠 있는 것  ② 쓸 자리');
+    const 삼 = await p.evaluate(덮은것);
+    맞나('3D 덮은 것 · 덮은 넓이', [삼.덮은것, 삼.덮은넓이], 폰 ? [[], 0] : [['dimsBar','modeseg','views','explode'], 40086]);
+    맞나('3D 캔버스 · 쓸 자리', [삼.그림, 삼.쓸자리], 폰 ? ['375×540', 202500] : ['995×831', 786759]);
+    맞나('3D 칸 높이', await p.evaluate(() => Math.round(document.querySelector('.view3d').getBoundingClientRect().height)),
+         폰 ? 811 : 831);
+
+    console.log('③ 띠의 단추가 44px 이상이고 다 눌린다');
+    맞나('44 미만인 단추', await p.evaluate(() => [...document.querySelectorAll('.view3d .hud button')]
+      .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.width < 44 || r.height < 44); })
+      .map(el => el.textContent.trim())), []);
+    await 누르기('.view3d .views button[data-view="top"]');
+    맞나('시점 「위」', await p.evaluate(() => window.__probe.aim().phi.toFixed(2)), '0.02');
+    await 누르기('.view3d .views button[data-view="iso"]');
+    맞나('시점 「등각」', await p.evaluate(() => window.__probe.aim().phi.toFixed(2)), '1.15');
+    await 누르기('.view3d .tools button[data-tool="extents"]');
+    맞나('도구 「전체」', await p.evaluate(() => Math.round(window.__probe.aim().r)), 3920);
+    if (폰){
+      await 누르기('.view3d .tools button[data-tool="pan"]');
+      맞나('도구 「이동」', await p.evaluate(() => document.querySelector('.view3d .tools button[data-tool="pan"]').getAttribute('aria-pressed')), 'true');
+      await 누르기('.view3d .tools button[data-tool="orbit"]');
+    }
+    // 숨김바 — 부속을 숨기면 띠에 뜬다
+    await p.evaluate(() => { const el = document.querySelector('#c3d'); el.scrollIntoView({block:'center'}); });
+    맞나('치수 칸 세 개', await p.evaluate(() => [...document.querySelectorAll('#dimsBar input')].length), 3);
+    await 누르기('#dimsBar #W');
+    맞나('치수 칸에 초점', await p.evaluate(() => document.activeElement && document.activeElement.id), 'W');
+    await p.keyboard.down('Control'); await p.keyboard.press('a'); await p.keyboard.up('Control');
+    await p.keyboard.type('1000'); await 잠(500);
+    맞나('치수 칸이 먹는다 (내부폭)', await p.evaluate(() => window.__probe.model().innerW), 964);
+    await p.keyboard.down('Control'); await p.keyboard.press('a'); await p.keyboard.up('Control');
+    await p.keyboard.type('800'); await 잠(500);
+    await p.evaluate(() => { const s = document.querySelector('#explode'); s.value = 40;
+      s.dispatchEvent(new Event('input', {bubbles:true})); });
+    await 잠(300);
+    맞나('분해도', await p.evaluate(() => document.querySelector('#explode').value), '40');
+    await p.evaluate(() => { const s = document.querySelector('#explode'); s.value = 0;
+      s.dispatchEvent(new Event('input', {bubbles:true})); });
+
+    console.log('④ 2D — 띠가 도면 아래 · A4 가 안 준다 · 가린 글 0');
+    await 모드('2d');
+    const 이 = await p.evaluate(덮은것);
+    맞나('2D A4 · 덮은 것', [이.그림, 이.덮은것], 폰 ? ['375×530', ['big']] : ['453×641', ['big','dimsBar']]);
+    맞나('2D 띠가 도면 아래인가', await p.evaluate(() => {
+      const t = document.querySelector('#dimsBar').getBoundingClientRect();
+      const g = (document.querySelector('#pageBox>.page.보는쪽') || document.querySelector('#pageBox>.page')).getBoundingClientRect();
+      return t.top >= g.bottom - 0.5; }), 폰);
+    맞나('2D 가린 도면 글자', await p.evaluate(() => {
+      const t = document.querySelector('#dimsBar').getBoundingClientRect();
+      const svg = document.querySelector('#pageBox .page svg'); if (!svg) return -1;
+      let n = 0; svg.querySelectorAll('text').forEach(x => { const r = x.getBoundingClientRect();
+        if (r.width > 0 && r.right > t.left && r.left < t.right && r.bottom > t.top && r.top < t.bottom) n++; });
+      return n; }), 0);
+    await 모드('3d');
+    맞나('3D 로 돌아와도 캔버스가 산다', await p.evaluate(() => {
+      const c = document.querySelector('#c3d'), r = c.getBoundingClientRect();
+      return [c.width > 0 && c.height > 0, Math.round(r.width)]; }), [true, 폰 ? 375 : 995]);
+
+    console.log('⑤ 폰에서는 조용히 사라지지 않는다');
+    await 잠(5200);
+    맞나('5.2초 뒤 흐림', await p.evaluate(() => [...document.querySelectorAll('.view3d .tools,.view3d .views,.view3d .explode')]
+      .map(el => el.style.opacity || '1')), 폰 ? ['1','1','1'] : ['0','0','0']);
+
+    console.log('⑥ 가로 넘침 · 오류');
+    맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 폭);
+    맞나('오류', 터짐, []);
+    await ctx.close();
+  }
+  await b.close(); 서버.close();
+  console.log(깬것 ? '\n✘ 깨진 것 ' + 깬것 + '개' : '\n✔ 다 맞다');
+  process.exit(깬것 ? 1 : 0);
+})().catch(e => { console.error('시험이 터졌다:', e.message); process.exit(1); });

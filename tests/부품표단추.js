@@ -90,7 +90,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     { const r = await p.evaluate(() => { const d = document.querySelector('.draw').getBoundingClientRect();
         const pg = document.querySelector('#pageBox .page').getBoundingClientRect();
         return [+d.height.toFixed(0), +pg.width.toFixed(0) + '×' + pg.height.toFixed(0)]; });
-      맞나('도면 칸 높이 · A4 한 쪽', r, 폭 === 375 ? [655, '329×465'] : [831, '453×641']); }
+      /* 10-03 사장님 말씀(「도면조절 옵션들 … 도면 밖으로」)으로 폰 2D 는 도면에 84vh 를 그대로 주고
+         조절 띠를 그 **아래**에 깐다 — 그래서 칸이 655 → 753 이 되고 A4 가 329×465 → **375×530** 으로 는다. */
+      맞나('도면 칸 높이 · A4 한 쪽', r, 폭 === 375 ? [753, '375×530'] : [831, '453×641']); }
 
     맞나('오류', 터짐, []);
     await ctx.close();
