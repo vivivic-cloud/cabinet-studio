@@ -475,6 +475,22 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .app.m3d{grid-template-rows:auto auto minmax(380px,60vh);grid-template-areas:"head" "params" "view3d"}
   .app.m2d{grid-template-rows:auto auto minmax(380px,84vh);grid-template-areas:"head" "params" "draw"}
 }
+/* 10-03 사장님 말씀 — 「모바일에서 … 화면이 좌우여유 유격이 있어서 화면 조정이 힘들다 화면유격이 없게 해줘」.
+   폰에서만 **좌우** 여백을 0 으로 둔다. 위아래는 한 톨도 안 건드린다(사장님이 「좌우」 라 하셨다).
+   ⚠ 넓은 화면(≥1101px)은 세 칸으로 갈라져 있어 여백이 있어야 읽힌다 — 그래서 `@media` 안이다.
+   ⚠ `#svgwrap` 은 **아이디로** 적는다 — 245줄의 `#svgwrap{padding:10px}` 을 이겨야 하고,
+      `.svgwrap` 으로 적으면 같은 클래스를 쓰는 **큰그림(`.zoomwrap`)** 까지 끌려 들어간다(§4.75). */
+@media (max-width:1100px){
+  header{padding-left:0;padding-right:0}
+  /* ⚠ `overflow-x:hidden` 은 여백을 걷었기 때문에 **같이 필요한 것**이다 — 내가 판단으로 더 한 것이다.
+     × 의 닿는 자리(`.two .x::after` 40px · §4.9866)가 20px 단추 가운데에 걸려 **좌우로 10px 씩 비어져 나간다.**
+     전에는 오른 여백 20px 안에 묻혀 안 보였는데, 0 이 되니 `.params` 가 **가로로 10px 굴러간다**
+     (잰 값: `scrollWidth 385 / clientWidth 375` · `::after` 를 끄면 375). 사장님 말씀이 「화면 조정이 힘들다」 인데
+     가로 굴림이 생기면 더 나빠진다. **닿는 자리는 한 픽셀도 안 깎았다** — 화면 밖으로 나간 쪽만 안 그린다.
+     되돌리면 이 한 줄이고, 그때 가로 굴림 10px 이 도로 생긴다. */
+  .params{padding-left:0;padding-right:0;overflow-x:hidden}
+  #svgwrap{padding-left:0;padding-right:0}
+}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 

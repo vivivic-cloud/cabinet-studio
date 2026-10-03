@@ -101,10 +101,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         const a = 네[i], c = 네[j];
         if (Math.min(a.rr, c.rr) - Math.max(a.l, c.l) > 0.5 && Math.min(a.bb, c.bb) - Math.max(a.t, c.t) > 0.5) 겹++; }
       return [겹, 먹]; }), [0, []]);
-    맞나('두께 값 잘림 · 설정 칸 가로 넘침', await p.evaluate(() => {
+    /* ⚠ 10-03 — 폰에서 좌우 여백이 0 이 되어(§4.9862) × 의 닿는 자리(`::after` 40px)가 오른끝에서
+       10px 비어져 나간다. `.params` 를 `overflow-x:hidden` 으로 두어 **가로로 안 굴러간다** —
+       그래서 자를 `scrollWidth − clientWidth` 에서 **「가로로 굴러가나」** 로 바꿨다. 보는 것은 같다. */
+    맞나('두께 값 잘림 · 손가락으로 설정 칸이 가로로 밀리나', await p.evaluate(() => {
       const 잘 = [...document.querySelectorAll('#boardBox .two [data-key]')].map(k => k.scrollWidth - k.clientWidth);
       const q = document.querySelector('.params');
-      return [잘.filter(v => v > 0).length, q.scrollWidth - q.clientWidth]; }), [0, 0]);
+      const c = getComputedStyle(q); q.scrollLeft = 999; const v = q.scrollLeft; q.scrollLeft = 0;
+      const 굴 = (c.overflowX === 'auto' || c.overflowX === 'scroll') ? v : 0;
+      return [잘.filter(x => x > 0).length, 굴]; }), [0, 0]);
 
     console.log('④ 진짜 손가락 — 줄마다 × 의 맨 위 +1 · 가운데 · 맨 아래 −1');
     const 부속들 = await p.evaluate(() => [...document.querySelectorAll('#boardBox .field[data-home]')]

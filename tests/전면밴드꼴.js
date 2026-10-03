@@ -169,8 +169,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       document.querySelectorAll('.opt[data-opt="전면밴드"] input[name="밴드꼴"]').length), 0);
     await 접();
     await p.evaluate(() => window.__probe.set({ plinth:80 })); await 잠(350);
-    맞나('375 가로 넘침', await p.evaluate(() => { const n = document.querySelector('.params');
-      return n.scrollWidth - n.clientWidth; }), 0); }
+    // ⚠ 10-03 — 폰 좌우 여백 0(§4.9862) 뒤로는 **가로로 굴러가나**로 잰다.
+    맞나('375 · 손가락으로 가로로 밀리나', await p.evaluate(() => { const n = document.querySelector('.params');
+      const c = getComputedStyle(n); n.scrollLeft = 999; const v = n.scrollLeft; n.scrollLeft = 0;
+      return (c.overflowX === 'auto' || c.overflowX === 'scroll') ? v : 0; }), 0); }
 
   console.log('⑧ 유격 칸이 가리키는 열쇠가 꼴에 따라 갈린다 · 진짜 손가락으로 저장하면 먹는다');
   { const 펴 = async () => { const b2 = p.locator('.pname[data-opt="전면밴드"]');

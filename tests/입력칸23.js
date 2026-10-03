@@ -143,12 +143,14 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await 접('측판');
 
     console.log('⑥ 가로 넘침 0 · 2D 에서 A4 한 쪽과 「크게」 가 그대로다');
-    맞나('설정 칸 가로 넘침', await p.evaluate(() => { const n = document.querySelector('.params');
-      return n.scrollWidth - n.clientWidth; }), 0);
+    // ⚠ 10-03 — 폰 좌우 여백 0(§4.9862) 뒤로는 **가로로 굴러가나**로 잰다(까닭은 `부속줄.js` 와 같다).
+    맞나('설정 칸 손가락으로 가로로 밀리나', await p.evaluate(() => { const n = document.querySelector('.params');
+      const c = getComputedStyle(n); n.scrollLeft = 999; const v = n.scrollLeft; n.scrollLeft = 0;
+      return (c.overflowX === 'auto' || c.overflowX === 'scroll') ? v : 0; }), 0);
     await 손가락('.modeseg button[data-mode="2d"]'); await 잠(1200);
     맞나('A4 한 쪽', await p.evaluate(() => { const e = document.querySelector('#pageBox .page');
       const r = e.getBoundingClientRect(); return Math.round(r.width) + '×' + Math.round(r.height); }),
-      폭 === 375 ? '355×502' : '453×641');
+      폭 === 375 ? '375×530' : '453×641');   // 10-03 폰 좌우 여백 0 으로 한 쪽이 커졌다 (§4.9862)
     맞나('띠가 가린 도면 글자', await p.evaluate(() => {
       const 띠 = document.querySelector('#dimsBar').getBoundingClientRect();
       return [...document.querySelectorAll('#pageBox .page text')].filter(x => { const r = x.getBoundingClientRect();

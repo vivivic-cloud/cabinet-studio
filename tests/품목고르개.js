@@ -80,8 +80,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     // 고치기 전 판에는 고르개가 없다 — 터지지 말고 깨진 것으로 세고 넘어간다
     맞나('닿는 자리 44px 이상', await p.evaluate(() => { const s2 = document.querySelector('#itemSel');
       return s2 ? s2.getBoundingClientRect().height >= 44 : null; }), true);
-    맞나('설정 칸 가로 넘침 0', await p.evaluate(() => { const q = document.querySelector('.params');
-      return q.scrollWidth - q.clientWidth; }), 0);
+    // ⚠ 10-03 — 폰 좌우 여백 0(§4.9862) 뒤로는 **가로로 굴러가나**로 잰다.
+    맞나('설정 칸 손가락으로 가로로 밀리나 0', await p.evaluate(() => { const q = document.querySelector('.params');
+      const c = getComputedStyle(q); q.scrollLeft = 999; const v = q.scrollLeft; q.scrollLeft = 0;
+      return (c.overflowX === 'auto' || c.overflowX === 'scroll') ? v : 0; }), 0);
     맞나('맨 위에 제것이 있다 (안 가려짐)', await p.evaluate(() => {
       const s2 = document.querySelector('#itemSel'); if (!s2) return null;
       const r = s2.getBoundingClientRect();
