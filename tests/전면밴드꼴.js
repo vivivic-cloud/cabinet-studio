@@ -15,6 +15,8 @@
      ⑦ 실제 외경이 한 톨도 안 변한다
      ⑧ 열쇠가 갈린다 — 하판아래 `전면밴드유격`(앞뒤) · 하판커버 `밴드커버유격`(위아래) · 서로 안 덮어쓴다
      ⑨ `bz` 를 따라가는 것들 — 보호대 키 · 도어 아랫끝 · 뒷판 아랫끝 · 안쪽 높이
+     ⑩ **전면밴드는 측판보다 앞설 수 없다** (10-03 사장님 판정) — 64갈래에서 앞선 것 0 ·
+        밴드 앞면 = 측판 앞면 · **밴드 뒤와 하판 앞이 안 겹친다** · `측판깊이들임` 0 이면 예전 그대로
 
    돌리는 법:  node tests/전면밴드꼴.js
    three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -201,6 +203,58 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('하판아래로 돌아오면 밴드 앞면 30 · 하판 깊이 400',
       await p.evaluate(() => { const m = window.__probe.model();
         return [m.parts.find(q => q.name === '전면밴드').y, m.parts.find(q => q.name === '하판').d]; }), [30, 400]); }
+
+  /* ⑩ 10-03 사장님 판정: 「**전면밴드는 측판보다 앞설 수 없어**」
+     커버 꼴의 밴드 앞면이 `0`(몸통 맨 앞)으로 박혀 있어 `측판깊이들임` 을 켠 만큼 밴드가 측판보다 앞섰다.
+     ⚠ 밴드 앞면을 `측깊들` 로 옮길 때 **하판 앞면도 `측깊들 + Tplinth` 로 같이 옮겨야 한다** —
+        안 옮기면 밴드 뒤와 하판 앞이 `측깊들` 만큼 겹친다. 그 둘을 한 벌로 못 박는다. */
+  {
+    const ctx2 = await b.newContext({ viewport:{ width:1280, height:900 } });
+    const p2 = await ctx2.newPage();
+    await p2.goto(주소, { waitUntil:'domcontentloaded' });
+    await p2.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(600);
+    console.log('⑩ 전면밴드는 측판보다 앞설 수 없다 (10-03 사장님 판정)');
+    const 쓸기 = () => p2.evaluate(() => {
+      const 기본 = JSON.parse(JSON.stringify(window.__probe.rule()));
+      let 앞선것 = 0, 밴하겹침 = 0, 갈래 = 0; const 표 = {};
+      for (const a of ['하판아래','하판커버']) for (const c of ['inset','overlay'])
+        for (const d of ['inset','under']) for (const e of [0, 12.5])
+          for (const f of [0, 2]) for (const g of ['out','in']){
+            Object.assign(window.__probe.rule(), 기본, { 측판깊이들임: e });
+            const m = window.__probe.build(Object.assign({}, window.__probe.st(),
+              { 밴드꼴:a, topStyle:c, botStyle:d, doors:f, doorMode:g }));
+            갈래++;
+            const S = m.parts.find(q => q.name === '측판'), B = m.parts.find(q => q.name === '전면밴드'),
+                  H = m.parts.find(q => q.name === '하판');
+            if (!B) continue;
+            if (S && S.y - B.y > 0.001) 앞선것++;
+            // 판끼리 진짜로 겹치는가 — 세 축이 다 겹쳐야 겹침이다
+            if (H){ const ox = Math.min(B.x+B.w, H.x+H.w) - Math.max(B.x, H.x);
+              const oy = Math.min(B.y+B.d, H.y+H.d) - Math.max(B.y, H.y);
+              const oz = Math.min(B.z+B.h, H.z+H.h) - Math.max(B.z, H.z);
+              if (ox > 0.001 && oy > 0.001 && oz > 0.001) 밴하겹침++; }
+            const k = [a, c, '깊들'+e].join('·');
+            if (!표[k]) 표[k] = { 측판앞:S ? S.y : null, 밴드앞:+B.y.toFixed(2),
+              밴드뒤:+(B.y+B.d).toFixed(2), 하판앞:H ? +H.y.toFixed(2) : null,
+              외경:[m.외경.W, +m.외경.D.toFixed(2), m.외경.H].join('×') };
+          }
+      Object.assign(window.__probe.rule(), 기본);
+      return { 갈래, 앞선것, 밴하겹침, 표 };
+    });
+    const z = await 쓸기();
+    맞나('64갈래 · 밴드가 측판보다 앞선 것 · 밴드↔하판 겹침',
+      [z.갈래, z.앞선것, z.밴하겹침], [64, 0, 0]);
+    맞나('하판커버 · 상판 위 · 측판 들임 12.5 — 측판앞 · 밴드앞 · 밴드뒤 · 하판앞',
+      [z.표['하판커버·overlay·깊들12.5'].측판앞, z.표['하판커버·overlay·깊들12.5'].밴드앞,
+       z.표['하판커버·overlay·깊들12.5'].밴드뒤, z.표['하판커버·overlay·깊들12.5'].하판앞],
+      [12.5, 12.5, 30.5, 30.5]);
+    맞나('측판 들임 0 이면 예전 그대로 — 밴드앞 0 · 하판앞 18',
+      [z.표['하판커버·overlay·깊들0'].밴드앞, z.표['하판커버·overlay·깊들0'].하판앞], [0, 18]);
+    맞나('하판아래는 한 톨도 안 바뀐다 — 밴드앞 30 · 하판앞 0',
+      [z.표['하판아래·inset·깊들0'].밴드앞, z.표['하판아래·inset·깊들0'].하판앞], [30, 0]);
+    맞나('실제 외경은 그대로다', [...new Set(Object.values(z.표).map(x => x.외경))], ['800×402.7×1800']);
+    await ctx2.close();
+  }
 
   맞나('오류', 터짐, []);
   await b.close(); 서버.close();
