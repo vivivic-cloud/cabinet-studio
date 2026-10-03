@@ -146,8 +146,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     r.dispatchEvent(new Event('input', {bubbles:true})); }); await 잠(400);
   맞나('단수 5 → 가로대 5장', await p.evaluate(() =>
     window.__probe.model().parts.filter(x => x.name === '가로대').length), 5);
-  맞나('「선반유격」 칸이 있다', await p.evaluate(() =>
-    !!document.querySelector('.opt[data-opt="고정선반"] input[data-rule="고정선반들임"]')), true);
+  /* 10-03 사장님 말씀 — 서랍장 가로대 판은 「선반유격」 이 아니라 **「깊이」** 칸이다(§4.9863).
+     이 시험이 보는 것(단수·결·× 가 그대로 먹는다)은 한 자도 안 바뀌었다 — 칸 이름만 옮겨 적는다. */
+  맞나('「깊이」 칸이 있고 「선반유격」 은 없다', await p.evaluate(() =>
+    [!!document.querySelector('.opt[data-opt="고정선반"] input[data-rule="가로대깊이"]'),
+     !!document.querySelector('.opt[data-opt="고정선반"] input[data-rule="고정선반들임"]')]), [true, false]);
   // 결은 **본이름**(고정선반)으로 담되 부품표에는 가로대 줄에 나온다
   await p.evaluate(() => { document.querySelector('.opt[data-opt="고정선반"] input[data-grainon]').click(); }); await 잠(350);
   await p.evaluate(() => { document.querySelector('.opt[data-opt="고정선반"] input[data-grain][value="세로"]').click(); }); await 잠(400);
