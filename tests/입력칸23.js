@@ -97,10 +97,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('밴드 높이 칸', await 높('.opt[data-opt="밴드"] input[data-cfield="높이"]'), 23);
     await 접('밴드');
     await p.evaluate(() => window.__probe.set({ 품목:'서랍장' })); await 잠(100);
-    await 손가락('input[name="품목"][value="서랍장"]'); await 잠(500);
+    await 손가락('#itemSel'); await p.selectOption('#itemSel', '서랍장'); await 잠(500);
     맞나('서랍장 가로대 숫자 칸', await p.evaluate(() => { const e = document.querySelector('.field[data-part="고정선반"] input');
       return e ? [e.tagName, Math.round(e.getBoundingClientRect().height)] : null; }), ['INPUT', 23]);
-    await 손가락('input[name="품목"][value="수납장"]'); await 잠(500);
+    await 손가락('#itemSel'); await p.selectOption('#itemSel', '수납장'); await 잠(500);
 
     console.log('③ 단추는 하나도 안 내려갔다');
     await 펴('측판');

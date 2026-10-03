@@ -136,6 +136,7 @@ select:focus{border-color:var(--head)}
 .optbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
 .optbtns button{flex:none;min-height:28px;padding:0 14px;font-size:12px;position:relative}
 .optbtns button::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+#itemSel{min-height:44px}   /* 고르개는 ::after 가 안 먹는다 — 닿는 자리를 높이로 잡는다 (§4.9895) */
 .seg.mini{padding:2px;gap:2px}
 .seg.mini label{padding:7px 2px;font-size:11.5px;letter-spacing:-.02em;white-space:nowrap;position:relative}
 /* 보이는 알약은 31px 그대로 두고 손이 닿는 자리만 44px 로 넓힌다 — 줄 높이는 안 변한다 */
@@ -488,10 +489,11 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
     <div class="group" id="itemBox">
       <h2>품목</h2>
-      <div class="field wide"><div class="seg mini" role="group" aria-label="품목">
-        <label><input type="radio" name="품목" value="수납장">수납장</label>
-        <label><input type="radio" name="품목" value="서랍장">서랍장</label>
-      </div></div>
+      <!-- 10-03 사장님 말씀: 「이런형태의 품목은 작업하면서 많이 발생할텐데 이런 버튼형식이 아닌
+           드롭다운목록 선택형태로 품목을 선택할 수 있게해줘」.
+           **목록은 비워 둔다 — `품목값` 에서 만든다**(아래 「품목고르개맞추기」). 손으로 option 을 박지 마라:
+           품목이 늘면 그 배열에 한 낱말 더하는 것으로 끝나야 한다. -->
+      <div class="field wide"><select id="itemSel" name="품목" aria-label="품목"></select></div>
     </div>
     <div class="group" id="boardBox">
       <h2>보드선택</h2>
@@ -2518,7 +2520,7 @@ document.addEventListener('change', e => {
   /* 10-02 사장님 말씀 — 「품목에 서랍장을 추가해 … 품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이
      나타나게 … 서랍장의 기본세팅은 일단 현재 수납장과 동일하게」. 그래서 **지금은 이름만 갈린다.**
      `buildModel` 은 한 글자도 안 건드렸다 — 두 품목이 같은 셈을 쓴다. 서랍장만의 관계가 정해지면 여기서 갈린다. */
-  if (el.name === '품목' && el.checked){ 품목바꾸기(el.value); return; }
+  if (el.name === '품목'){ 품목바꾸기(el.value); return; }   // 10-03 고르개라 `checked` 가 없다
   if (el.name === 'backMode' && el.checked){ state.backMode = el.value; 부속그리기(); 결단추갱신(); update(); return; }
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
@@ -3353,6 +3355,14 @@ document.addEventListener('change', e => {
 function 상태칸맞추기(){
   document.querySelectorAll('.dims [data-key]').forEach(el => { el.value = String(state[el.dataset.key]); });
 }
+/* 품목 고르개 — 목록을 `품목값` 에서 만들고 지금 품목을 가리킨다 (10-03 사장님 말씀).
+   **품목이 늘 때 고쳐야 하는 자리가 `품목값` 하나여야 한다** — 여기서 option 을 짓는 까닭이다. */
+function 품목고르개맞추기(){
+  const sel = $('#itemSel'); if (!sel) return;
+  const 지을글 = 품목값.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (sel.dataset.지은 !== 지을글){ sel.innerHTML = 지을글; sel.dataset.지은 = 지을글; }
+  if (sel.value !== state.품목) sel.value = state.품목;
+}
 function 이름칸갱신(){
   document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
     const 본 = 줄.dataset.part, 글 = 부속이름(본), 이름표 = 줄.querySelector('.pname');
@@ -3650,9 +3660,8 @@ $('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담
 $('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
 $('#btnUndo').addEventListener('click', 되돌리기한단계);
 
-// 마지막에 보던 품목에 단추를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
-{ const b2 = document.querySelector(`#itemBox input[name="품목"][value="${CSS.escape(state.품목)}"]`);
-  if (b2) b2.checked = true; }
+// 마지막에 보던 품목에 고르개를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
+품목고르개맞추기();
 부속그리기();
 열쇠옮기기();                 // 담겨 있던 옛 자리 열쇠를 굳은 열쇠로 한 번만 옮겨 담는다 (09-22)
 // 담긴 외경을 띠의 칸에도 올린다 — `state` 가 곳간의 여섯째가 되어 열 때 값이 살아난다 (§4.9872)

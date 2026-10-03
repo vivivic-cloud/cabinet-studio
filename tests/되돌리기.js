@@ -142,7 +142,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 쳐넣기('#W', 900); await 잠(300);
   const 수납역사 = await 역사수('수납장');
   맞나('수납장에 걸음이 쌓였다', 수납역사 > 0, true);
-  await 손가락('#itemBox label:has(input[value="서랍장"])'); await 잠(600);
+  await 손가락('#itemSel'); await p.selectOption('#itemSel', '서랍장'); await 잠(600);
   맞나('서랍장 역사는 비어 있고 단추도 흐리다', [await 역사수('서랍장'), (await 단추()).흐림], [0, true]);
   await 쳐넣기('#W', 1100); await 잠(300);
   /* ⚠ 관리자 규격이 **「한 걸음 = 담기() 한 번」** 이라 **때로 묶지 않는다.**
@@ -156,7 +156,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   let 누름 = 1;
   for (let i = 0; i < 8; i++){ if ((await 외경())[0] === 900) break; await 되돌리기(); 누름++; }
   맞나('두 번 눌러 서랍장이 900 으로 돌아온다', [누름, await 품목(), (await 외경())[0]], [2, '서랍장', 900]);
-  await 손가락('#itemBox label:has(input[value="수납장"])'); await 잠(600);
+  await 손가락('#itemSel'); await p.selectOption('#itemSel', '수납장'); await 잠(600);
   맞나('수납장은 제 값 900 그대로', (await 외경())[0], 900);
 
   console.log('⑥ 스무 걸음 — 스물한 번째에도 안 터진다');

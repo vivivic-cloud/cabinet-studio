@@ -96,13 +96,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     return o; });
   const 모양 = () => p.evaluate(() => window.__probe.model().parts
     .map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}|${x.cut.L}|${x.cut.W}|${x.cut.T}`).join('\n'));
-  const 품목고르기 = async v => 손가락(`#itemBox label:has(input[value="${v}"])`);
+  // 10-03 품목은 드롭다운이다
+  const 품목고르기 = async v => { const r = await 손가락('#itemSel');
+    await p.selectOption('#itemSel', v); return r; };
 
   console.log('⑥ 고르개 44px · 안 넘침  ② 처음은 수납장');
+  // 10-03 드롭다운이다 — `select` 에는 ::after 가 안 먹으므로(§4.9895) 제 높이가 곧 닿는 자리다
   맞나('닿는 자리 44px · 가로 넘침', await p.evaluate(() => {
-    const it = document.querySelector('#itemBox'), l = it.querySelector('.seg label');
-    const a = getComputedStyle(l, '::after');
-    return [parseFloat(a.height) >= 44, it.scrollWidth - it.clientWidth]; }), [true, 0]);
+    const it = document.querySelector('#itemBox'), s = it.querySelector('#itemSel');
+    return [s.getBoundingClientRect().height >= 44, it.scrollWidth - it.clientWidth]; }), [true, 0]);
   맞나('처음은 수납장', await p.evaluate(() => window.__probe.st().품목), '수납장');
   const 수납모양 = await 모양();
 
@@ -169,8 +171,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('④ 새로 열면 마지막에 보던 품목이 그대로다');
   await p.reload({ waitUntil:'domcontentloaded' });
   await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
-  맞나('다시 열었을 때 품목 · 단추', await p.evaluate(() => [window.__probe.st().품목,
-    document.querySelector('#itemBox input[value="서랍장"]').checked]), ['서랍장', true]);
+  맞나('다시 열었을 때 품목 · 고르개', await p.evaluate(() => [window.__probe.st().품목,
+    document.querySelector('#itemSel').value]), ['서랍장', '서랍장']);
   맞나('그 품목의 값도 그대로', await p.evaluate(() => window.__probe.rule().우라홈), 20);
 
   await ctx.close();
@@ -221,10 +223,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       return [r.우라홈, r.인위, r.보호대유격, window.__probe.parts().length]; });
     맞나('빈 브라우저 — 수납장 기본값', 기본, [9, 3, 0, 0]);
     // 서랍장을 처음 골라도 베낄 것이 없으니 같은 기본값이다
-    const e4 = await p4.$('#itemBox label:has(input[value="서랍장"])');
+    const e4 = await p4.$('#itemSel');
     await e4.scrollIntoViewIfNeeded(); const r4 = await e4.boundingBox();
     await cdp4.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r4.x + r4.width/2, y:r4.y + r4.height/2 }] });
     await cdp4.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
+    await p4.selectOption('#itemSel', '서랍장');
     await 잠(600);
     맞나('빈 브라우저 — 서랍장도 같은 기본값', await p4.evaluate(() => { const r = window.__probe.rule();
       return [r.우라홈, r.인위, r.보호대유격, window.__probe.parts().length]; }), [9, 3, 0, 0]);

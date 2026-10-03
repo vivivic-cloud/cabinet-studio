@@ -71,8 +71,10 @@ const 반 = n => Math.round(n * 1000) / 1000;
     await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x, y }] });
     await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
     await 잠(350); return true; };
-  const 품목고르기 = async 품 => { const r = await 손가락(`#itemBox label:has(input[value="${품}"])`);
-    await 잠(500); return r; };
+  /* 10-03 사장님 말씀 — 품목은 **드롭다운**이다. 진짜 손가락으로 고르개를 짚고 목록에서 고른다
+     (붙박이 목록은 브라우저가 그리는 것이라 이 방에서 그 목록 자체를 손가락으로 못 짚는다 · §7). */
+  const 품목고르기 = async 품 => { const r = await 손가락('#itemSel');
+    await p.selectOption('#itemSel', 품); await 잠(500); return r; };
   const 펴기 = async () => {
     const 접힘 = await p.evaluate(() =>
       document.querySelector('.pname[data-opt="문짝"]').getAttribute('aria-expanded') !== 'true');

@@ -70,10 +70,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x, y }] });
     await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
     await 잠(350); return true; };
+  // 10-03 품목은 드롭다운이다 — 고르개를 손가락으로 짚고 목록에서 고른다
   const 품목고르기 = async 품 => {
-    if (!await p.locator(`#itemBox input[value="${품}"]`).count()){
-      맞나('품목 단추가 있나 — ' + 품, false, true); return false; }
-    const r = await 손가락(`#itemBox label:has(input[value="${품}"])`); await 잠(450); return r; };
+    if (!await p.locator(`#itemSel option[value="${품}"]`).count()){
+      맞나('품목 고르개에 있나 — ' + 품, false, true); return false; }
+    const r = await 손가락('#itemSel'); await p.selectOption('#itemSel', 품); await 잠(450); return r; };
 
   const 장수 = 이름 => p.evaluate(n => window.__probe.model().parts.filter(x => x.name === n).length, 이름);
   const 이동단 = () => p.evaluate(() => window.__probe.model().이동단);

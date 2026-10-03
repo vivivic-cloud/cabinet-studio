@@ -4,7 +4,7 @@
       즉 **품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이 나타나게** 해야 합니다.
       **서랍장의 기본세팅은 일단 현재 수납장과 동일하게** 하여 나타나게 해주세요」
 
-     ① 설정 칸 맨 위에 「품목」 무리가 있고 단추 둘 — 수납장 · 서랍장 (닿는 자리 44px)
+     ① 설정 칸 맨 위에 「품목」 무리가 있고 **고르개(드롭다운)** 에 수납장 · 서랍장 (닿는 자리 44px · 10-03)
      ② 처음 열면 수납장이다
      ③ **진짜 손가락**으로 서랍장을 고르면 도면 표제란 품명과 부품표 머리가 서랍장이 된다
      ④ **서랍장의 부속·치수·부품표가 수납장과 한 톨도 같다** (「일단 동일하게」)
@@ -103,20 +103,23 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   // 「되돌리기」 단추는 머리의 「저장」 곁이다(§4.9871) — 설정 칸 무리는 예전 그대로 둘이다
   맞나('무리 차례 (설정 칸 맨 위)', await p.evaluate(() =>
     [...document.querySelectorAll('.params .group')].map(g => g.querySelector('h2').textContent)), ['품목', '보드선택']);
-  맞나('단추 둘', await p.evaluate(() =>
-    [...document.querySelectorAll('#itemBox input[name="품목"]')].map(i => i.value)), ['수납장', '서랍장']);
+  /* 10-03 사장님 말씀: 「이런 버튼형식이 아닌 드롭다운목록 선택형태로」 — 라디오가 아니라 고르개다.
+     목록은 `품목값` 에서 짓는다. `select` 에는 ::after 가 안 먹으므로 제 높이가 곧 닿는 자리다(§4.9895). */
+  맞나('고르개 하나 · 라디오 0', await p.evaluate(() =>
+    [document.querySelectorAll('#itemBox select#itemSel').length,
+     document.querySelectorAll('#itemBox input[name="품목"]').length]), [1, 0]);
+  맞나('목록 둘', await p.evaluate(() =>
+    [...document.querySelectorAll('#itemSel option')].map(o => o.value)), ['수납장', '서랍장']);
   맞나('닿는 자리 44px', await p.evaluate(() => {
-    const l = document.querySelector('#itemBox .seg label'); if (!l) return null;
-    const r = l.getBoundingClientRect(), a = getComputedStyle(l, '::after');
-    const h = a.height === 'auto' ? r.height : parseFloat(a.height);
-    return Math.max(r.height, h) >= 44; }), true);
+    const s = document.querySelector('#itemSel'); if (!s) return null;
+    return s.getBoundingClientRect().height >= 44; }), true);
   맞나('처음은 수납장', await p.evaluate(() => window.__probe.st().품목), '수납장');
   const 수납모양 = await 모양(), 수납표 = await 표();
   맞나('도면 품명 (수납장)', await 품명(), ['수납장  W800 × D400 × H1800', '수납장']);
 
   console.log('③ 진짜 손가락으로 서랍장을 고른다  ④ 부속·치수·부품표가 한 톨도 같다');
-  맞나('서랍장을 눌렀나', await 손가락('#itemBox label:has(input[value="서랍장"])'), true);
-  await 잠(500);
+  맞나('서랍장을 눌렀나', await 손가락('#itemSel'), true);
+  await p.selectOption('#itemSel', '서랍장'); await 잠(500);
   맞나('state.품목', await p.evaluate(() => window.__probe.st().품목), '서랍장');
   맞나('도면 품명 (서랍장)', await 품명(), ['서랍장  W800 × D400 × H1800', '서랍장']);
   /* ⚠ 「일단 동일하게」 는 10-02 사장님 말씀 **셋**으로 그만큼씩 갈렸다 —
@@ -135,8 +138,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     === 수납표.split('|').filter(x => /^(상판|측판|하판|전면밴드|뒷판)/.test(x)).join('|'), true);
 
   console.log('⑤ 수납장으로 되돌리면 그대로다');
-  맞나('수납장을 눌렀나', await 손가락('#itemBox label:has(input[value="수납장"])'), true);
-  await 잠(500);
+  맞나('수납장을 눌렀나', await 손가락('#itemSel'), true);
+  await p.selectOption('#itemSel', '수납장'); await 잠(500);
   맞나('도로 수납장', await p.evaluate(() => window.__probe.st().품목), '수납장');
   맞나('도면 품명', await 품명(), ['수납장  W800 × D400 × H1800', '수납장']);
   맞나('부속·부품표 그대로', [await 모양() === 수납모양, await 표() === 수납표], [true, true]);

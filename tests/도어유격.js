@@ -229,7 +229,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('수납장 — 옛 이름 그대로', await 칸들(),
       [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]);
     await 접기('문짝');
-    await 손가락('input[name="품목"][value="서랍장"]'); await 잠(600);
+    await 손가락('#itemSel'); await p.selectOption('#itemSel', '서랍장'); await 잠(600);
     await 펴기('문짝');
     맞나('서랍장 외부 — 이름만 갈린다', await 칸들(),
       [['상부유격','아웃위','2'], ['하부유격','아웃아래걸레','5']]);
@@ -244,7 +244,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         return [+Math.max(...d.map(q => q.z + q.h)).toFixed(1), window.__probe.rule().인위]; }); })(), [1773, 9]);
     await p.evaluate(() => { window.__probe.rule().인위 = 3; window.__probe.set({ doorMode:'out' }); }); await 잠(400);
     await 접기('문짝');
-    await 손가락('input[name="품목"][value="수납장"]'); await 잠(600);
+    await 손가락('#itemSel'); await p.selectOption('#itemSel', '수납장'); await 잠(600);
     await 펴기('문짝');
     맞나('수납장으로 돌아오면 옛 이름', await 칸들(),
       [['도어 위 유격','아웃위','2'], ['도어 아래 유격','아웃아래걸레','5']]);
