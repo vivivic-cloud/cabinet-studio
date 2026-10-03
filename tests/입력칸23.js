@@ -4,7 +4,8 @@
 
      ① 글자 넣는 칸이 다 23px 이다 (유격 · 전면밴드 · 우라홈 · 밴드 높이 · 부속 이름 · 띠 · 두께 고르개 · 가로대)
      ② 줄(`.optnum`)도 36 → 25 로 같이 내려간다 — 칸만 줄이면 눈에 안 띈다(09-28 에 헛일했다)
-     ③ **단추는 하나도 안 내려갔다** — × 닿는 44×40 · 「추가」 44 · 알약 닿는 44 · 체크 줄 44 · 모드 44
+     ③ 단추 — 「추가」 44 · 알약 닿는 44 · 체크 줄 44 · 모드 44 는 그대로다.
+        ⚠ × 와 부속명 단추는 **10-03 사장님 말씀으로 더 내려갔다**(§4.9866) — 여기 잰 값을 그때 옮겨 적었다.
      ④ 값이 하나도 안 잘린다 (2.7 · 12.5 · 2400)
      ⑤ **진짜 손가락**으로 초점이 잡히고 글자가 들어가고 먹는다
      ⑥ 375·1280 가로 넘침 0 · 2D 에서 A4 한 쪽과 「크게」 가 그대로다
@@ -102,15 +103,17 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       return e ? [e.tagName, Math.round(e.getBoundingClientRect().height)] : null; }), ['INPUT', 23]);
     await 손가락('#itemSel'); await p.selectOption('#itemSel', '수납장'); await 잠(500);
 
-    console.log('③ 단추는 하나도 안 내려갔다');
+    console.log('③ 단추 — 「추가」·알약·체크 줄·모드는 그대로다');
     await 펴('측판');
+    // 10-03 사장님 말씀으로 × 는 28 → 20(넓이 절반) · 닿는 자리는 줄 23 + 틈 4 = 27 이다 (§4.9866)
     맞나('× — 보이는 것 · 닿는 자리', await p.evaluate(() => {
       const x = document.querySelector('.field[data-part="측판"] .x'); const r = x.getBoundingClientRect();
       const a = getComputedStyle(x, '::after');
-      return [Math.round(r.width) + '×' + Math.round(r.height), a.width + '×' + a.height]; }), ['28×28', '44px×40px']);
+      return [Math.round(r.width) + '×' + Math.round(r.height), a.width + '×' + a.height]; }), ['20×20', '40px×27px']);
     맞나('「추가」 단추', await 높('.addrow button'), 44);
     맞나('체크 줄', await 높('.opt[data-opt="측판"] .optrow'), 44);
-    맞나('부속명 단추', await 높('.pname[data-opt="측판"]'), 36);
+    // 10-03 부터 부속명 단추도 입력칸과 같은 23 이다 — 부속 사이를 좁히려면 이것이 따라 내려가야 한다
+    맞나('부속명 단추', await 높('.pname[data-opt="측판"]'), 23);
     맞나('모드 단추', await 높('.modeseg button'), 44);
     맞나('저장 단추 (§4.9891 그대로)', await 높('.opt[data-opt="측판"] [data-optsave]'), 28);
     await 접('측판');

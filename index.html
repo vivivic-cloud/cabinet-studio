@@ -83,10 +83,11 @@ select:focus{border-color:var(--head)}
 .field.gr>.opt{grid-area:옵션}
 .segs{display:flex;gap:6px;min-width:0}
 .segs>.seg{flex:1 1 0;min-width:0}
-/* 부속명 단추 — 보이는 글자는 예전 이름표 그대로 두고 눌리는 자리만 44px 로 잡는다 */
-/* 칸을 내려도 줄은 이 단추가 44 로 붙잡고 있었다 — 그래서 부속 사이가 안 좁아졌다(사장님 09-30).
-   줄을 따라 내리려면 이것도 내려야 한다. 폭이 229px 라 36px 로도 손이 넉넉히 닿는다. */
-.pname{display:flex;align-items:center;gap:6px;min-height:36px;padding:0;
+/* 부속명 단추 — 보이는 글자는 예전 이름표 그대로 둔다 */
+/* 칸을 내려도 줄은 이 단추가 붙잡고 있었다 — 그래서 부속 사이가 안 좁아졌다(사장님 09-30 · 10-03).
+   10-03 사장님 말씀 「이제 입력칸의 높이가 줄었으니 **부속간의 간격도 줄여줘**」 로 **입력칸과 같은 23** 이다.
+   줄을 더 내리려면 여기 한 줄이다. 폭이 237px 라 23px 로도 글자 줄 전체가 손에 닿는다. */
+.pname{display:flex;align-items:center;gap:6px;min-height:23px;padding:0;
   border:0;background:none;color:var(--ink);font:inherit;font-weight:600;
   text-align:left;word-break:keep-all;border-radius:10px}
 .pname::after{content:"▾";font-size:11px;color:var(--ink3);flex:none}
@@ -338,11 +339,13 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
    이 고르개가 곧 사장님이 말씀하시는 「사이즈 입력칸」 이다 — §0 의 입력칸 자를 여기에도 댄다.
    `select` 는 `::after` 를 못 얹으니 제 몸이 곧 닿는 자리다. 10-02 에 **23** 으로 내렸다. */
 .two select,.two input{flex:1;min-width:0;width:0;height:23px;min-height:23px;padding:0 6px;font-size:13px;border-radius:11px}
-.two .x{flex:none;width:28px;height:28px;padding:0;border-radius:50%;line-height:1;font-size:15px;color:var(--ink3);position:relative}
-/* 보이는 것은 32px 그대로 두고 손 닿는 자리만 44px 로 넓힌다 (집 규칙) */
-.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:40px}
-/* 세로만 40 이다 — 줄 36 + 틈 4 = 40 이라 44 로 두면 위아래 줄의 닿는 자리와 2px 씩 겹친다(재서 잡았다). */
-#boardBox{gap:4px}                /* 줄끼리 촘촘히 — 44px 줄에 4px 틈이면 닿는 자리가 안 겹친다 */
+/* 10-03 사장님 말씀: 「삭제버튼은 여전히 크니 **지금의 절반정도로** 줄여줘」 → 28 → **20**(넓이 절반).
+   한 변을 절반(14)으로 보면 글자가 눌려 ×가 안 읽힌다 — §4.9891 에서 「4분의 1 수준」 을 넓이로 읽은 그 자다. */
+.two .x{flex:none;width:20px;height:20px;padding:0;border-radius:50%;line-height:1;font-size:13px;color:var(--ink3);position:relative}
+/* 보이는 것은 줄이고 손 닿는 자리만 넓힌다 (집 규칙) */
+.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40px;height:27px}
+/* 세로 27 = 줄 23 + 틈 4 · 가로 40 = × 20 + 양옆 틈 10 — 더 넓히면 위아래 줄·두께 칸의 자리를 뺏는다(재서 잡았다). */
+#boardBox{gap:4px}                /* 줄끼리 촘촘히 — 23px 줄에 4px 틈이면 닿는 자리가 안 겹친다 */
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
    설정 때문에 없는 줄(도어 0짝 · 이동선반 0단 · 전면밴드 0)은 **안 내린다** — 제자리에 둔다. */
