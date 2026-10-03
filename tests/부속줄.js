@@ -4,7 +4,7 @@
        지금의 절반정도로 줄여줘**」
 
      ① 부속 한 줄이 **입력칸과 같은 23px** 이고 한 자리(줄+틈)가 **27** 이다 (전 36 · 40)
-     ② 「× 」 보이는 것이 **20×20**(넓이 절반) · 닿는 자리 **40×27**
+     ② 「× 」 보이는 것이 **20×20**(넓이 절반) · 닿는 자리 **22×20**
      ③ 닿는 자리가 **위아래 줄끼리 안 겹치고 두께 칸을 안 먹는다**
      ④ **진짜 손가락**으로 줄마다 × 의 **맨 위 +1 · 가운데 · 맨 아래 −1** 을 밟아 노린 줄이 지워진다
      ⑤ 23px 부속명 단추도 **맨 위·가운데·맨 아래**에서 다 펴진다
@@ -77,7 +77,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const 지움 = () => p.evaluate(() => (window.__probe.손질().지움 || []).slice());
     const 되돌 = async () => { await p.evaluate(() => { window.__probe.손질().지움 = []; window.__probe.set({}); }); await 잠(400); };
 
-    console.log('① 줄 23 · 한 자리 27  ② × 20×20 · 닿는 40×27  ③ 안 겹치고 두께 칸을 안 먹는다  ⑦ 안 잘린다');
+    console.log('① 줄 23 · 한 자리 27  ② × 20×20 · 닿는 22×20  ③ 안 겹치고 두께 칸을 안 먹는다  ⑦ 안 잘린다');
     맞나('부속 줄 높이 · 한 자리', await p.evaluate(() => {
       const 줄 = [...document.querySelectorAll('#boardBox .field[data-home]')].filter(r => r.style.display !== 'none');
       const a = 줄[0].getBoundingClientRect(), b2 = 줄[1].getBoundingClientRect();
@@ -86,7 +86,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       const x = document.querySelector('#boardBox .field[data-home] .x');
       const r = x.getBoundingClientRect(), a = getComputedStyle(x, '::after');
       return [Math.round(r.width) + '×' + Math.round(r.height), a.width + '×' + a.height]; }),
-      ['20×20', '40px×27px']);
+      ['20×20', '22px×20px']);
     맞나('닿는 자리 겹침 · 두께 칸 먹음', await p.evaluate(() => {
       const 줄 = [...document.querySelectorAll('#boardBox .field[data-home]')].filter(r => r.style.display !== 'none');
       const 네 = [], 먹 = [];

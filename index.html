@@ -343,8 +343,10 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
    한 변을 절반(14)으로 보면 글자가 눌려 ×가 안 읽힌다 — §4.9891 에서 「4분의 1 수준」 을 넓이로 읽은 그 자다. */
 .two .x{flex:none;width:20px;height:20px;padding:0;border-radius:50%;line-height:1;font-size:13px;color:var(--ink3);position:relative}
 /* 보이는 것은 줄이고 손 닿는 자리만 넓힌다 (집 규칙) */
-.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40px;height:27px}
-/* 세로 27 = 줄 23 + 틈 4 · 가로 40 = × 20 + 양옆 틈 10 — 더 넓히면 위아래 줄·두께 칸의 자리를 뺏는다(재서 잡았다). */
+.two .x::after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:20px}
+/* 10-03 관리자가 숫자를 못 박았다 — 닿는 자리도 「지금(44×40)의 절반쯤 = 22×20 언저리」.
+   그래서 40×27 → **22×20** 이다. 줄 23 안에 들어가므로 위아래 줄·두께 칸의 자리를 한 톨도 안 뺏는다.
+   ⚠ 더 넓히지 마라 — 넓히면 44 였을 때처럼 이웃 줄을 먹는다(§4.9866 에 그 셈을 적어 두었다). */
 #boardBox{gap:4px}                /* 줄끼리 촘촘히 — 23px 줄에 4px 틈이면 닿는 자리가 안 겹친다 */
 .two .x.없음{opacity:.3}          /* 이미 도면에서 빠진 것 */
 /* 지운 부속은 「비활성 부속」 무리로 목록 아래에 모은다 (09-22 사장님 말씀).
