@@ -58,7 +58,10 @@ button:disabled{opacity:.5;cursor:default}
 .num span{padding:0 11px 0 0;color:var(--ink3);font-size:12px}
 select{font:inherit;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 10px;width:100%}
 select:focus{border-color:var(--head)}
-.seg{display:flex;gap:4px;border-radius:999px;background:var(--surface2);padding:3px}
+/* ⚠ 10-04 — 판이 좁아지면 눈금이 **판 밖으로 나갔다**(배율 2.5 에서 마이다 「8」 이 16px 밖 · 아예 안 보임).
+   `label` 이 `flex:1` 이라도 `min-width:auto`(= 제 글자 폭) 밑으로는 안 줄어 한 줄에 못 들어간다.
+   **줄을 바꿔 여덟 칸이 다 보이게 한다** — `.optnum`·`.optrow` 와 같은 한 벌이다(§4.98619-이름). */
+.seg{display:flex;flex-wrap:wrap;gap:4px;border-radius:999px;background:var(--surface2);padding:3px}
 .seg label{flex:1;text-align:center;padding:8px 4px;cursor:pointer;font-size:13px;color:var(--ink2);position:relative;border-radius:999px}
 .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
 .seg label:has(input:checked){background:#fff;color:var(--head);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.07)}
@@ -140,7 +143,7 @@ select:focus{border-color:var(--head)}
    「저장 닫기 버튼 너무 크다 너무 커요 지금의 4분의 1수준으로 조절해줘」 — 그래서 꽉 채우지 않고
    오른쪽에 작게 둔다. **보이는 크기는 1/4 로 줄이고 닿는 자리는 `::after` 로 36px 을 남겼다**
    (위 틈 8 + 아래 여백 6 안에 들어가므로 윗줄과 안 겹친다. 44 로 넓히면 윗줄을 먹는다 — 재서 잡았다). */
-.optbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.optbtns{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:8px}   /* 좁으면 「닫기」 가 아랫줄로 — 판 밖으로 나가지 않는다 */
 .optbtns button{flex:none;min-height:28px;padding:0 14px;font-size:12px;position:relative}
 .optbtns button::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
 #itemSel{min-height:44px}   /* 고르개는 ::after 가 안 먹는다 — 닿는 자리를 높이로 잡는다 (§4.9895) */

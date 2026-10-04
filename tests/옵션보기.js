@@ -21,6 +21,9 @@
        **글이 읽히는지는 안 봤다** — 그래서 초록인데 「상부유격」 이 깎여 있었다(배율 2.5 에서 폭 0).
        `scrollWidth <= clientWidth` 로 일곱 판 × 네 배율을 쓸고, 끝에는 **좁은 자리에서 이름을 읽고
        그 밑 칸에 숫자를 쳐서 저장**해 본다 — 사장님이 그 화면에서 실제로 하시는 일이다.
+     ⑪ **판 안의 것이 판 밖으로 안 나간다** (10-04 관리자). ⑩ 이 `label` 만 재서 **눈금(`.seg.mini`)을
+       놓쳤다** — 배율 2.5 에서 「8」 이 16px 밖이라 **아홉 칸 중 여덟만 보였다.** 이제 `#optDlg` 안
+       **모든 자**를 쓴다 — 깎임 0 · 판 좌우 밖 0. 세로는 굴러가는 것이 맞아 「굴리면 닿나」 로 잰다.
 
    돌리는 법:  node tests/옵션보기.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7).
@@ -365,6 +368,56 @@ const 짚을자리 = (n) => {
           .map(x => x.z + x.h).sort((a, b) => b - a)[0] || 0);
         return [r.아웃위, r.아웃아래걸레, 윗]; }),
       [9, 5, 1791]);
+
+    /* ⑪ **판 안의 것이 판 밖으로 안 나간다** (10-04 관리자).
+       ⑩ 은 `label` 만 재서 **`.seg.mini`(눈금 0~8)를 놓쳤다** — 배율 2.5 에서 「8」 이 16px 밖으로
+       나가 **아예 안 보였고**(마이다 0~8 중 8 을 못 고르신다) 「저장」 도 판 밖이었다.
+       자는 둘이다 — ㄱ) 모든 자가 `scrollWidth <= clientWidth` ㄴ) 모든 자의 네모가 **판 좌우 안**.
+       ⚠ 세로는 **판 밖이 맞다** — 길면 `#optDlgBody` 가 굴러간다(§4.98619 의 그 규칙).
+          그래서 세로는 「굴리면 닿나」 로 잰다. */
+    console.log('⑪ 판 안의 것이 판 밖으로 안 나간다 — 눈금·단추까지');
+    const 넘친것 = [];
+    for (const 판 of ['마이다', '가로대', '측판', '상판', '뒷판']){
+      await 차림표(판); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+      for (const 배 of [1, 1.5, 2, 2.5]){
+        await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:배 }); await 잠(300);
+        const 난것 = await p.evaluate(() => { const d = document.querySelector('#optDlg');
+          if (!d || !d.open) return ['안 열림'];
+          const dr = d.getBoundingClientRect(), 난 = [];
+          d.querySelectorAll('*').forEach(e => { const r = e.getBoundingClientRect();
+            if (!r.width && !r.height) return;
+            const 이 = e.tagName.toLowerCase() + '«' + (e.textContent || '').trim().slice(0, 6) + '»';
+            if (e.scrollWidth > e.clientWidth + 0.5) 난.push(이 + ' 깎임 ' + e.clientWidth + '/' + e.scrollWidth);
+            const 가로 = Math.max(0, r.right - dr.right) + Math.max(0, dr.left - r.left);
+            if (가로 > 0.5) 난.push(이 + ' 가로 ' + Math.round(가로)); });
+          return 난; });
+        if (난것.length) 넘친것.push(판 + ' 배율 ' + 배 + ': ' + 난것.join(' · '));
+      }
+      await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(250);
+      await 톡자('#optDlg [data-optclose]'); await 잠(250);
+    }
+    맞나('다섯 판 × 네 배율 — 판 밖으로 나간 것', 넘친것, []);
+
+    // 눈금 0~8 이 아홉 칸 다 보이고, 굴리면 「저장」 이 판 안에 든다 (배율 2.5 · 가장 좁은 자리)
+    await 차림표('마이다'); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:2.5 }); await 잠(350);
+    맞나('배율 2.5 — [눈금 수, 판 안에 든 눈금 수]',
+      await p.evaluate(() => { const d = document.querySelector('#optDlg');
+        const dr = d.getBoundingClientRect();
+        // 분할 눈금 줄만 — 같은 판의 「외부/내부」 도 `.seg.mini` 라 그냥 쓸면 11개로 잡힌다
+        const 들 = [...d.querySelectorAll('.seg.mini label')].filter(e => e.querySelector('input[name=doors]'));
+        return [들.length, 들.filter(e => { const r = e.getBoundingClientRect();
+          return r.left >= dr.left - 0.5 && r.right <= dr.right + 0.5; }).length]; }), [9, 9]);
+    맞나('굴리면 「저장」 이 판 안에 드나',
+      await p.evaluate(() => { const bd = document.querySelector('#optDlgBody');
+        bd.scrollTop = bd.scrollHeight;
+        const d = document.querySelector('#optDlg'), dr = d.getBoundingClientRect();
+        const b2 = d.querySelector('[data-optsave]'); if (!b2) return 'x';
+        const r = b2.getBoundingClientRect();
+        return r.left >= dr.left - 0.5 && r.right <= dr.right + 0.5
+            && r.top >= dr.top - 0.5 && r.bottom <= dr.bottom + 0.5; }), true);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(250);
+    await 톡자('#optDlg [data-optclose]'); await 잠(250);
 
     await 품목('수납장'); await 모드('3d');
 
