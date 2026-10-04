@@ -4,7 +4,7 @@
 
      ① 머리띠에 단추가 있고 **44px 이상**이며 맨 위에 제것이다 · 있던 넷은 한 톨도 안 바뀐다
      ② 누르면 판이 열리고 **틀이 375px 폭**이다 · 뒤 칸(3D)은 한 픽셀도 안 줄어든다
-     ③ **틀 안에서 폰 갈래가 진짜로 걸린다** — 창 폭 375 · 좌우 여백 0 · 치수 띠가 도면 아래
+     ③ **틀 안에서 폰 갈래가 진짜로 걸린다** — 창 폭 375 · 좌우 여백 0 · 치수 띠가 도면 위
      ④ 틀 안에는 그 단추가 없다(되돌이 막이)
      ⑤ **다시 눌러 제자리** · 닫기 단추 · Esc · 닫으면 틀이 `about:blank`
      ⑥ **폰(375px)에서는 단추가 안 보인다** · 머리 높이·가로 넘침 그대로 · 오류 0
@@ -107,11 +107,11 @@ const 네모 = `(s => { const el = document.querySelector(s); if (!el) return nu
                  폰갈래: matchMedia('screen and (max-width:1100px)').matches,
                  header: 여백(document.querySelector('header')),
                  params: 여백(document.querySelector('.params')),
-                 띠가도면아래: d.top >= c.bottom - 0.5,
+                 띠가도면위: d.bottom <= c.top + 0.5,
                  제단추: Math.round(b2.width) + '×' + Math.round(b2.height),
                  넘침: document.documentElement.scrollWidth }; }),
         { 창폭:375, 폰갈래:true, header:'0px/0px', params:'0px/0px',
-          띠가도면아래:true, 제단추:'0×0', 넘침:375 });
+          띠가도면위:true, 제단추:'0×0', 넘침:375 });
     }
 
     console.log('⑤ 다시 눌러 제자리 · 닫기 · Esc');

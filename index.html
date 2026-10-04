@@ -492,8 +492,12 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   #svgwrap{padding-left:0;padding-right:0}
 }
 /* ── 10-03 사장님 말씀 — 「이런 도면조절 옵션들 모바일에서는 도면 밖으로 빼야지 이게뭐냐 화면 다가리고」 ──
-   폰에서는 도면 위에 떠 있던 것을 **도면 아래 띠로 내린다** — 치수 띠 · 모드 · 도구줄 · 시점줄 ·
-   숨김바 · 분해도. **아무것도 없애지 않았다. 자리만 옮긴 것이다** — 닿는 자리 44px 그대로다.
+   10-04 사장님 말씀 — 「모바일 환경에서 이런 조정부를 도면 위쪽에 위치하게 해줘」 (아래 → **위**).
+   폰에서는 도면 위에 **떠 있던** 것을 흐름 안으로 내려 **도면 위쪽 띠**로 세운다 — 치수 띠 · 모드 ·
+   도구줄 · 시점줄 · 숨김바 · 분해도. **아무것도 없애지 않았다. 자리만 옮긴 것이다** — 닿는 자리 44px 그대로다.
+   ⚠ 위·아래는 `order` 하나로 가른다(DOM·자바스크립트는 한 글자도 안 건드린다).
+      `모드띠맞추기()` 가 `appendChild` 로 붙이므로 DOM 으로는 띠가 늘 **맨 뒤**다 — 그래서 CSS 로 세운다.
+      2D 의 머리줄(`.panelhead`)은 `order 0` 이라 **띠보다 위에 그대로 남는다**(제 칸 이름이다).
    ⚠ 캔버스 높이는 **그대로 둔다**(60vh · 집중 84vh). 띠는 **덧붙는 높이**다.
       띠가 캔버스를 깎으면 가리던 것이 비켜도 쓸 자리가 되레 준다
       (잰 값: 깎으면 141,345 → 125,625px² 로 준다). 그래서 3D 칸 줄을 `auto` 로 바꾸고 캔버스에 높이를 박았다.
@@ -502,17 +506,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 @media screen and (max-width:1100px){
   .app.m3d{grid-template-rows:auto auto auto}
   .view3d{display:flex;flex-direction:column;gap:8px;min-height:0;padding-bottom:8px}
-  .view3d canvas{position:relative;inset:auto;flex:none;width:100%;height:60vh;min-height:380px}
+  .view3d canvas{position:relative;inset:auto;flex:none;width:100%;height:60vh;min-height:380px;order:2}
   .app.집중 .view3d canvas{height:84vh}
   .view3d>.dims,.view3d>.hud,.view3d>.explode,.draw>.dims{
-    position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0}
-  .draw>.dims{margin-top:8px}   /* 틈은 margin 으로 — 띠 **크기**가 두 모드에서 같아야 한다(§4.9888) */
+    position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0;order:1}
+  .draw>.dims{margin-bottom:8px}  /* 틈은 margin 으로 — 띠 **크기**가 두 모드에서 같아야 한다(§4.9888) */
   .view3d>.explode{margin-top:0}
   /* 2D 도 같다 — 띠가 도면을 깎으면 안 된다. 칸 줄을 `auto` 로 두고 도면에 84vh 를 그대로 준다.
      잰 값(375×780): 띠가 깎으면 A4 가 329×465 → 305×432 로 **준다**. 이렇게 두면 **351×497 로 는다**. */
   .app.m2d{grid-template-rows:auto auto auto}
   .app.m2d .draw{min-height:0}
-  .app.m2d #svgwrap{flex:none;height:84vh;min-height:380px}
+  .app.m2d #svgwrap{flex:none;height:84vh;min-height:380px;order:2}
 }
 /* ── 10-04 관리자 — 머리띠 「모바일 보기」 ──────────────────────────────
    **모달이 아니다**(`show()`) — 뒤가 안 굳어야 머리띠 단추를 **다시 눌러 제자리로** 올 수 있다.

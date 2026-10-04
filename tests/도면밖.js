@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 /* 10-03 사장님 말씀: 「**이런 도면조절 옵션들 모바일에서는 도면 밖으로 빼야지 이게뭐냐 화면 다가리고**」
+   10-04 사장님 말씀: 「**모바일 환경에서 이런 조정부를 도면 위쪽에 위치하게 해줘**」 (아래 → **위**)
 
-     ① 폰 3D — 도면 위에 떠 있는 것이 **0개** · 덮은 넓이 0 · 캔버스 375×540 그대로
+     ① 폰 3D — 도면을 **덮고 있는 것이 0개** · 덮은 넓이 0 · 캔버스 375×540 그대로
+                그리고 띠가 다 **캔버스 위**에 선다
      ② 폰 3D — 쓸 자리가 148,972 → **202,500px²** 로 는다 · 칸 811 (띠가 덧붙는 높이다)
      ③ 띠의 단추가 다 44px 이상이고 **진짜 손가락으로 다 눌린다** (모드·도구·시점·숨김바·치수칸·분해도)
-     ④ 폰 2D — 띠가 **도면 아래** · A4 가 안 준다 · 가린 도면 글자 0
+     ④ 폰 2D — 띠가 **도면 위**(머리줄 밑) · A4 가 안 준다 · 가린 도면 글자 0
      ⑤ 폰에서는 **조용히 사라지지 않는다** (도면을 안 가리므로)
-     ⑥ **1280 은 한 톨도 안 바뀐다** — 띠가 떠 있고 `.hud` 도 떠 있다
-     ⑦ 가로 넘침 375 · 오류 0
+     ⑥ **열자마자 도면이 첫 화면에 얼마나 드나** — 띠가 위로 가면 도면이 밀린다.
+        잰 값을 못 박는다(375×900): 열자마자 캔버스 y **918 · 첫 화면 0px**,
+        3D 를 톡 쳐 설정 칸이 접히면 y **485 · 415px**. 이 숫자가 움직이면 자리가 또 바뀐 것이다.
+     ⑦ **1280 은 한 톨도 안 바뀐다** — 띠가 떠 있고 `.hud` 도 떠 있다
+     ⑧ 가로 넘침 375 · 오류 0
 
    돌리는 법:  node tests/도면밖.js
    three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -106,6 +111,11 @@ const 덮은것 = `(() => {
     맞나('3D 캔버스 · 쓸 자리', [삼.그림, 삼.쓸자리], 폰 ? ['375×540', 202500] : ['995×831', 786759]);
     맞나('3D 칸 높이', await p.evaluate(() => Math.round(document.querySelector('.view3d').getBoundingClientRect().height)),
          폰 ? 811 : 831);
+    // 10-04 — 폰에서는 띠가 다 **캔버스 위**다. 넓은 화면은 떠 있으므로 이 자는 안 댄다.
+    if (폰) 맞나('띠가 다 캔버스 위인가', await p.evaluate(() => {
+      const c = document.querySelector('#c3d').getBoundingClientRect();
+      return [...document.querySelectorAll('.view3d > *')].filter(el => el.id !== 'c3d')
+        .every(el => { const r = el.getBoundingClientRect(); return r.height === 0 || r.bottom <= c.top + 0.5; }); }), true);
 
     console.log('③ 띠의 단추가 44px 이상이고 다 눌린다');
     맞나('44 미만인 단추', await p.evaluate(() => [...document.querySelectorAll('.view3d .hud button')]
@@ -139,14 +149,19 @@ const 덮은것 = `(() => {
     await p.evaluate(() => { const s = document.querySelector('#explode'); s.value = 0;
       s.dispatchEvent(new Event('input', {bubbles:true})); });
 
-    console.log('④ 2D — 띠가 도면 아래 · A4 가 안 준다 · 가린 글 0');
+    console.log('④ 2D — 띠가 도면 위 · A4 가 안 준다 · 가린 글 0');
     await 모드('2d');
     const 이 = await p.evaluate(덮은것);
     맞나('2D A4 · 덮은 것', [이.그림, 이.덮은것], 폰 ? ['375×530', ['big']] : ['453×641', ['big','dimsBar']]);
-    맞나('2D 띠가 도면 아래인가', await p.evaluate(() => {
+    맞나('2D 띠가 도면 위인가', await p.evaluate(() => {
       const t = document.querySelector('#dimsBar').getBoundingClientRect();
       const g = (document.querySelector('#pageBox>.page.보는쪽') || document.querySelector('#pageBox>.page')).getBoundingClientRect();
-      return t.top >= g.bottom - 0.5; }), 폰);
+      return t.bottom <= g.top + 0.5; }), 폰);
+    // 2D 머리줄(제 칸 이름)은 띠보다 위에 그대로 남는다
+    if (폰) 맞나('2D 머리줄이 띠보다 위', await p.evaluate(() => {
+      const h = document.querySelector('.draw .panelhead').getBoundingClientRect();
+      const t = document.querySelector('#dimsBar').getBoundingClientRect();
+      return h.bottom <= t.top + 0.5; }), true);
     맞나('2D 가린 도면 글자', await p.evaluate(() => {
       const t = document.querySelector('#dimsBar').getBoundingClientRect();
       const svg = document.querySelector('#pageBox .page svg'); if (!svg) return -1;
@@ -163,7 +178,23 @@ const 덮은것 = `(() => {
     맞나('5.2초 뒤 흐림', await p.evaluate(() => [...document.querySelectorAll('.view3d .tools,.view3d .views,.view3d .explode')]
       .map(el => el.style.opacity || '1')), 폰 ? ['1','1','1'] : ['0','0','0']);
 
-    console.log('⑥ 가로 넘침 · 오류');
+    console.log('⑥ 열자마자 도면이 첫 화면에 얼마나 드나');
+    const 첫화면 = () => p.evaluate(() => { window.scrollTo(0, 0);
+      const r = document.querySelector('#c3d').getBoundingClientRect();
+      return [Math.round(r.top + window.scrollY),
+              Math.round(Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)))]; });
+    await p.evaluate(() => window.scrollTo(0, 0)); await 잠(300);
+    맞나('열자마자 캔버스 y · 첫 화면', await 첫화면(), 폰 ? [918, 0] : [69, 831]);
+    if (폰){   // 3D 를 톡 치면 설정 칸이 접힌다(§4.7) — 사장님이 실제로 쓰시는 자리다
+      await p.evaluate(() => document.querySelector('#c3d').scrollIntoView({block:'center'}));
+      await 잠(300);
+      const r = await p.evaluate(() => { const b2 = document.querySelector('#c3d').getBoundingClientRect();
+        return { x:b2.left + b2.width/2, y:b2.top + b2.height/2 }; });
+      await 톡(r.x, r.y); await 잠(900);
+      맞나('설정 칸을 접은 뒤 캔버스 y · 첫 화면', await 첫화면(), [485, 415]);
+    }
+
+    console.log('⑦ 가로 넘침 · 오류');
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 폭);
     맞나('오류', 터짐, []);
     await ctx.close();
