@@ -119,11 +119,14 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       const 결과 = {};
       for (const 부속 of 부속들){
         await 되돌();
-        // 탭마다 자리를 다시 잰다 — 지운 줄이 사라지면 아래 줄이 올라온다
+        /* 탭마다 자리를 다시 잰다 — 지운 줄이 사라지면 아래 줄이 올라온다.
+           ⚠ 10-04 부터 폰에서는 설정 칸이 도면 **아래**라 줄이 첫 화면 밖이다(§4.98617) —
+              **먼저 굴려 넣어야** 손가락이 그 줄에 떨어진다(안 굴리면 아무 줄도 안 지워진다). */
         const z = await p.evaluate(v => {
           const r = [...document.querySelectorAll('#boardBox .field[data-home]')]
             .filter(q => q.style.display !== 'none').find(q => q.dataset.part === v.부속);
           if (!r) return null;
+          r.scrollIntoView({ block:'center' });
           const x = r.querySelector('.x'), a = getComputedStyle(x, '::after'), b2 = x.getBoundingClientRect();
           const h = parseFloat(a.height), cx = b2.left + b2.width/2, cy = b2.top + b2.height/2;
           return { x:cx, y: v.어디 === '위' ? cy - h/2 + 1 : v.어디 === '아래' ? cy + h/2 - 1 : cy }; }, { 부속, 어디 });

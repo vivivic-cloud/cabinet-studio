@@ -504,7 +504,12 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
    ⚠ 2D 는 줄을 안 건드렸다 — 쪽이 **폭에 걸려 있어**(375×530) 세로에 여유가 있다. 띠가 그 여유에서 난다.
    ⚠ 넓은 화면(≥1101px)은 한 줄도 안 바뀐다 — 거기는 안 가린다. */
 @media screen and (max-width:1100px){
-  .app.m3d{grid-template-rows:auto auto auto}
+  /* ⚠ 띠를 도면 위로 올리면 도면이 그만큼 아래로 밀린다 — 폰을 열자마자 도면이 한 점도 안 보였다
+     (잰 값 375×812: 도면 y 918 · 첫 화면 0px). 그래서 **입력칸 묶음을 도면 아래로** 내린다.
+     차례가 「머리 → 띠 → 도면 → 입력칸」 이라 띠는 여전히 도면 **위쪽**이고(사장님 말씀 그대로)
+     도면은 열자마자 보인다(y 440 · 첫 화면 372px). **외경 치수는 띠에 있어 맨 위 그대로다.**
+     ⚠ 폰 격자는 `grid-template-areas` 로 자리를 잡으므로 `order` 가 안 먹는다 — 차례를 여기서 다시 적는다. */
+  .app.m3d{grid-template-rows:auto auto auto;grid-template-areas:"head" "view3d" "params"}
   .view3d{display:flex;flex-direction:column;gap:8px;min-height:0;padding-bottom:8px}
   .view3d canvas{position:relative;inset:auto;flex:none;width:100%;height:60vh;min-height:380px;order:2}
   .app.집중 .view3d canvas{height:84vh}
@@ -514,7 +519,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .view3d>.explode{margin-top:0}
   /* 2D 도 같다 — 띠가 도면을 깎으면 안 된다. 칸 줄을 `auto` 로 두고 도면에 84vh 를 그대로 준다.
      잰 값(375×780): 띠가 깎으면 A4 가 329×465 → 305×432 로 **준다**. 이렇게 두면 **351×497 로 는다**. */
-  .app.m2d{grid-template-rows:auto auto auto}
+  .app.m2d{grid-template-rows:auto auto auto;grid-template-areas:"head" "draw" "params"}
   .app.m2d .draw{min-height:0}
   .app.m2d #svgwrap{flex:none;height:84vh;min-height:380px;order:2}
 }

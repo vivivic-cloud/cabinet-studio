@@ -9,8 +9,11 @@
      ④ 폰 2D — 띠가 **도면 위**(머리줄 밑) · A4 가 안 준다 · 가린 도면 글자 0
      ⑤ 폰에서는 **조용히 사라지지 않는다** (도면을 안 가리므로)
      ⑥ **열자마자 도면이 첫 화면에 얼마나 드나** — 띠가 위로 가면 도면이 밀린다.
-        잰 값을 못 박는다(375×900): 열자마자 캔버스 y **918 · 첫 화면 0px**,
-        3D 를 톡 쳐 설정 칸이 접히면 y **485 · 415px**. 이 숫자가 움직이면 자리가 또 바뀐 것이다.
+        10-04 에 **입력칸 묶음을 도면 아래로** 내려 되찾았다(§4.98617).
+        잰 값을 못 박는다(375×900): 열자마자 캔버스 y **440 · 첫 화면 460px**,
+        3D 를 톡 쳐 설정 칸이 접혀도 **그대로**(설정 칸이 도면 아래라 더 안 올라간다).
+        그리고 **치수 띠가 첫 화면 안에 통째로** 있고 **설정 칸이 도면보다 아래**다.
+        이 숫자가 움직이면 자리가 또 바뀐 것이다.
      ⑦ **1280 은 한 톨도 안 바뀐다** — 띠가 떠 있고 `.hud` 도 떠 있다
      ⑧ 가로 넘침 375 · 오류 0
 
@@ -184,14 +187,23 @@ const 덮은것 = `(() => {
       return [Math.round(r.top + window.scrollY),
               Math.round(Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)))]; });
     await p.evaluate(() => window.scrollTo(0, 0)); await 잠(300);
-    맞나('열자마자 캔버스 y · 첫 화면', await 첫화면(), 폰 ? [918, 0] : [69, 831]);
+    맞나('열자마자 캔버스 y · 첫 화면', await 첫화면(), 폰 ? [440, 460] : [69, 831]);
+    if (폰){   // 치수 띠는 첫 화면 안에 통째로 · 설정 칸은 도면 **아래**
+      맞나('치수 띠가 첫 화면 안인가', await p.evaluate(() => { window.scrollTo(0, 0);
+        const t = document.querySelector('#dimsBar').getBoundingClientRect();
+        return t.top >= -0.5 && t.bottom <= innerHeight + 0.5; }), true);
+      맞나('설정 칸이 도면보다 아래인가', await p.evaluate(() => {
+        const q = document.querySelector('.params').getBoundingClientRect();
+        const c = document.querySelector('#c3d').getBoundingClientRect();
+        return q.top >= c.bottom - 0.5; }), true);
+    }
     if (폰){   // 3D 를 톡 치면 설정 칸이 접힌다(§4.7) — 사장님이 실제로 쓰시는 자리다
       await p.evaluate(() => document.querySelector('#c3d').scrollIntoView({block:'center'}));
       await 잠(300);
       const r = await p.evaluate(() => { const b2 = document.querySelector('#c3d').getBoundingClientRect();
         return { x:b2.left + b2.width/2, y:b2.top + b2.height/2 }; });
       await 톡(r.x, r.y); await 잠(900);
-      맞나('설정 칸을 접은 뒤 캔버스 y · 첫 화면', await 첫화면(), [485, 415]);
+      맞나('설정 칸을 접은 뒤 캔버스 y · 첫 화면', await 첫화면(), [440, 460]);
     }
 
     console.log('⑦ 가로 넘침 · 오류');

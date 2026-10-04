@@ -116,10 +116,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const e = await p.$('#c3d');
     await e.scrollIntoViewIfNeeded(); await 잠(400);
     const R = () => p.evaluate(() => +window.__probe.aim().tR.toFixed(2));
-    // 손짓마다 캔버스 자리를 다시 잰다 — 3D 를 만지면 설정 칸이 접혀 캔버스가 올라간다(§4.7)
+    /* 손짓마다 캔버스 자리를 다시 잰다 — 3D 를 만지면 설정 칸이 접혀 캔버스가 올라간다(§4.7).
+       ⚠ 10-04 부터 캔버스가 쪽 **가운데**다(§4.98617) — 아래쪽이 화면 밖으로 나간다.
+          `boundingBox()` 는 굴려 주지 않으므로 **먼저 굴려 넣고** 짚을 자리를 화면 안으로 가둔다.
+          안 그러면 손가락이 화면 밖에 떨어져 **한 번만 먹는다**(잰 값: 14번 벌려도 R 1470 에서 멈춘다). */
     const 핀치 = async (시작, 끝) => {
-      const r = await e.boundingBox();
-      const x0 = r.x + r.width / 2, y0 = r.y + r.height * 0.72;   // `.hud` 밑을 짚는다 (§4.11)
+      await e.scrollIntoViewIfNeeded(); await 잠(150);
+      const r = await e.boundingBox(), vh = p.viewportSize().height;
+      const x0 = r.x + r.width / 2;                                // `.hud` 밑을 짚는다 (§4.11)
+      const y0 = Math.max(r.y + 10, Math.min(r.y + r.height * 0.72, r.y + r.height - 10, vh - 20));
       await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[
         { x:x0 - 시작/2, y:y0, id:1 }, { x:x0 + 시작/2, y:y0, id:2 }] });
       await 잠(80);

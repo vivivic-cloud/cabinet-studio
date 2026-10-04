@@ -84,8 +84,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('설정 칸 손가락으로 가로로 밀리나 0', await p.evaluate(() => { const q = document.querySelector('.params');
       const c = getComputedStyle(q); q.scrollLeft = 999; const v = q.scrollLeft; q.scrollLeft = 0;
       return (c.overflowX === 'auto' || c.overflowX === 'scroll') ? v : 0; }), 0);
+    // ⚠ 10-04 부터 폰에서는 설정 칸이 도면 **아래**라 고르개가 첫 화면 밖이다(§4.98617) —
+    //    먼저 굴려 넣어야 `elementFromPoint` 가 잡는다(안 굴리면 null 이 나온다).
     맞나('맨 위에 제것이 있다 (안 가려짐)', await p.evaluate(() => {
       const s2 = document.querySelector('#itemSel'); if (!s2) return null;
+      s2.scrollIntoView({ block:'center' });
       const r = s2.getBoundingClientRect();
       const el = document.elementFromPoint(r.x + r.width/2, r.y + r.height/2);
       return el && el.id; }), 'itemSel');
