@@ -48,7 +48,7 @@ button:disabled{opacity:.5;cursor:default}
 .group h2::after{content:"";flex:1;height:1px;background:var(--line2)}
 .field{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:10px}
 .field[hidden]{display:none}
-.field label{color:var(--ink);font-weight:600;word-break:keep-all}
+.field label,#optDlgBody label{color:var(--ink);font-weight:600;word-break:keep-all}
 /* 「뒷판 들어감」 도 같은 자다 — 칸을 좁히고 입력 높이를 44 로 되찾는다(전에는 39.8 이었다) */
 .field small{display:block;color:var(--ink3);font-weight:400;font-size:12px;word-break:keep-all}
 .num{display:flex;align-items:center;border:1px solid var(--line);border-radius:13px;background:#fff;overflow:hidden}
@@ -396,6 +396,18 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 #pmenu b{padding:6px 12px 4px;font-size:12px;font-weight:600;color:var(--ink3)}
 #pmenu button{min-height:44px;padding:11px 12px;text-align:left;border:0;border-radius:10px;background:none}
 #pmenu button:hover{background:var(--surface2)}
+/* 10-04 사장님 말씀 — 「도면에서 부속선택시 옵션보기 … 해당부속의 옵션조정 화면이 팝업」.
+   `#pmenu` 보다 위에 뜬다(60 → 70). 폰에서 아래로 안 내려가도 되게 **고정 자리에 가운데**다.
+   판이 길면 제 안에서 굴러간다 — 바깥(도면·입력칸)은 한 픽셀도 안 밀린다. */
+dialog.optpop{position:fixed;z-index:70;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(calc(100vw - 24px),330px);max-width:none;max-height:calc(100vh - 40px);
+  padding:0;overflow:hidden;border:1px solid var(--line);border-radius:16px;
+  background:var(--surface);box-shadow:0 18px 50px rgba(0,0,0,.28)}
+dialog.optpop[open]{display:flex;flex-direction:column}
+.optpophead{flex:none;padding:10px 14px 8px;border-bottom:1px solid var(--line)}
+.optpophead b{font-size:13px;font-weight:700;color:var(--head)}
+#optDlgBody{flex:1;min-height:0;overflow:auto;padding:8px;-webkit-overflow-scrolling:touch}
+#optDlgBody>.opt{margin-top:0}
 .bom tbody tr.on{background:var(--surface2)}
 .bom tbody tr.on td:first-child{font-weight:700;color:var(--head);box-shadow:inset 3px 0 0 var(--dim)}
 .bom .grain{color:var(--ink3);font-size:12px}
@@ -725,7 +737,13 @@ dialog.phone[open]{display:flex;flex-direction:column}
   <button type="button" data-act="hide">숨기기</button>
   <button type="button" data-act="del">삭제</button>
   <button type="button" data-act="dup">복제</button>
+  <button type="button" data-act="opt">옵션보기</button>
 </div>
+
+<dialog id="optDlg" class="optpop" aria-label="부속 옵션">
+  <div class="optpophead"><b id="optDlgName"></b></div>
+  <div id="optDlgBody"></div>
+</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -2724,6 +2742,7 @@ function 메뉴열기(x, y, pid){
   $('#pmenuName').textContent = p.name;
   const 숨단추 = el.querySelector('button[data-act="hide"]');
   숨단추.textContent = p.숨김 ? '다시 보이기' : '숨기기';
+  el.querySelector('button[data-act="opt"]').hidden = !옵션판있나(p.name);
   el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
   const r = el.getBoundingClientRect();
   el.style.left = Math.max(8, Math.min(x, innerWidth  - r.width  - 8)) + 'px';
@@ -2739,6 +2758,7 @@ $('#pmenu').querySelectorAll('button[data-act]').forEach(b => b.addEventListener
   const 짚 = 메뉴짚음, 짓 = b.dataset.act;
   메뉴닫기();
   if (!짚) return;
+  if (짓 === 'opt'){ 옵션팝업열기(짚.이름); return; }   // 손질이 아니다 — 담기·update 를 안 거친다
   if (짓 === 'hide'){
     if (짚.숨김){ 손질.숨김 = 손질.숨김.filter(x => x !== 짚.자리); toast(`${짚.이름} 다시 보입니다`); }
     else { 손질.숨김.push(짚.자리); toast(`${짚.이름} 숨김 — 부품표에는 남습니다`); }
@@ -2750,6 +2770,52 @@ $('#pmenu').querySelectorAll('button[data-act]').forEach(b => b.addEventListener
   else { 손질.복제[짚.자리] = (손질.복제[짚.자리] || 0) + 1; toast(`${짚.이름} 복제 — 부품표 수량이 하나 늘었습니다`); }
   담기(); update();
 }));
+
+/* ───────── 도면에서 고른 부속의 옵션을 그 자리에서 (10-04 사장님 말씀) ─────────
+   「도면에서 부속선택시 옵션보기 드롭다운목록을 추가 하여 선택시 해당부속의 옵션조정 화면이 팝업되도록」
+   폰에서는 입력칸 묶음이 도면 **아래**라(§4.98617) 유격 하나 고치려면 한참 내려가야 했다.
+   그래서 짚은 그 자리에서 띄운다.
+   ⚠ 판을 새로 짜지 않는다 — 왼쪽 묶음에 이미 있는 `.opt[data-opt]` 노드를 **그대로 옮겨 온다.**
+   베끼면 `id`·라디오 `name` 이 겹치고 `판칸들()`·`결단추갱신()` 이 엉뚱한 쪽을 집는다. 하나뿐이어야 한다.
+   그래서 저장/닫기(`data-optsave`/`data-optclose`)도 손 안 대고 그대로 먹는다.
+   ⚠ 이름이 갈린다 — 도면에서 집히는 것은 `마이다`·`가로대` 인데 판은 `문짝`·`고정선반` 이다(§4.9874).
+   `본이름()` 으로 옮겨 찾는다. 판이 없는 부속은 「옵션보기」 를 아예 안 보인다(빈 팝업을 띄우지 않는다). */
+const 옵션판 = 이름 => document.querySelector(`.opt[data-opt="${CSS.escape(본이름(이름))}"]`);
+function 옵션판있나(이름){
+  const el = 옵션판(이름); if (!el) return false;
+  const 줄 = el.closest('.field');
+  return !(줄 && 줄.style.display === 'none');        // 지워서 숨긴 줄은 셈에서 뺀다 (§4.9891)
+}
+let 팝업판 = null;                                     // {이름, 노드, 부모, 다음}
+function 옵션팝업열기(이름){
+  const el = 옵션판(이름); if (!el) return;
+  옵션팝업닫기(true);                                   // 하나만 뜬다
+  팝업판 = { 이름:본이름(이름), 노드:el, 부모:el.parentNode, 다음:el.nextSibling };
+  $('#optDlgBody').appendChild(el);
+  $('#optDlgName').textContent = 이름;
+  열린옵션.add(팝업판.이름); 결단추갱신();
+  const d = $('#optDlg'); if (!d.open) d.show();       // 모달이 아니다 — 뒤를 굳히면 안 된다 (§4.95)
+  if (d.contains(document.activeElement)) document.activeElement.blur();   // 글쇠가 저절로 튀어 오르면 안 된다
+  $('#optDlgBody').scrollTop = 0;
+}
+function 옵션팝업닫기(이미){                             // 이미 = 판 처리가 끝났다(저장·닫기 단추)
+  const t = 팝업판; 팝업판 = null;
+  const d = $('#optDlg'); if (d.open) d.close();
+  if (!t) return;
+  if (t.부모 && t.부모.isConnected)                      // 그 사이 `부속그리기()` 가 줄을 새로 그렸으면 버린다
+    t.부모.insertBefore(t.노드, t.다음 && t.다음.isConnected ? t.다음 : null);
+  else t.노드.remove();
+  if (!이미) 판닫기(t.이름);                             // 안 저장한 수치는 버린다 — 「닫기」·바깥·Esc 다 같다
+}
+document.addEventListener('click', e => {               // 저장·닫기를 누르면 판 처리는 위 위임이 이미 했다
+  if (!팝업판 || !e.target.closest) return;
+  if (e.target.closest('[data-optsave],[data-optclose]')) 옵션팝업닫기(true);
+});
+addEventListener('pointerdown', e => {                  // 바깥 누르기
+  if (!팝업판) return;
+  if (!(e.target.closest && e.target.closest('#optDlg,#pmenu'))) 옵션팝업닫기();
+}, true);
+addEventListener('keydown', e => { if (e.key === 'Escape' && 팝업판) 옵션팝업닫기(); });
 
 /* ───────── 숨긴 부속 되돌리기 — 시점 단추 아래 ─────────
    숨긴 것이 하나라도 있으면 「n개 숨김」 이 늘 떠 있다(사라지는 도구줄과 달리 안 사라진다).
