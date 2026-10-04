@@ -106,10 +106,12 @@ select:focus{border-color:var(--head)}
   border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
 .opthead{font-size:12px;font-weight:700;color:var(--ink2);padding-bottom:2px}
 .opthead small{display:block;font-weight:400;font-size:11.5px;color:var(--ink3);line-height:1.5;padding-top:2px}
-.optrow{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 4px;border-radius:10px;cursor:pointer}
+/* ⚠ 10-04 — 결 방향 줄도 좁아지면 이름이 깎였다(배율 2.5 에서 「가로 896mm」 90/111).
+   `.optnum` 과 같은 한 벌이다 — 안 쪼개지는 이름은 제 폭을 지키고, 그래서 치수가 아랫줄로 내려간다. */
+.optrow{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-height:44px;padding:0 4px;border-radius:10px;cursor:pointer}
 .optrow:hover{background:var(--fill2)}
 .optrow input{flex:none;width:22px;height:22px;margin:0;accent-color:var(--head)}
-.optrow span{flex:1;font-size:13px;color:var(--ink)}
+.optrow span{flex:1;min-width:min-content;font-size:13px;color:var(--ink)}
 .optrow b{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;
   font-size:13px;font-weight:500;color:var(--ink2);font-variant-numeric:tabular-nums}
 .optrow b i{font-style:normal;font-size:11px;color:var(--ink3);padding-left:2px}
@@ -120,12 +122,16 @@ select:focus{border-color:var(--head)}
 /* 전면밴드 칸이 칸 폭을 다 먹고 있었다(305px · 입력 39.8px). 폭을 유격 칸과 같이 맞추고 높이를 44 로 되찾는다. */
 .optwide>.num{width:82px;border-radius:11px}
 .optwide>.num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
-.optnum{display:flex;align-items:center;gap:8px;min-height:24px;padding:0 4px}
+/* ⚠ 10-04 — 판이 좁아지면 **이름이 깎였다**(배율 2.5 에서 「상부유격」 이 폭 0). 이름 없는 수치칸 둘이
+   나란히 서면 위 유격인지 아래 유격인지 모른 채 숫자를 치시게 된다. **깎이는 대신 수치칸을 아래로 내린다** —
+   `flex-wrap:wrap` 과 이름의 `min-width:min-content` 가 한 벌이다. 이름이 제 글자 폭 밑으로 안 눌리므로
+   둘이 한 줄에 못 들어가는 순간 수치칸이 저절로 아랫줄로 내려간다. **넓을 때는 한 줄 그대로다.** */
+.optnum{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-height:24px;padding:0 4px}
 /* 칸이 23px 로 낮아졌다 — **닿는 자리는 줄 전체**다(10-02 관리자). 이름표에 `for` 가 붙어 있어
    줄 어디를 밟아도 그 줄의 칸에 초점이 잡힌다(맨 위·가운데·맨 아래를 진짜 손가락으로 밟아 3/3 확인).
    ⚠ `::after` 로 44px 을 얹지 마라 — **줄 피치가 27px 이라 윗줄·아랫줄 것을 17px 씩 뺏는다.**
    `input` 에는 `::after` 가 아예 안 먹는다(§4.9895 의 `select` 와 같다). */
-.optnum label{flex:1;min-width:0;font-size:13px;color:var(--ink)}
+.optnum label{flex:1 1 auto;min-width:min-content;font-size:13px;color:var(--ink)}
 .optnum .num{flex:none;width:82px;border-radius:11px}
 .optnum .num input{min-height:23px;height:23px;padding:0 6px;font-size:13px}
 /* 「12.5」 가 1px 잘렸다 — 「mm」 꼬리표 여백과 글자를 깎아 숫자 자리를 넓힌다(관계제어판은 안 건드린다) */

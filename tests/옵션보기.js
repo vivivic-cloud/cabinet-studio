@@ -17,6 +17,10 @@
        ⚠ **네 변을 다 잰다.** 처음에 이 자가 세로만 재서 **초록인데 그림은 오른쪽이 잘려 있었다**
        (10-04 관리자). 그리고 배율만 올리면 `offsetLeft` 가 0 이라 가로 가운데가 안 걸리므로
        **진짜 두 손가락으로 벌리고 밀어 `offsetLeft > 0` 인 자리**에서도 잰다.
+     ⑩ **어떤 배율에서도 이름이 온전히 읽힌다** (10-04 관리자). ⑨ 는 판이 들어갔는지만 보고
+       **글이 읽히는지는 안 봤다** — 그래서 초록인데 「상부유격」 이 깎여 있었다(배율 2.5 에서 폭 0).
+       `scrollWidth <= clientWidth` 로 일곱 판 × 네 배율을 쓸고, 끝에는 **좁은 자리에서 이름을 읽고
+       그 밑 칸에 숫자를 쳐서 저장**해 본다 — 사장님이 그 화면에서 실제로 하시는 일이다.
 
    돌리는 법:  node tests/옵션보기.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7).
@@ -298,6 +302,70 @@ const 짚을자리 = (n) => {
     맞나('팝업이 최상위 층(모달)인가', await p.evaluate(() => { const d = document.querySelector('#optDlg');
       try { return !!d && d.open && d.matches(':modal'); } catch (e){ return 'x'; } }), true);
     await 톡자('#optDlg [data-optclose]'); await 잠(300);
+
+    /* ⑩ **어떤 배율에서도 이름이 온전히 읽힌다** (10-04 관리자).
+       ⑨ 는 **판이 들어갔는지만** 보고 **글이 읽히는지는 안 봤다** — 그래서 초록인데
+       「상부유격」 이 「상부유」 로 깎이고(배율 2) 아예 안 보이기까지 했다(배율 2.5).
+       이름 없는 수치칸 둘이 나란히 서면 **위 유격인지 아래 유격인지 모른 채 숫자를 치시게 된다.**
+       자는 `scrollWidth <= clientWidth` 다. 끝에는 **실제로 하시는 일**까지 해 본다 —
+       좁은 자리에서 이름을 읽고, 그 이름 밑 칸에 숫자를 치고, 저장해서 그 열쇠에 들어가나. */
+    console.log('⑩ 어떤 배율에서도 이름이 안 깎인다');
+    await 품목('서랍장');
+    await p.evaluate(() => window.__probe && window.__probe.set
+      ? window.__probe.set({ backMode:'insert', topStyle:'overlay', botStyle:'under' }) : null);
+    await 잠(500);
+    const 깎임 = [];
+    /* 두 갈래로 나눠 쓴다 — 하판이 「측판 아래」 면 전면밴드가 아예 안 선다(§4.9892).
+       「측판 아래」 에서만 뜨는 「측판 들임 (하판)」 과 전면밴드 판을 둘 다 보려면 이렇게 갈라야 한다. */
+    for (const 판 of ['마이다', '가로대', '측판', '상판', '뒷판', '·', '전면밴드', '하판']){
+      if (판 === '·'){ await p.evaluate(() => window.__probe.set({ botStyle:'inset' })); await 잠(500); continue; }
+      await 차림표(판); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+      for (const 배 of [1, 1.5, 2, 2.5]){
+        await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:배 }); await 잠(300);
+        const 깎 = await p.evaluate(() => { const d = document.querySelector('#optDlg');
+          if (!d || !d.open) return ['안 열림'];
+          return [...d.querySelectorAll('label, .opthead small')]
+            .filter(e => e.scrollWidth > e.clientWidth + 0.5)
+            .map(e => e.textContent.trim().slice(0, 10) + ' ' + e.clientWidth + '/' + e.scrollWidth); });
+        if (깎.length) 깎임.push(판 + ' 배율 ' + 배 + ': ' + 깎.join(' · '));
+      }
+      await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(250);
+      await 톡자('#optDlg [data-optclose]'); await 잠(250);
+    }
+    맞나('일곱 판 × 네 배율 — 깎인 이름', 깎임, []);
+    await p.evaluate(() => window.__probe.set({ botStyle:'under' })); await 잠(400);
+
+    // 좁은 자리에서 이름을 읽고 그 밑 칸에 숫자를 쳐서 저장한다 — 사장님이 하시는 그 일
+    await p.evaluate(() => window.__probe.set({ doorMode:'out' })); await 잠(400);
+    await 차림표('마이다'); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:2.5 }); await 잠(400);
+    const 상부 = await p.evaluate(() => {
+      const 줄 = [...document.querySelectorAll('#optDlg .optnum')]
+        .find(r => r.querySelector('label').textContent.trim() === '상부유격');
+      if (!줄) return null;
+      const l = 줄.querySelector('label'), i = 줄.querySelector('.num input');
+      const lr = l.getBoundingClientRect(), ir = i.getBoundingClientRect();
+      i.id && i.focus();
+      return { 읽히나:l.scrollWidth <= l.clientWidth + 0.5,
+        쌓임:ir.top > lr.bottom - 2,                     // 칸이 이름 **밑**에 선다
+        칸:[Math.round(ir.left + ir.width/2), Math.round(ir.top + ir.height/2)] }; });
+    /* 1280 에서는 배율 2.5 라도 보이는 폭이 512 라 판이 330 그대로다 — 쌓일 까닭이 없다.
+       **쌓이는지는 좁아지는 폰에서만** 보고, **읽히는지는 두 폭에서 다** 본다. */
+    맞나('배율 2.5 — 「상부유격」 [읽히나, 폰이면 칸이 이름 밑에]',
+      상부 ? [상부.읽히나, 폭 === 375 ? 상부.쌓임 : true] : null, [true, true]);
+    if (상부) await 톡(상부.칸[0], 상부.칸[1]); await 잠(250);
+    await p.keyboard.press('Control+A'); await p.keyboard.type('9'); await 잠(250);   // 치던 값을 지우고 친다
+    await 톡자('#optDlg [data-optsave]'); await 잠(450);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(300);
+    /* 그 이름의 열쇠(`아웃위`)로만 들어가고(아랫유격은 안 건드려진다), 도면의 마이다 윗끝이 따라온다.
+       상판이 「측판 위」 라 윗끝은 `H − 아웃위` 다 — 기본 2 에서 1798, 9 를 치면 **1791**. */
+    맞나('친 숫자가 그 이름의 열쇠로 들어가 도면까지 갔나',
+      await p.evaluate(() => { const r = window.__probe.rule(), m = window.__probe.model();
+        const 윗 = Math.round(m.parts.filter(x => x.name === '마이다')
+          .map(x => x.z + x.h).sort((a, b) => b - a)[0] || 0);
+        return [r.아웃위, r.아웃아래걸레, 윗]; }),
+      [9, 5, 1791]);
+
     await 품목('수납장'); await 모드('3d');
 
     맞나('오류 0', 터짐.length, 0);
