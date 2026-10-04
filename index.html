@@ -399,11 +399,17 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 /* 10-04 사장님 말씀 — 「도면에서 부속선택시 옵션보기 … 해당부속의 옵션조정 화면이 팝업」.
    `#pmenu` 보다 위에 뜬다(60 → 70). 폰에서 아래로 안 내려가도 되게 **고정 자리에 가운데**다.
    판이 길면 제 안에서 굴러간다 — 바깥(도면·입력칸)은 한 픽셀도 안 밀린다. */
-dialog.optpop{position:fixed;z-index:70;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:min(calc(100vw - 24px),330px);max-width:none;max-height:calc(100vh - 40px);
+/* ⚠ 10-04 — 폰에서 「상부 일부만 나오고 모두 잘려요」. **보이는 높이를 안 보고 있었다.**
+   `100vh` 와 `top:50%` 는 **깔림 화면(layout viewport)** 을 잰다. 아이폰은 글쇠가 올라오거나
+   주소창이 보이거나 손가락으로 벌리면 **보이는 화면(visual viewport)이 그보다 작아진다** —
+   그러면 가운데가 아래로 밀려 **아랫도리가 보이는 데 밖으로 나간다**(잰 값: 배율 2 에서 151px).
+   그래서 자리·키를 **`visualViewport` 로 잡는다**(`팝업자리맞추기`). CSS 의 `100dvh` 는 그것이 없을 때 쓰는 받침이다. */
+dialog.optpop{position:fixed;z-index:70;margin:0;top:12px;left:50%;transform:translateX(-50%);
+  width:min(calc(100vw - 24px),330px);max-width:none;max-height:calc(100dvh - 24px);
   padding:0;overflow:hidden;border:1px solid var(--line);border-radius:16px;
   background:var(--surface);box-shadow:0 18px 50px rgba(0,0,0,.28)}
 dialog.optpop[open]{display:flex;flex-direction:column}
+dialog.optpop::backdrop{background:rgba(17,17,16,.28)}
 .optpophead{flex:none;padding:10px 14px 8px;border-bottom:1px solid var(--line)}
 .optpophead b{font-size:13px;font-weight:700;color:var(--head)}
 #optDlgBody{flex:1;min-height:0;overflow:auto;padding:8px;-webkit-overflow-scrolling:touch}
@@ -2794,10 +2800,29 @@ function 옵션팝업열기(이름){
   $('#optDlgBody').appendChild(el);
   $('#optDlgName').textContent = 이름;
   열린옵션.add(팝업판.이름); 결단추갱신();
-  const d = $('#optDlg'); if (!d.open) d.show();       // 모달이 아니다 — 뒤를 굳히면 안 된다 (§4.95)
+  /* ⚠ **모달이다** — `show()` 가 아니라 `showModal()`. 비모달 `dialog` 는 최상위 층에 안 올라가
+     조상에 `transform`·`overflow` 가 생기면 그 칸에 갇혀 잘린다(「모바일 보기」 에서 한 번 당한 그 자리).
+     모달은 어떤 조상에도 안 잘린다. **뒤가 굳어도 짚어서 지시는 그대로 된다** — §4.95 의 옮겨 담기가
+     `:modal` 인 판을 찾아 `.vg-sheet` 를 넣어 준다(이 집 판 다섯이 이미 그 길이다). */
+  const d = $('#optDlg'); if (!d.open) d.showModal();
   if (d.contains(document.activeElement)) document.activeElement.blur();   // 글쇠가 저절로 튀어 오르면 안 된다
   $('#optDlgBody').scrollTop = 0;
+  팝업자리맞추기();
 }
+/* 보이는 화면 안에 꼭 들어가게 자리와 키를 잡는다. 글쇠가 올라오면 `visualViewport` 가 바로 알려 준다. */
+function 팝업자리맞추기(){
+  const d = $('#optDlg'); if (!팝업판 || !d || !d.open) return;
+  const vv = window.visualViewport;
+  const 보키 = Math.round(vv ? vv.height : innerHeight), 보위 = Math.round(vv ? vv.offsetTop : 0);
+  d.style.maxHeight = Math.max(120, 보키 - 24) + 'px';
+  const 키 = d.getBoundingClientRect().height;
+  d.style.top = Math.round(보위 + Math.max(12, (보키 - 키) / 2)) + 'px';
+}
+if (window.visualViewport){
+  visualViewport.addEventListener('resize', 팝업자리맞추기);
+  visualViewport.addEventListener('scroll', 팝업자리맞추기);
+}
+addEventListener('resize', 팝업자리맞추기);
 function 옵션팝업닫기(이미){                             // 이미 = 판 처리가 끝났다(저장·닫기 단추)
   const t = 팝업판; 팝업판 = null;
   const d = $('#optDlg'); if (d.open) d.close();
@@ -2813,8 +2838,16 @@ document.addEventListener('click', e => {               // 저장·닫기를 누
 });
 addEventListener('pointerdown', e => {                  // 바깥 누르기
   if (!팝업판) return;
+  const d = $('#optDlg');
+  if (e.target === d){                                  // 모달 바탕(backdrop) — 누른 자리로 가른다
+    const r = d.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) 옵션팝업닫기();
+    return;
+  }
   if (!(e.target.closest && e.target.closest('#optDlg,#pmenu'))) 옵션팝업닫기();
 }, true);
+// Esc 는 모달이면 **브라우저가 먼저 닫는다** — 그때도 판을 제자리로 돌려놓아야 한다.
+$('#optDlg').addEventListener('close', () => { if (팝업판) 옵션팝업닫기(); });
 addEventListener('keydown', e => { if (e.key === 'Escape' && 팝업판) 옵션팝업닫기(); });
 
 /* ───────── 숨긴 부속 되돌리기 — 시점 단추 아래 ─────────

@@ -10,6 +10,10 @@
      ⑥ 판이 없는 부속은 「옵션보기」 가 **안 보인다** (빈 팝업을 띄우지 않는다)
      ⑦ **왼쪽 묶음에서 부속명을 눌러 펴는 길이 그대로 살아 있다**
      ⑧ 도면이 첫 화면에 보이는 것 · 가로 넘침 · 오류 0 이 그대로
+     ⑨ **보이는 화면이 깔린 화면보다 작아져도 팝업이 안 잘린다** (10-04 사장님 말씀
+       「옵션화면이 상부일부만 나오고 모두 잘려요」). 아이폰은 글쇠가 올라오거나 주소창이 보이거나
+       손가락으로 벌리면 `visualViewport` 가 작아지는데 `100vh`·`top:50%` 는 그것을 안 본다 —
+       그래서 **배율을 올려 보이는 화면을 줄여** 재고, **가장 긴 판**(마이다 · 결 있음)으로 잰다.
 
    돌리는 법:  node tests/옵션보기.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7).
@@ -206,6 +210,42 @@ const 짚을자리 = (n) => {
       return [Math.round(c.top), Math.round(Math.max(0, Math.min(c.bottom, innerHeight) - Math.max(c.top, 0)))]; }),
       폭 === 375 ? [440, 372] : [69, 831]);
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 폭);
+
+    console.log('⑨ 보이는 화면이 줄어도 안 잘린다 — 글쇠·주소창·벌리기');
+    await 모드('2d'); await 품목('서랍장');
+    // 가장 긴 판으로 — 마이다에 「결 있음」 을 켜면 방향 줄 둘이 더 붙는다
+    await p.evaluate(() => { const b2 = document.querySelector('.pname[data-opt="문짝"]');
+      const o = document.querySelector('.opt[data-opt="문짝"]');
+      if (b2 && o && o.hidden) b2.click(); });
+    await 잠(350);
+    await p.evaluate(() => { const c = document.querySelector('.opt[data-opt="문짝"] input[data-grainon]');
+      if (c && !c.checked) c.click(); });
+    await 잠(400);
+    await p.evaluate(() => { const b2 = document.querySelector('.pname[data-opt="문짝"]');
+      const o = document.querySelector('.opt[data-opt="문짝"]');
+      if (b2 && o && !o.hidden) b2.click(); });                 // 묶음 쪽은 도로 접는다
+    await 잠(300);
+    await 차림표('마이다'); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+    const 잘림 = () => p.evaluate(() => {
+      const d = document.querySelector('#optDlg');
+      if (!d || !d.open) return { 밖:-1, 안든다:false, 굴러가나:false };
+      const q = d.getBoundingClientRect(), vv = window.visualViewport, bd = document.querySelector('#optDlgBody');
+      const 보위 = vv ? vv.offsetTop : 0, 보키 = vv ? vv.height : window.innerHeight;
+      return { 밖:Math.round(Math.max(0, q.bottom - (보위 + 보키)) + Math.max(0, 보위 - q.top)),
+        안든다:q.height > 보키 - 12, 굴러가나:bd ? bd.scrollHeight > bd.clientHeight : false }; });
+    맞나('보통 배율 — 밖으로 나간 px', (await 잘림()).밖, 0);
+    for (const 배 of [1.5, 2, 2.5]){
+      await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:배 }); await 잠(350);
+      const z = await 잘림();
+      // 밖으로 한 픽셀도 안 나가고, 다 안 들어가면 판 안에서 굴러간다
+      맞나('배율 ' + 배 + ' — [밖, 안 들어가면 굴러가나]', [z.밖, z.안든다 ? z.굴러가나 : true], [0, true]);
+    }
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(300);
+    맞나('팝업이 최상위 층(모달)인가', await p.evaluate(() => { const d = document.querySelector('#optDlg');
+      try { return !!d && d.open && d.matches(':modal'); } catch (e){ return 'x'; } }), true);
+    await 톡자('#optDlg [data-optclose]'); await 잠(300);
+    await 품목('수납장'); await 모드('3d');
+
     맞나('오류 0', 터짐.length, 0);
     if (터짐.length) console.log('    ' + 터짐.join('\n    '));
     await ctx.close();
