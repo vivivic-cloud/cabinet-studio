@@ -403,7 +403,9 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
    `100vh` 와 `top:50%` 는 **깔림 화면(layout viewport)** 을 잰다. 아이폰은 글쇠가 올라오거나
    주소창이 보이거나 손가락으로 벌리면 **보이는 화면(visual viewport)이 그보다 작아진다** —
    그러면 가운데가 아래로 밀려 **아랫도리가 보이는 데 밖으로 나간다**(잰 값: 배율 2 에서 151px).
-   그래서 자리·키를 **`visualViewport` 로 잡는다**(`팝업자리맞추기`). CSS 의 `100dvh` 는 그것이 없을 때 쓰는 받침이다. */
+   그래서 자리·크기를 **`visualViewport` 로 잡는다**(`팝업자리맞추기`) — **세로만이 아니라 가로도**다
+   (세로만 잡았더니 배율 2 에서 오른쪽이 165px 잘린 채였다). 아래 `left:50%`·`100dvh`·`100vw` 는
+   `visualViewport` 가 없는 브라우저를 위한 받침이고, 있으면 그 함수가 px 로 덮어쓴다. */
 dialog.optpop{position:fixed;z-index:70;margin:0;top:12px;left:50%;transform:translateX(-50%);
   width:min(calc(100vw - 24px),330px);max-width:none;max-height:calc(100dvh - 24px);
   padding:0;overflow:hidden;border:1px solid var(--line);border-radius:16px;
@@ -2809,14 +2811,22 @@ function 옵션팝업열기(이름){
   $('#optDlgBody').scrollTop = 0;
   팝업자리맞추기();
 }
-/* 보이는 화면 안에 꼭 들어가게 자리와 키를 잡는다. 글쇠가 올라오면 `visualViewport` 가 바로 알려 준다. */
+/* 보이는 화면 안에 **네 변이 다** 들어가게 자리와 크기를 잡는다. 글쇠가 올라오거나
+   손가락으로 벌려 옆으로 밀면 `visualViewport` 의 `resize`·`scroll` 이 바로 알려 준다.
+   ⚠ 세로만 잡으면 안 된다 — 10-04 에 세로를 고치고 **가로가 그대로 잘려 있었다**(배율 2 에서 오른쪽 165px).
+   좁아서 330 이 안 들어가면 **폭을 줄인다** — 글이 줄 바꿔도 잘리는 것보다 낫고, 그래도 안 들어가면
+   `#optDlgBody` 가 제 안에서 굴러간다(세로와 같은 길). 줄 높이 44px 은 그대로다. */
 function 팝업자리맞추기(){
   const d = $('#optDlg'); if (!팝업판 || !d || !d.open) return;
   const vv = window.visualViewport;
-  const 보키 = Math.round(vv ? vv.height : innerHeight), 보위 = Math.round(vv ? vv.offsetTop : 0);
-  d.style.maxHeight = Math.max(120, 보키 - 24) + 'px';
-  const 키 = d.getBoundingClientRect().height;
-  d.style.top = Math.round(보위 + Math.max(12, (보키 - 키) / 2)) + 'px';
+  const 보폭 = Math.round(vv ? vv.width  : innerWidth),  보왼 = Math.round(vv ? vv.offsetLeft : 0);
+  const 보키 = Math.round(vv ? vv.height : innerHeight), 보위 = Math.round(vv ? vv.offsetTop  : 0);
+  d.style.maxWidth  = Math.max(1, 보폭 - 24) + 'px';      // 여유 12px — 좁으면 여유부터 버린다
+  d.style.maxHeight = Math.max(1, 보키 - 24) + 'px';
+  d.style.transform = 'none';                             // 가운데는 아래에서 px 로 잡는다
+  const r = d.getBoundingClientRect();                    // 폭을 잡은 뒤라야 키가 참값이다
+  d.style.left = (보왼 + Math.max(0, Math.round((보폭 - r.width)  / 2))) + 'px';
+  d.style.top  = (보위 + Math.max(0, Math.round((보키 - r.height) / 2))) + 'px';
 }
 if (window.visualViewport){
   visualViewport.addEventListener('resize', 팝업자리맞추기);

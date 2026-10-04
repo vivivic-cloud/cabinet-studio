@@ -14,6 +14,9 @@
        「옵션화면이 상부일부만 나오고 모두 잘려요」). 아이폰은 글쇠가 올라오거나 주소창이 보이거나
        손가락으로 벌리면 `visualViewport` 가 작아지는데 `100vh`·`top:50%` 는 그것을 안 본다 —
        그래서 **배율을 올려 보이는 화면을 줄여** 재고, **가장 긴 판**(마이다 · 결 있음)으로 잰다.
+       ⚠ **네 변을 다 잰다.** 처음에 이 자가 세로만 재서 **초록인데 그림은 오른쪽이 잘려 있었다**
+       (10-04 관리자). 그리고 배율만 올리면 `offsetLeft` 가 0 이라 가로 가운데가 안 걸리므로
+       **진짜 두 손가락으로 벌리고 밀어 `offsetLeft > 0` 인 자리**에서도 잰다.
 
    돌리는 법:  node tests/옵션보기.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7).
@@ -98,6 +101,8 @@ const 짚을자리 = (n) => {
     const 톡 = async (x, y) => {
       await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x, y }] });
       await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] }); await 잠(420); };
+    const 손 = (t, 점) => cdp.send('Input.dispatchTouchEvent',   // 두 손가락 — 벌리기·밀기
+      { type:t, touchPoints:점.map((q, i) => ({ x:q[0], y:q[1], id:i })) });
     const 톡자 = async 자 => {                       // ⚠ 짚기 전에 굴려 넣는다 (§7.5)
       const r = await p.evaluate(s => { const e = document.querySelector(s); if (!e) return null;
         if (e.scrollIntoView) e.scrollIntoView({ block:'center' });
@@ -226,21 +231,70 @@ const 짚을자리 = (n) => {
       if (b2 && o && !o.hidden) b2.click(); });                 // 묶음 쪽은 도로 접는다
     await 잠(300);
     await 차림표('마이다'); await 톡자('#pmenu button[data-act="opt"]'); await 잠(350);
+    /* ⚠ **네 변을 다 잰다.** 10-04 에 이 자가 세로만 재서 **초록인데 그림은 오른쪽이 잘려 있었다**.
+       고친 그 축만 재지 마라 — 사장님이 보시는 것은 화면 전체다. */
     const 잘림 = () => p.evaluate(() => {
       const d = document.querySelector('#optDlg');
-      if (!d || !d.open) return { 밖:-1, 안든다:false, 굴러가나:false };
+      if (!d || !d.open) return { 밖:-1, 변:[-1,-1,-1,-1], 안든다:false, 굴러가나:false };
       const q = d.getBoundingClientRect(), vv = window.visualViewport, bd = document.querySelector('#optDlgBody');
-      const 보위 = vv ? vv.offsetTop : 0, 보키 = vv ? vv.height : window.innerHeight;
-      return { 밖:Math.round(Math.max(0, q.bottom - (보위 + 보키)) + Math.max(0, 보위 - q.top)),
-        안든다:q.height > 보키 - 12, 굴러가나:bd ? bd.scrollHeight > bd.clientHeight : false }; });
-    맞나('보통 배율 — 밖으로 나간 px', (await 잘림()).밖, 0);
+      const 보위 = vv ? vv.offsetTop : 0,  보키 = vv ? vv.height : window.innerHeight;
+      const 보왼 = vv ? vv.offsetLeft : 0, 보폭 = vv ? vv.width  : window.innerWidth;
+      const 위 = Math.max(0, 보위 - q.top),  아래 = Math.max(0, q.bottom - (보위 + 보키));
+      const 왼 = Math.max(0, 보왼 - q.left), 오   = Math.max(0, q.right  - (보왼 + 보폭));
+      const 줄 = document.querySelector('#optDlgBody .optrow');
+      return { 밖:Math.round(위 + 아래 + 왼 + 오),
+        변:[위, 아래, 왼, 오].map(v => Math.round(v)),
+        안든다:q.height > 보키 - 12 || q.width > 보폭 - 12,
+        굴러가나:bd ? (bd.scrollHeight > bd.clientHeight || bd.scrollWidth > bd.clientWidth) : false,
+        줄키:줄 ? Math.round(줄.getBoundingClientRect().height) : 0 }; });
+    맞나('보통 배율 — 네 변 밖으로 나간 px', (await 잘림()).밖, 0);
     for (const 배 of [1.5, 2, 2.5]){
       await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:배 }); await 잠(350);
       const z = await 잘림();
-      // 밖으로 한 픽셀도 안 나가고, 다 안 들어가면 판 안에서 굴러간다
-      맞나('배율 ' + 배 + ' — [밖, 안 들어가면 굴러가나]', [z.밖, z.안든다 ? z.굴러가나 : true], [0, true]);
+      // 네 변 어디로도 안 나가고, 다 안 들어가면 판 안에서 굴러가고, 줄 높이 44 는 그대로다
+      맞나('배율 ' + 배 + ' — [밖, 안 들어가면 굴러가나, 줄키]',
+        [z.밖, z.안든다 ? z.굴러가나 : true, z.줄키], [0, true, 44]);
     }
     await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(300);
+    /* **진짜 손가락으로 벌리고 옆으로 민 상태** — 배율만 올리면 `offsetLeft` 가 0 이라
+       **가로 가운데가 안 걸린다.** 두 손가락으로 벌려야 `visualViewport.offsetLeft > 0` 이 된다.
+       ⚠ `Emulation.setPageScaleFactor`·`Input.synthesizePinchGesture`·`synthesizeScrollGesture` 로는
+          안 밀린다(셋 다 재 봤다 · §7.5). ⚠ **판 안에서** 벌려야 한다 — 바깥을 짚으면 팝업이 닫힌다.
+       판은 열린 채로 두고, `visualViewport` 의 `resize`·`scroll` 로 따라오는지를 본다. */
+    const 가운 = await p.evaluate(() => { const q = document.querySelector('#optDlg').getBoundingClientRect();
+      return [Math.round(q.left + q.width/2), Math.round(q.top + q.height/2)]; });
+    let 벌 = 20; await 손('touchStart', [[가운[0] - 벌, 가운[1]], [가운[0] + 벌, 가운[1]]]);
+    for (벌 = 30; 벌 <= 90; 벌 += 10){
+      await 손('touchMove', [[가운[0] - 벌, 가운[1]], [가운[0] + 벌, 가운[1]]]); await 잠(30); }
+    await 손('touchEnd', []); await 잠(600);
+    const 벌린자 = await 잘림();
+    맞나('두 손가락으로 벌림 — [밖, 안 들어가면 굴러가나, 줄키]',
+      [벌린자.밖, 벌린자.안든다 ? 벌린자.굴러가나 : true, 벌린자.줄키], [0, true, 44]);
+    /* 옆으로 민다 — 짚는 자리는 **보이는 화면 기준**이다.
+       ⚠ CDP 의 손가락 자리는 `깔린 자리 = 보낸 자리 + visualViewport 오프셋` 이다 — **배율로 나누지 않는다**
+          (한 번 배율을 곱해 1280 에서 엉뚱한 데를 짚어 팝업이 닫혔다 · 재서 잡았다).
+       머리띠(`.optpophead`)를 미는 것은 거기가 안 굴러가는 자리라서다 — 판 속을 밀면 판이 굴러간다. */
+    const 민점 = await p.evaluate(() => { const v = window.visualViewport;
+      const q = document.querySelector('#optDlg .optpophead').getBoundingClientRect();
+      const 왼 = Math.max(q.left, v.offsetLeft), 오 = Math.min(q.right, v.offsetLeft + v.width);
+      const 위 = Math.max(q.top, v.offsetTop),  아래 = Math.min(q.bottom, v.offsetTop + v.height);
+      return [Math.round((왼 + 오)/2 - v.offsetLeft), Math.round((위 + 아래)/2 - v.offsetTop)]; });
+    await 손('touchStart', [민점]);
+    for (let x = 민점[0] - 15; x >= 20; x -= 15){ await 손('touchMove', [[x, 민점[1]]]); await 잠(25); }
+    await 손('touchEnd', []); await 잠(600);
+    const 민것 = await p.evaluate(() => { const v = window.visualViewport;
+      return v ? [Math.round(v.offsetLeft) > 0, Math.round(v.width) < window.innerWidth] : [false, false]; });
+    맞나('옆으로 밀렸나 (자가 제대로 섰나)', 민것, [true, true]);
+    const 민자 = await 잘림();
+    맞나('옆으로 민 상태 — [밖, 안 들어가면 굴러가나, 줄키]',
+      [민자.밖, 민자.안든다 ? 민자.굴러가나 : true, 민자.줄키], [0, true, 44]);
+    await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor:1 }); await 잠(500);   // 도로 배율 1
+    맞나('배율 1 로 돌아오면 제자리 — [밖, 폭]',
+      await p.evaluate(() => { const d = document.querySelector('#optDlg'), q = d.getBoundingClientRect();
+        const v = window.visualViewport;
+        const 밖 = Math.max(0, v.offsetTop - q.top) + Math.max(0, q.bottom - (v.offsetTop + v.height))
+                 + Math.max(0, v.offsetLeft - q.left) + Math.max(0, q.right - (v.offsetLeft + v.width));
+        return [Math.round(밖), Math.round(q.width)]; }), [0, 330]);
     맞나('팝업이 최상위 층(모달)인가', await p.evaluate(() => { const d = document.querySelector('#optDlg');
       try { return !!d && d.open && d.matches(':modal'); } catch (e){ return 'x'; } }), true);
     await 톡자('#optDlg [data-optclose]'); await 잠(300);
