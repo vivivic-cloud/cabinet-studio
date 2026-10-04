@@ -514,6 +514,24 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .app.m2d .draw{min-height:0}
   .app.m2d #svgwrap{flex:none;height:84vh;min-height:380px}
 }
+/* ── 10-04 관리자 — 머리띠 「모바일 보기」 ──────────────────────────────
+   **모달이 아니다**(`show()`) — 뒤가 안 굳어야 머리띠 단추를 **다시 눌러 제자리로** 올 수 있다.
+   `position:fixed` 라 칸 높이를 한 픽셀도 안 뺏는다(안 열면 `display:none`).
+   ⚠ 폰(≤1100px)에서는 단추도 판도 안 보인다 — 폰에서 폰 보기는 뜻이 없고 머리띠를 더 먹으면 안 된다. */
+/* ⚠ `width:auto` 로 두면 `left:50%` 때문에 **남은 자리(640px)를 다 먹는다** — 틀이 375 인데 판이 640 이었다.
+   `max-content` 라야 머리줄과 틀 폭에 딱 맞는다. */
+/* ⚠ **모달이 아닌 `dialog` 는 최상위 층(top layer)에 안 올라간다** — 그래서 층을 손으로 올린다.
+   안 올리면 뒤 칸들이 덮어 **판이 거의 안 보인다**(한 번 그렇게 찍혔다). 차림표(60)보다 위다. */
+dialog.phone{position:fixed;z-index:80;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:max-content;max-width:none;padding:0;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+dialog.phone[open]{display:flex;flex-direction:column}
+.phonehead{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:8px 10px 8px 14px;border-bottom:1px solid var(--line2);background:var(--surface2)}
+.phonehead b{font-size:12px;color:var(--ink3);letter-spacing:.04em}
+.phonehead button{min-height:44px;min-width:44px;padding:0 14px}
+#phoneFrame{display:block;width:375px;height:min(812px, calc(100vh - 170px));
+  border:0;background:var(--surface)}
+@media screen and (max-width:1100px){ #btnPhone,dialog.phone{display:none} }
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style>
 
@@ -528,8 +546,10 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       <button id="btnUndo" type="button" disabled>되돌리기</button>
       <button id="btnSvg" type="button">SVG 도면 저장</button>
       <button id="btnDxf" type="button" class="primary">DXF 내보내기</button>
+      <button id="btnPhone" type="button" aria-pressed="false">모바일 보기</button>
     </div>
   </header>
+
 
   <aside class="params" aria-label="치수 설정">
     <button type="button" id="btnParams" class="파람바">설정 펴기</button>
@@ -612,6 +632,15 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
     </table></div>
   </section>
 </div>
+
+<!-- 10-04 관리자 — 머리띠 「모바일 보기」. 폰 갈래(`@media screen and (max-width:1100px)`)는
+       **창 폭**을 보므로 칸만 좁혀서는 안 걸린다. 그래서 **같은 쪽을 375px 폭 틀 안에 띄운다** —
+       규칙을 한 줄도 베끼지 않고 지금 그 규칙이 그대로 걸린다. -->
+  <dialog id="phoneDlg" class="phone" aria-label="모바일 보기">
+    <div class="phonehead"><b class="mono">375 × <span id="phoneH">—</span></b>
+      <button type="button" id="phoneX">닫기</button></div>
+    <iframe id="phoneFrame" title="모바일 보기"></iframe>
+  </dialog>
 
 <dialog id="zoomDlg" class="zoom" aria-label="도면 크게 보기">
   <div class="zoomhead">
@@ -3761,6 +3790,30 @@ $('#rX').addEventListener('click', () => $('#rulesDlg').close());
 $('#rReset').addEventListener('click', () => { 규칙 = { ...규칙기본 }; 담기(); 제어판그리기(); update(); });
 $('#rName').addEventListener('input', () => { 규칙.이름 = $('#rName').value; 담기(); });
 $('#btnUndo').addEventListener('click', 되돌리기한단계);
+
+/* ───────── 머리띠 「모바일 보기」 (10-04 관리자) ─────────
+   사장님 말씀: 「프로그램 상단 헤더에 모바일 보기를 만들어 모바일 환경에서 화면이 어떻게 처리 되는지 확인해야겠어」
+   ⚠ 폰 갈래는 `@media screen and (max-width:1100px)` 라 **창 폭**을 본다. 칸을 375 로 좁히거나
+     `transform` 으로 줄여서는 **안 걸린다.** 규칙을 베껴 두 벌로 만드는 길은 금지다(한쪽만 고치면 어긋난다).
+     그래서 **같은 쪽을 375px 폭 틀(iframe) 안에 띄운다** — 틀 안에서는 창 폭이 진짜로 375 라
+     지금 그 규칙이 **그대로** 걸린다. `vh` 도 틀 높이를 보므로 60vh·84vh 까지 폰처럼 잰다.
+   ⚠ 틀 안에서는 `#btnPhone` 이 폰 갈래로 숨으므로 **제 안에 또 열리지 않는다**(되돌이 막이).
+   닫을 때 `about:blank` 로 돌린다 — 안 그러면 안 보이는 3D 가 그대로 돌아간다. */
+(function(){
+  const 단추 = $('#btnPhone'), 판 = $('#phoneDlg'), 틀 = $('#phoneFrame'), 키 = $('#phoneH');
+  if (!단추 || !판 || !틀) return;
+  const 닫기 = () => { if (판.open) 판.close(); };
+  단추.addEventListener('click', () => {
+    if (판.open) return 닫기();
+    틀.src = location.href;
+    판.show();                                   // 모달이 아니다 — 뒤가 안 굳어야 다시 눌러 닫을 수 있다
+    단추.setAttribute('aria-pressed', 'true');
+    if (키) 키.textContent = Math.round(틀.getBoundingClientRect().height);
+  });
+  $('#phoneX').addEventListener('click', 닫기);
+  판.addEventListener('close', () => { 틀.src = 'about:blank'; 단추.setAttribute('aria-pressed', 'false'); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && 판.open){ e.preventDefault(); 닫기(); } });
+})();
 
 // 마지막에 보던 품목에 고르개를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
 품목고르개맞추기();
