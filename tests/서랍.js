@@ -16,6 +16,9 @@
      ⑥ 바닥판 **두께 여덟 · 끼우기/덮기 · 홈 시작점**이 다 먹는다
      ⑦ **3D·2D 에 그려진다**
      ⑧ **수납장은 한 톨도 안 바뀐다** — 줄도 부속도 없고 DXF 네 기준값 그대로
+     ⑨ 10-05 사장님 말씀 「**위 지시는 품목이 서랍장 인경우에만 해당합니다.**」 —
+        **수납장 → 서랍장 → 수납장** 을 돌아와도 서랍 자취가 **하나도 안 남고**(부속·줄·메뉴·되살리기 목록·부속서)
+        그 사이 수납장의 **부속서 · DXF 네 값 · 저장 SVG · 인쇄 쪽**이 **글자까지 전·후로 같다**
 
    돌리는 법:  node tests/서랍.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -40,7 +43,8 @@ const 손질 = () => {
   if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
   return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),' +
     'rule:()=>규칙,st:()=>state,grp:()=>group,행:()=>부속행들(buildModel(state)),' +
-    'draw:()=>buildDrawing(state,buildModel(state)),dxf:()=>buildDXF(buildDrawing(state,buildModel(state)))};' + 못);
+    'draw:()=>buildDrawing(state,buildModel(state)),dxf:()=>buildDXF(buildDrawing(state,buildModel(state))),' +
+    'svgf:()=>svgForFile(buildDrawing(state,buildModel(state)))};' + 못);
 };
 
 const 띄우기 = (html) => new Promise(res => {
@@ -97,6 +101,42 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       서랍밑: D[0] ? r(D[0].z) : null, 서랍왼: D[0] ? r(D[0].x) : null,
       Dw: 자('서랍재D'), Ww: 자('서랍재W'), B: 자('서랍바닥'),
       WL: W[0] ? r(W[0].cut.L) : null }; });
+
+  /* 10-05 사장님 말씀 — 「위 지시는 품목이 서랍장 인경우에만 해당합니다.」
+     그래서 **서랍장에 다녀오기 전** 수납장 한 벌을 글자까지 떠 두고, 돌아온 뒤 그대로인지 견준다.
+     기본값으로 못 박아 두어야 품목을 오가며 `state` 가 섞여도 같은 자로 잰다. */
+  const 수납기본 = { W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18,
+    Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset',
+    밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out' };
+  const 수납한벌 = async () => {
+    const o = await p.evaluate(기본 => { const P = window.__probe;
+      const 조각 = t => (String(t).match(/<(?!\/)/g) || []).length;
+      const 바이트 = t => new TextEncoder().encode(t).length;
+      P.set(기본);
+      const 네값 = [], 네svg = [];
+      for (const st of [{ backMode:'cover', TB:2.7 }, { backMode:'insert', TB:2.7 },
+                        { backMode:'cover', TB:9 },   { backMode:'insert', TB:9 }]){
+        P.set(st); 네값.push(바이트(P.dxf())); 네svg.push(조각(P.svgf()));
+      }
+      P.set(기본);
+      return { 부속서: P.행().map(r => [r.name, r.qty, r.L, r.W, r.T, r.비고 || '']),
+        DXF: 네값, SVG: 네svg,
+        서랍부속: P.model().parts.filter(x => x.name.indexOf('서랍') === 0).length,
+        줄: ['서랍재W','서랍재D','서랍바닥'].map(n => { const el =
+            document.querySelector(`.field[data-part="${n}"]`);
+          return el ? getComputedStyle(el).display !== 'none' : false; }),
+        메뉴: !!document.querySelector('#drawerSetBox') &&
+          getComputedStyle(document.querySelector('#drawerSetBox')).display !== 'none' }; }, 수납기본);
+    /* ⚠ 인쇄 쪽을 재려면 **2D 모드로 바꾼 뒤**라야 한다 — 3D 모드에서는 `.app.m3d .draw{display:none}` 가
+       인쇄 묶음을 이겨 쪽이 0×0 으로 잡힌다(§7.5 의 그 덫). 재고 나서 3D 로 돌려놓는다. */
+    await p.evaluate(() => document.querySelector('.modeseg button[data-mode="2d"]').click()); await 잠(900);
+    await p.emulateMedia({ media:'print' }); await 잠(400);
+    o.인쇄 = await p.evaluate(() => [...document.querySelectorAll('#pageBox > .page')]
+      .map(e => { const r = e.getBoundingClientRect(); return Math.round(r.width) + '×' + Math.round(r.height); }));
+    await p.emulateMedia({ media:null }); await 잠(300);
+    await p.evaluate(() => document.querySelector('.modeseg button[data-mode="3d"]').click()); await 잠(600);
+    return o; };
+  const 돌기전 = await 수납한벌();
 
   // 사장님 예시 — 마이다 높이 180 · 안폭 762 · 측판 깊이 480 · 우라홈 20
   const 예시외부 = { W:798, D:480, H:1555, backMode:'insert', doors:8, doorMode:'out', shelves:0, shelvesM:0,
@@ -215,17 +255,26 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       shelves:3, shelvesM:0, Tsw:12, Tsd:12, Tsb:12 });
     return window.__probe.model().parts.filter(x => x.name.startsWith('서랍')).length; }), 0);
   await 잠(300);
-  맞나('DXF 네 기준값', await p.evaluate(() => { const 재 = () => {
-      const t = window.__probe.dxf(); return new TextEncoder().encode(t).length; };
-    const o = [];
-    window.__probe.set({ W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18,
-      Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset',
-      밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out' });
-    o.push(재()); window.__probe.set({ backMode:'insert' }); o.push(재());
-    window.__probe.set({ backMode:'cover', TB:9 }); o.push(재());
-    window.__probe.set({ backMode:'insert' }); o.push(재());
-    window.__probe.set({ backMode:'cover', TB:2.7 });
-    return o; }), [71286, 109007, 70496, 109073]);
+  console.log('⑨ 수납장 → 서랍장 → 수납장 — 자취가 하나도 안 남는다');
+  const 돌아온뒤 = await 수납한벌();
+  맞나('서랍 부속 0장 · 줄 셋 안 보임 · 메뉴 안 보임',
+    [돌아온뒤.서랍부속, 돌아온뒤.줄, 돌아온뒤.메뉴], [0, [false, false, false], false]);
+  맞나('부속서에 서랍 자취 0줄', 돌아온뒤.부속서.filter(r => String(r[0]).indexOf('서랍') === 0), []);
+  // 서랍장에서 8분할을 쓰다 돌아오면 `doors` 가 8 로 남을 수 있다 — 그래도 수납장에는 서랍이 없어야 한다
+  맞나('수납장에서 도어 8 을 넣어도 서랍 0장 · 문짝 2장', await p.evaluate(() => {
+    window.__probe.set({ doors: 8 }); const m = window.__probe.model();
+    const o = [m.parts.filter(x => x.name.indexOf('서랍') === 0).length,
+               m.parts.filter(x => x.name === '문짝').length];
+    window.__probe.set({ doors: 2 }); return o; }), [0, 2]);
+  맞나('되살리기 목록에도 없다', await p.evaluate(() => { const i = document.querySelector('#newPart');
+    i.focus(); i.click();
+    return [...document.querySelectorAll('#partNames *')].map(e => e.textContent)
+      .filter(t => t && t.indexOf('서랍') === 0); }), []);
+  맞나('부속서가 글자까지 같다', 돌아온뒤.부속서, 돌기전.부속서);
+  맞나('DXF 네 기준값', 돌아온뒤.DXF, [71286, 109007, 70496, 109073]);
+  맞나('DXF 네 값이 돌기 전과 같다', 돌아온뒤.DXF, 돌기전.DXF);
+  맞나('저장 SVG 네 상태가 돌기 전과 같다', 돌아온뒤.SVG, 돌기전.SVG);
+  맞나('인쇄 쪽이 돌기 전과 같다', 돌아온뒤.인쇄, 돌기전.인쇄);
   맞나('오류 0', 터짐.length, 0);
 
   await ctx.close(); await b.close(); 서버.close();
