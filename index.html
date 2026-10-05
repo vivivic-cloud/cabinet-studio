@@ -2229,7 +2229,19 @@ function setTool(t){
   document.querySelectorAll('.tools button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
   const cv = $('#c3d'); cv.className = 'tool-' + t;
 }
-const extR = () => Math.max(state.W, state.H, state.D) * 1.9 + 500;   // 전체가 화면에 들어오는 거리
+/* 분해도에서는 조각이 `dir × e` 만큼 흩어진다(§4.9854) — 「전체」 가 그만큼을 같이 세야 다 담는다.
+   `e` 식은 `applyExplode()` 것을 그대로 쓴다. **분해 0 이면 0 이라 고치기 전 값과 한 톨도 같다.** */
+const 분해늘음 = () => {
+  const e = state.explode * Math.max(state.H, state.W) * 0.28;
+  if (!e || !group) return 0;
+  let 큰 = 0;
+  group.children.forEach(c => (c.userData.dir || []).forEach(v => { 큰 = Math.max(큰, Math.abs(v)); }));
+  // 양쪽으로 흩어지므로 두 배다. 흩어지는 쪽은 가로가 큰데(마이다 덩어리가 1.7) **폰 칸은 가로가 좁다** —
+  // 가로가 세로의 0.72 배뿐이라 그만큼 더 물러나야 다 담긴다. 넓은 칸(가로 ≥ 세로)에서는 두 배 그대로다.
+  const 가로몫 = (camera && camera.aspect > 0) ? Math.min(1, camera.aspect) : 1;
+  return 큰 * e * 2 / 가로몫;
+};
+const extR = () => (Math.max(state.W, state.H, state.D) + 분해늘음()) * 1.9 + 500;   // 전체가 화면에 들어오는 거리
 function zoomExtents(){ cam.tTgt.set(0,0,0); cam.tR = extR(); }
 let 첫판 = true;                                     // 처음 한 번만 화면에 맞춘다
 let 삼디크기맞추기 = () => {};                        // init3D 에서 채운다 (모드 바꿀 때 쓴다)
