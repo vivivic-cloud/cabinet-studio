@@ -112,8 +112,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   맞나('#stPitch 도 따라간다', await p.evaluate(() => document.querySelector('#stPitch').textContent), '407.5 mm');
 
   console.log('③ 줄도 없다 — 칸·고르개에도 안 나온다');
-  맞나('보이는 줄 여덟 → 일곱 (이동선반만 빠진다)', await 보이는줄(),
-    ['상판','측판','고정선반','문짝','하판','전면밴드','뒷판']);
+  // 10-05 — 서랍재 세 줄이 도어 바로 아래에 더 섰다(§4.9855). 보는 규칙(이동선반만 빠진다)은 그대로다.
+  맞나('보이는 줄 — 이동선반만 빠진다', await 보이는줄(),
+    ['상판','측판','고정선반','문짝','서랍재W','서랍재D','서랍바닥','하판','전면밴드','뒷판']);
   맞나('「선반유격」 칸 0개', await 유격칸수(), 0);
   await p.evaluate(() => { window.__probe.손질().지움.push('이동선반@짝:0'); window.__probe.set({}); }); await 잠(400);
   맞나('되살리기 고르개에 없다', (await 되살릴()).includes('이동선반'), false);
@@ -165,8 +166,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await p.evaluate(() => window.__probe.set({ shelvesM: 2 })); await 품목고르기('서랍장');
   // 품목마다 state 가 갈렸으니(§4.9872) 견줄 값을 서랍장에도 똑같이 넣는다
   await p.evaluate(() => window.__probe.set({ shelves: 3, shelvesM: 2, backMode: 'cover' })); await 잠(300);
-  /* 도어는 서랍장에서 마이다로 갈려 자리가 다르다(§4.9873) — 여기서 보는 것은 **선반**이므로 뺀다. */
-  const 도어빼기 = 글 => 글.split('\n').filter(x => !/^(문짝|마이다)\|/.test(x)).join('\n');
+  /* 도어는 서랍장에서 마이다로 갈려 자리가 다르다(§4.9873) — 여기서 보는 것은 **선반**이므로 뺀다.
+     10-05 부터 서랍재 셋도 서랍장에만 있다(§4.9855) — 같은 까닭으로 같이 뺀다. */
+  const 도어빼기 = 글 => 글.split('\n').filter(x => !/^(문짝|마이다|서랍재W|서랍재D|서랍바닥)\|/.test(x)).join('\n');
   맞나('서랍장(이동 2단) 의 선반·몸통이 수납장 이동 0단과 같다 (이름만 가로대)', 도어빼기((await p.evaluate(() =>
     window.__probe.model().parts.map(x => `${x.name}|${x.x}|${x.y}|${x.z}|${x.w}|${x.d}|${x.h}`).join('\n')))
     .split('가로대').join('고정선반')) === 도어빼기(이동없음), true);

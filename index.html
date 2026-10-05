@@ -96,6 +96,8 @@ select:focus{border-color:var(--head)}
 .pname::after{content:"▾";font-size:11px;color:var(--ink3);flex:none}
 .pname[aria-expanded="true"]::after{content:"▴";color:var(--head)}
 .pname:hover{color:var(--head)}
+/* 10-05 — 「서랍설정」 은 부속 이름표가 아니라 **메뉴 단추**다. 단추는 44px 이다(§0). */
+.pname.big{min-height:44px}
 .opt[hidden]{display:none}
  /* 09-28 사장님 말씀 **두 번** — 「이런 입력칸의 높이가 너무 커 … 좀 작게좀 조절해줘」,
    그리고 「이노무 입력칸좀 줄여달라니까」. 첫 판은 44px 을 지켜 46px 줄이 그대로여서 **눈에 안 띄었다.**
@@ -606,6 +608,11 @@ dialog.phone[open]{display:flex;flex-direction:column}
       <div class="field gr" data-home="2" data-part="고정선반"><button type="button" class="pname" data-opt="고정선반" aria-expanded="false">고정 선반</button><div class="two"><select id="Tshelf" data-key="Tshelf" aria-label="고정 선반 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="고정선반" aria-label="고정선반 지우기">×</button></div><div class="opt" data-opt="고정선반" hidden></div></div>
       <div class="field gr" data-home="3" data-part="이동선반"><button type="button" class="pname" data-opt="이동선반" aria-expanded="false">이동 선반</button><div class="two"><select id="Tshelf2" data-key="Tshelf2" aria-label="이동 선반 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="이동선반" aria-label="이동선반 지우기">×</button></div><div class="opt" data-opt="이동선반" hidden></div></div>
       <div class="field gr" data-home="4" data-part="문짝"><button type="button" class="pname" data-opt="문짝" aria-expanded="false">도어</button><div class="two"><select id="Tdoor" data-key="Tdoor" aria-label="도어 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="문짝" aria-label="문짝 지우기">×</button></div><div class="opt" data-opt="문짝" hidden></div></div>
+      <!-- 10-05 사장님 말씀 — 서랍재는 「마이다 바로 아래부분에 서랍재W 서랍재D 서랍바닥 의 부속으로」 나온다.
+           `data-home` 은 되살릴 자리 번호일 뿐 차례를 정하지 않는다(§4.9891) — 보이는 차례는 이 markup 차례다. -->
+      <div class="field gr" data-home="8" data-part="서랍재W"><button type="button" class="pname" data-opt="서랍재W" aria-expanded="false">서랍재W</button><div class="two"><select id="Tsw" data-key="Tsw" aria-label="서랍재W 두께"><option selected>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="서랍재W" aria-label="서랍재W 지우기">×</button></div><div class="opt" data-opt="서랍재W" hidden></div></div>
+      <div class="field gr" data-home="9" data-part="서랍재D"><button type="button" class="pname" data-opt="서랍재D" aria-expanded="false">서랍재D</button><div class="two"><select id="Tsd" data-key="Tsd" aria-label="서랍재D 두께"><option selected>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="서랍재D" aria-label="서랍재D 지우기">×</button></div><div class="opt" data-opt="서랍재D" hidden></div></div>
+      <div class="field gr" data-home="10" data-part="서랍바닥"><button type="button" class="pname" data-opt="서랍바닥" aria-expanded="false">서랍바닥</button><div class="two"><select id="Tsb" data-key="Tsb" aria-label="서랍바닥 두께"><option>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option selected>12</option><option>15</option><option>18</option></select><button type="button" class="x" data-kill="서랍바닥" aria-label="서랍바닥 지우기">×</button></div><div class="opt" data-opt="서랍바닥" hidden></div></div>
       <div class="field gr" data-home="5" data-part="하판"><button type="button" class="pname" data-opt="하판" aria-expanded="false">하판</button><div class="two"><select id="Tbot" data-key="Tbot" aria-label="하판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="하판" aria-label="하판 지우기">×</button></div><div class="opt" data-opt="하판" hidden></div></div>
       <div class="field gr" data-home="6" data-part="전면밴드"><button type="button" class="pname" data-opt="전면밴드" aria-expanded="false">전면밴드</button><div class="two"><select id="Tplinth" data-key="Tplinth" aria-label="전면밴드 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="전면밴드" aria-label="전면밴드 지우기">×</button></div><div class="opt" data-opt="전면밴드" hidden></div></div>
       <div class="field gr" data-home="7" data-part="뒷판"><button type="button" class="pname" data-opt="뒷판" aria-expanded="false">뒷판</button><div class="two"><select id="TB" data-key="TB" aria-label="뒷판 두께"><option selected>2.7</option><option>3</option><option>5</option><option>6</option><option>9</option><option>12</option><option>15</option><option>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="뒷판" aria-label="뒷판 지우기">×</button></div><div class="opt" data-opt="뒷판" hidden></div></div>
@@ -616,6 +623,11 @@ dialog.phone[open]{display:flex;flex-direction:column}
              role="combobox" aria-expanded="false" aria-controls="partNames"><button id="btnAdd" type="button">추가</button>
           <div id="partNames" class="namedrop" role="listbox" hidden></div></div>
         <small id="addWarn" class="warn"></small></div>
+      <!-- 10-05 사장님 말씀: 「조립된 서랍과 마이다 측판사이의 공간 따위의 **조립된 서랍 자체의 구조 관계**는
+           **서랍설정** 이라는 메뉴를 **부속추가 아래**에 두어 조정 할 수 있어야 합니다」.
+           부속 상세옵션과 **같은 길**(`.pname[data-opt]` + `.opt[data-opt]`)이라 「저장」 을 눌러야 먹는다.
+           단추만 44px 이다 — 글자 칸이 아니라 누르는 것이다(§0). 서랍장에서만 보인다(`비활성갱신`). -->
+      <div class="field wide" id="drawerSetBox"><button type="button" class="pname big" data-opt="서랍설정" aria-expanded="false">서랍설정</button><div class="opt" data-opt="서랍설정" hidden></div></div>
       <div class="field wide"><button id="btnRules" class="linkbtn" type="button">관계제어판</button></div>
     </div>
   </aside>
@@ -800,7 +812,14 @@ const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:
                      **기본 0 = 자동**(전처럼 안쪽 끝까지) — 0 이면 고치기 전과 한 톨도 같다.
                      ⚠ 열쇠를 새로 둔 것은 `고정선반들임`(유격 · 앞에서 빼는 값)과 **재는 뜻이 다르기 때문**이다.
                         한 열쇠에 두 뜻을 담으면 반드시 사고 난다(§0 · `밴드커버유격` 과 같은 길). */
-                  가로대깊이:0 };
+                  가로대깊이:0,
+                  /* 10-05 사장님 말씀 — 서랍. 「서랍은 각 마이다의 하부 끝에서 **21mm 올라간 지점** 부터 위치하며
+                     좌우 양 끝은 **측판으로부터 13mm씩** 공간이 생기도록 사이징된다 … 서랍의 기본높이는 마이다의
+                     총높이에서 **하부 21mm 상부 21mm** 제외한 사이즈 … **- 50mm의값** … 홈가공의 시작점을
+                     서랍재의 바닥으로 부터 **20mm** 지점」.
+                     네 값은 「서랍설정」(부속추가 아래)에서, 홈 시작점은 **서랍바닥 제 옵션 판**에서 고친다.
+                     ⚠ 열쇠를 새로 둔 것은 재는 뜻이 다 다르기 때문이다 — 한 열쇠에 두 뜻을 담으면 반드시 사고 난다(§0). */
+                  서랍위유격:21, 서랍아래유격:21, 서랍레일:13, 서랍깊이줄임:50, 서랍홈시작:20 };
 /* 10-02 사장님 말씀 — 「품목의 선택으로 해당 품목에 맞는 새로운 관계의 제품이 나타나게」.
    **앞머리(`cabinet-studio`)는 안 건드린다**(§0). 품목 한 마디를 **뒤에** 더하는 것뿐이다.
      cabinet-studio.품목                       ← 마지막에 보던 품목
@@ -818,7 +837,8 @@ const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
       `state.shelvesM = 0` 으로 고쳐 버리면 사장님이 수납장에 맞춰 둔 단수가 날아간다
       (`state` 는 품목마다 안 갈라진다 · §7.5). **셈에서만 0 으로 본다** —
       하판 「측판 아래」 에서 전면밴드를 없앨 때와 같은 길이다(`걸레높이 = 아래덮 ? 0 : plinth`). */
-const 품목없는부속 = { 수납장:[], 서랍장:['이동선반'] };
+// 10-05 — 서랍재 세 가지는 **서랍장에만** 발생한다(「서랍장 상태에서 발생되는 기본 부속」).
+const 품목없는부속 = { 수납장:['서랍재W','서랍재D','서랍바닥'], 서랍장:['이동선반'] };
 const 품목밖 = (이름, 품) => (품목없는부속[품 || state.품목] || []).includes(이름);
 /* 품목마다 부속 **명칭**이 다르다 (10-02 사장님 말씀: 「**서랍장 품목의 고정선반의 명칭은 가로대 입니다**」).
    ⚠ **저장 열쇠는 한 글자도 안 건드린다** — `data-part`·`data-opt`·`data-kill`·`Tshelf`·`규칙.고정선반들임`
@@ -978,7 +998,10 @@ function 품목바꾸기(새){
   부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
 }
 
-const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', 밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out', explode:0 };
+const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', 밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out',
+  /* 10-05 사장님 말씀 — 서랍재 세 가지. 「서랍의 기본 소재의 두께는 **12mm**」 라 셋 다 12 다.
+     서랍바닥은 「뒷판과 같은 원리로 **끼우기/덮기**」 — 홈 시작점을 기본값으로 주셨으니 **끼우기가 기본**이다(내가 정했다). */
+  Tsw:12, Tsd:12, Tsb:12, 서랍바닥꼴:'insert', explode:0 };
 /* 10-02 사장님 말씀: 「**수납장과 서랍장은 다른개념의 제품이므로 동일 외경입력치를 적용받지 않습니다.
    품목변환시 각각의 입력에 맞는 제품도면이 나타나야 합니다.**」
    그래서 `state` 를 **곳간의 여섯째**로 태웠다 — `cabinet-studio.<품목>.상태`.
@@ -1262,6 +1285,7 @@ function buildModel(s){
      - 담는 열쇠도 `state.doors` 그대로다. **수납장은 셈에서 2 를 넘지 않게 본다**(단추가 0·1·2 뿐이다) —
        담긴 숫자는 안 지운다(§4.9875 와 같은 길). `state` 가 품목마다 갈라지면 이 한 줄은 없어도 된다. */
   const 도어명 = 부속이름('문짝', s.품목), 세로분할 = 도어명 === '마이다';
+  const 서랍칸 = [];                           // 마이다마다 [아랫끝 z, 높이] — 아래 서랍이 이것을 쓴다
   const 문수 = Math.min(doors, 세로분할 ? 8 : 2);
   if (문수 > 0){
     const n = 문수, gap = 규칙.도어사이;
@@ -1294,7 +1318,61 @@ function buildModel(s){
       // — 사장님 말씀(09-22) 「아웃도어 선택시 도어 자체가 사라진다」 가 이것이다.
       // 그래서 짝 번호로 붙잡는 열쇠를 따로 붙인다(밴드의 단 열쇠와 같은 길).
       parts[parts.length-1].단열쇠 = `${도어명}@짝:${k}`;
+      if (세로분할) 서랍칸.push([z0 + k*(dh+gap), dh]);        // 10-05 — 마이다마다 서랍 하나
     }
+  }
+  /* ───────── 서랍 (10-05 사장님 말씀) ─────────
+     「서랍장 상태에서 발생되는 기본 부속에 서랍이 있어야 합니다. 서랍은 **각 마이다의 하부 끝에서 21mm 올라간
+     지점 부터** 위치하며 좌우 양 끝은 **측판으로부터 13mm씩** 공간이 생기도록 사이징된다 - 이공간은 측판과 서랍
+     사이에 **볼레일 철물**이 들어가야 하는 여유공간이다. 서랍의 기본높이는 마이다의 총높이에서 **하부 21mm
+     상부 21mm 제외**한 사이즈 … 서랍의 기본 소재의 두께는 **12mm** 이며 … **서랍재W**(넓이를 결정) ·
+     **서랍재D**(폭을 결정) 부속들로 구성된다. 조립방식은 서랍의 **좌우에 서랍재D**가 양쪽에 위치하면 그 사이로
+     **서랍재W 2개가 각각 전면 후면**에 배치된다 … 바닥판은 … **뒷판과 같은 원리**로 끼우기/덮기 … **서랍재의
+     바닥으로 부터 20mm** 지점에서 홈가공이 시작 … **- 50mm의값**」
+     ⚠ **「서랍」 이라는 부속은 세우지 않는다** — 사장님 말씀: 「부속명 서랍 자체는 … 부속서에는 나타나지 않지만
+        해당 서랍을 구성하는 서랍재는 나타나야 하며」. 그래서 **세 부속만** 선다. 이름을 세우면 부속서에 뜬다.
+     ⚠ **실제 내부깊이는 새로 셈하지 않는다 — `선반깊이` 가 이미 그것이다.** 사장님 예시의
+        「측판이 480이고 마이다가 측판을 침범하지 않는 옵션이라면 480-우라홈가공(20mm), 마이다가 측판안으로
+        들어오면 480-마이다두께-우라홈(20mm)」 이 곧 `선반끝(= D − 우라홈) − 도어물림(= 마이다 두께)` 이다.
+        베끼지 말고 그 값을 쓴다(관리자) — 안 그러면 우라홈을 고칠 때 두 자리가 어긋난다. */
+  if (!품목밖('서랍재W', s.품목) && 서랍칸.length){
+    const 레일 = 규칙.서랍레일, 위틈 = 규칙.서랍위유격, 아래틈 = 규칙.서랍아래유격;
+    const 서랍폭 = 안폭 - 2*레일;                       // 측판 안쪽면에서 좌우로 레일 자리만큼 띄운다
+    const 서랍깊 = 선반깊이 - 규칙.서랍깊이줄임;         // 실제 내부깊이 − 50
+    const sx = 안왼 + 레일, sy = 도어물림;               // 앞면은 마이다 안쪽면 — 가로대와 같은 자리다
+    const Tsw = s.Tsw, Tsd = s.Tsd, Tsb = s.Tsb;
+    const 바닥끼움 = s.서랍바닥꼴 === 'insert';
+    // 홈은 뒷판 것을 그대로 쓴다 — 폭 = 바닥판 두께 + 홈유격 · 깊이 = 홈깊이.
+    // 시작점은 **서랍재 바닥에서** 재므로 뒷판(뒤 마감에서 재는 우라홈)의 거울이다.
+    const s홈폭 = Tsb + 규칙.홈유격;
+    const s홈 = 바닥끼움 ? { 깊이:규칙.홈깊이, 폭:s홈폭, 시작:규칙.서랍홈시작 } : null;
+    const s홈글 = s홈 ? `홈 ${fmt(s홈.깊이)}×${fmt(s홈.폭)}` : '';
+    const 재컷 = (L, 키, T) => ({L, W:키, T, grain:'가로', 비고:s홈글, 서랍홈:s홈});
+    if (서랍폭 > 0 && 서랍깊 > 0 && 서랍폭 - 2*Tsd > 0 && 서랍깊 - 2*Tsw > 0) 서랍칸.forEach(([mz, mh]) => {
+      const 서랍키 = mh - 위틈 - 아래틈;
+      if (!(서랍키 > 0)) return;
+      const z0 = mz + 아래틈;                           // 마이다 하부 끝에서 올라간 지점
+      // 좌우 — 서랍재D 두 장. 길이가 서랍의 앞뒤(폭)를 결정한다.
+      add('서랍재D', sx,                 sy, z0, Tsd, 서랍깊, 서랍키, [-1,0,0], 재컷(서랍깊, 서랍키, Tsd));
+      add('서랍재D', sx + 서랍폭 - Tsd,  sy, z0, Tsd, 서랍깊, 서랍키, [ 1,0,0], 재컷(서랍깊, 서랍키, Tsd));
+      // 전후 — 서랍재W 두 장. **두 서랍재D 사이로** 들어가므로 길이가 그만큼 짧다.
+      const ww = 서랍폭 - 2*Tsd;
+      add('서랍재W', sx + Tsd, sy,                 z0, ww, Tsw, 서랍키, [0,-1,0], 재컷(ww, 서랍키, Tsw));
+      add('서랍재W', sx + Tsd, sy + 서랍깊 - Tsw,  z0, ww, Tsw, 서랍키, [0, 1,0], 재컷(ww, 서랍키, Tsw));
+      // 바닥판 — 뒷판과 같은 원리다. 끼우기면 안쪽 칸보다 「뒷판키움」 만큼 크게 짜서 홈에 물리고,
+      // 덮기면 서랍 바깥 네모에서 「뒷판물림」 만큼 들어가 **밑면에 덧붙는다**(뒷판 덮기의 거울).
+      if (바닥끼움){
+        const 키움 = 규칙.뒷판키움;
+        const bz0 = z0 + s홈.시작 - s홈.폭;             // 홈의 바깥 벽 — 뒷판을 홈 뒤쪽 벽에 붙이는 것과 같다
+        add('서랍바닥', sx + Tsd - 키움/2, sy + Tsw - 키움/2, bz0,
+            ww + 키움, (서랍깊 - 2*Tsw) + 키움, Tsb, [0,0,-1],
+            {L:ww + 키움, W:(서랍깊 - 2*Tsw) + 키움, T:Tsb, grain:'가로'});
+      } else {
+        const 물 = 규칙.뒷판물림;
+        add('서랍바닥', sx + 물, sy + 물, z0 - Tsb, 서랍폭 - 2*물, 서랍깊 - 2*물, Tsb, [0,0,-1],
+            {L:서랍폭 - 2*물, W:서랍깊 - 2*물, T:Tsb, grain:'가로'});
+      }
+    });
   }
   // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」 (09-16 고쳐 주신 규칙).
   // 측판과 측판 사이에 정사이즈로 들어가고, **하판 위로 올라탄다**.
@@ -1769,7 +1847,8 @@ function svgForFile(d){
    여기서 그리는 것은 buildDrawing 의 P 와 아무 상관이 없다 —
    내보내는 SVG·DXF 는 이 쪽들을 모른다(덮기 DXF 71,698 바이트 그대로다). */
 const A4 = { W:210, H:297, 여백:10, 칸수:3, 정보:66 };
-const 부속차례 = ['측판','상판','하판','문짝','마이다','고정선반','가로대','이동선반','전면밴드','뒷판','밴드'];
+// 10-05 사장님 말씀 — 서랍재는 「부속의 **마이다 바로 아래부분**에 서랍재W 서랍재D 서랍바닥 의 부속으로」 나온다.
+const 부속차례 = ['측판','상판','하판','문짝','마이다','서랍재W','서랍재D','서랍바닥','고정선반','가로대','이동선반','전면밴드','뒷판','밴드'];
 const 홈면 = { 측판:'안쪽면', 상판:'아랫면', 하판:'윗면' };   // 어느 면에 홈을 파는가 (1쪽 홈 가공도와 같다)
 // 글자 폭 어림 — 한글은 한 칸, 로마자·숫자는 0.62 칸으로 본다. 머리글이 넘칠지 재는 데만 쓴다.
 const 글자폭 = (str, em) => [...str].reduce((a, c) => a + (c.charCodeAt(0) > 127 ? em : em*0.62), 0);
@@ -1851,6 +1930,15 @@ function 부속쪽SVG(행들, m){
       선(fx + w*0.5, g0, fx + w*0.5, g0 - 1, 'ln2');     // 홈은 실제 비례로는 가늘다 — 어디인지 가리켜 준다
       글('홈', fx + w*0.5, g0 - 2.4, 't4');
     }
+    /* 10-05 — 서랍재의 바닥판 홈. 뒷판 홈의 **거울**이라 재는 끝이 뒤가 아니라 **바닥**이다.
+       그림에서 세로(`r.W`)가 서랍 높이이므로 네모 아래쪽 끝이 서랍재 바닥이다. */
+    if (r.서랍홈){
+      const g0 = fy + h - r.서랍홈.시작*k, g1 = g0 + r.서랍홈.폭*k;
+      선(fx,g0,fx+w,g0,'ln2'); 선(fx,g1,fx+w,g1,'ln2');
+      선(fx + w*0.5, g0, fx + w*0.5, g0 - 1, 'ln2');
+      글('홈', fx + w*0.5, g0 - 2.4, 't4');
+      글('바닥', fx + 5, fy + h - 1.6, 't4');
+    }
     가로치수(fx, fx+w, fy + h + 4.5, fmt(r.L));
     가로치수(fx+w+1.5, fx+w+1.5+tw, fy + h + 4.5, fmt(r.T));
     세로치수(fy, fy+h, fx - 4.5, fmt(r.W));
@@ -1858,6 +1946,8 @@ function 부속쪽SVG(행들, m){
     const 줄 = [['수량', r.qty], ['가로', fmt(r.L)], ['세로', fmt(r.W)], ['두께', fmt(r.T)]];
     if (r.grain) 줄.push(['결', r.grain]);
     if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(m.홈.뒤살)}`]);
+    // 10-05 — 서랍재는 제 홈 값을 제가 들고 온다(`p.cut.서랍홈`). 재는 끝이 **바닥**이다.
+    if (r.서랍홈) 줄.push(['홈', `${fmt(r.서랍홈.깊이)}×${fmt(r.서랍홈.폭)}`], ['홈 자리', `바닥에서 ${fmt(r.서랍홈.시작)}`]);
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
@@ -2681,6 +2771,8 @@ document.addEventListener('change', e => {
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
   if (el.name === '밴드꼴' && el.checked){ state.밴드꼴 = el.value; update(); return; }
+  // 10-05 — 서랍바닥 끼우기/덮기. 홈 칸이 뜨고 사라지므로 `backMode` 처럼 판을 다시 그린다.
+  if (el.name === '서랍바닥꼴' && el.checked){ state.서랍바닥꼴 = el.value; 결단추갱신(); update(); return; }
   if (el.name === 'doors' && el.checked){ state.doors = Number(el.value); update(); return; }
   if (el.name === 'doorMode' && el.checked){ state.doorMode = el.value; update(); return; }
   if (el.dataset && el.dataset.bi !== undefined){
@@ -3465,6 +3557,19 @@ function 줄옵션(이름){
       + 유격칸(끝 === 8 ? '하부유격' : '도어 아래 유격', state.doorMode === 'in' ? '인아래'
           : ((state.botStyle !== 'under' && state.plinth > 0) ? '아웃아래걸레' : '아웃아래없음'));
   }
+  /* 10-05 사장님 말씀 — 「서랍재의 바닥판은 … 뒷판과 같은 원리로 **끼우기/덮기**형태로 … 두께 조절이
+     가능하고 … 가공의 시작점을 서랍재의 바닥으로 부터 **20mm** 지점에서 홈가공이 시작되는 것을
+     기본세팅으로 하여 **조절이 가능**해야 합니다」. 뒷판 판과 같은 꼴이다 — 끼우기일 때만 홈 칸이 뜬다. */
+  if (이름 === '서랍바닥')
+    return `<div class="seg mini" role="group" aria-label="서랍바닥 조립">` +
+      [['cover','덮기'],['insert','끼우기']].map(([v,글]) =>
+        `<label><input type="radio" name="서랍바닥꼴" value="${v}"${state.서랍바닥꼴===v?' checked':''}>${글}</label>`).join('') +
+      `</div>` + (state.서랍바닥꼴 === 'insert' ? 유격칸('홈시작', '서랍홈시작', 200) : '');
+  /* 10-05 사장님 말씀 — 「조립된 서랍 자체의 구조 관계는 **서랍설정** 이라는 메뉴를 부속추가 아래에 두어」.
+     네 값이다 — 마이다 하부에서 올라간 틈 · 상부 틈 · 측판에서 좌우로 띄우는 볼레일 자리 · 깊이에서 빼는 값. */
+  if (이름 === '서랍설정')
+    return 유격칸('상부유격', '서랍위유격', 200) + 유격칸('하부유격', '서랍아래유격', 200)
+      + 유격칸('레일유격', '서랍레일', 200) + 유격칸('깊이유격', '서랍깊이줄임', 200);
   if (이름 === '뒷판')
     // 10-01 사장님 말씀: 「우라홈은 뒷판 끼우기 옵션 적용시 뒷판의 옵션조정에 나타나게 해줘」.
     // 줄 밑에 홀로 서 있던 칸(`#backInWrap`)을 여기로 들였다 — 부속마다 있는 옵션은 그 부속 판 안이다(§4.94).
@@ -3502,15 +3607,19 @@ function 줄옵션(이름){
    「켜 두기만 한 것」 은 `결켬`(Set)이 기억한다. 새로 열면 담긴 값이 있는 것만 켜져 있다. */
 const 결켬 = new Set();
 const 결있음 = 이름 => !!결표기(이름) || 결켬.has(이름);
+const 저장닫기 = 이름 =>
+  `<div class="optbtns"><button type="button" class="primary" data-optsave="${esc(이름)}">저장</button>` +
+  `<button type="button" data-optclose="${esc(이름)}">닫기</button></div>`;
 function 옵션칸(이름){
+  // 10-05 — 「서랍설정」 은 부속이 아니라 서랍 구조 설정이다. 재단할 판이 없으니 **결 방향이 없다.**
+  if (이름 === '서랍설정') return 줄옵션(이름) + 저장닫기(이름);
   const t = 옵션치수(이름), 켬 = 결있음(이름);
   return 줄옵션(이름) +
     `<label class="optrow"><input type="checkbox" data-grainon="${esc(이름)}"${켬 ? ' checked' : ''}><span>결 있음</span></label>` +
     (켬 ? `<div class="opthead">결 방향</div>` +
       결방향값.map(v => `<label class="optrow"><input type="checkbox" data-grain="${esc(이름)}" value="${v}">` +
         `<span>${v}</span><b>${esc(t[v])}<i>mm</i></b></label>`).join('') : '') +
-    `<div class="optbtns"><button type="button" class="primary" data-optsave="${esc(이름)}">저장</button>` +
-    `<button type="button" data-optclose="${esc(이름)}">닫기</button></div>`;
+    저장닫기(이름);
 }
 function 결단추갱신(){
   document.querySelectorAll('.opt[data-opt]').forEach(el => {
@@ -3650,6 +3759,9 @@ function 비활성갱신(){
   document.querySelectorAll('.params .field[data-home]').forEach(줄 => {
     줄.style.display = (품목밖(줄.dataset.part) || 죽은.has(부속이름(줄.dataset.part))) ? 'none' : '';
   });
+  // 10-05 — 서랍이 없는 품목에서는 「서랍설정」 메뉴도 없다. 아무것도 안 가리키는 메뉴를 두지 않는다.
+  const 서랍칸보임 = $('#drawerSetBox');
+  if (서랍칸보임) 서랍칸보임.style.display = 품목밖('서랍재W') ? 'none' : '';
 }
 function 지우기단추갱신(){
   const 선것 = new Set((모델 && 모델.parts ? 모델.parts : []).map(p => p.name));
