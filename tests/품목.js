@@ -127,9 +127,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
      그래서 **몸통(상판·측판·하판·전면밴드·뒷판)이 글자까지 같은지**로 견주고, 갈린 셋은 따로 못 박는다. */
   const 몸통 = 글 => 글.split('\n').filter(x => /^(상판|측판|하판|전면밴드|뒷판)\|/.test(x)).join('\n');
   맞나('몸통은 수납장과 글자까지 같다', 몸통(await 모양()) === 몸통(수납모양), true);
-  맞나('가로대 자리·치수가 수납장 고정선반과 같다',
-    (await 모양()).split('\n').filter(x => /^가로대\|/.test(x)).join('\n').split('가로대').join('고정선반')
-    === 수납모양.split('\n').filter(x => /^고정선반\|/.test(x)).join('\n'), true);
+  /* ⚠ 10-05 §4.9854 로 **가로대만 z 가 다르다** — 마이다 틈 한가운데에 중앙선을 맞추기 때문이다.
+     그래서 z 말고 다 같은지를 본다(수량·x·y·폭·깊이·두께·재단). 재단 치수는 한 톨도 안 바뀐다. */
+  const 선반칸 = 글 => 글.split('\n').filter(x => /^(가로대|고정선반)\|/.test(x))
+    .map(x => { const c = x.split('|'); c[0] = '고정선반'; c.splice(3, 1); return c.join('|'); }).join('\n');
+  맞나('가로대 치수·재단이 수납장 고정선반과 같다 (z 만 다르다 · §4.9854)',
+    선반칸(await 모양()) === 선반칸(수납모양), true);
   맞나('갈린 셋 — 이동선반 0 · 가로대 있다 · 마이다 있다', await p.evaluate(() => {
     const n = window.__probe.model().parts.map(x => x.name);
     return [n.filter(x => x === '이동선반').length, n.includes('가로대'), n.includes('마이다')]; }), [0, true, true]);
