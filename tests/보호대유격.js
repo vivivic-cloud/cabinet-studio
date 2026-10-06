@@ -114,7 +114,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('① 칸이 있다 (23px · 0.5 걸음 · 기본 0)  ② 기본 0 이면 뒤끝이 측판 끝에 딱 맞는다');
   await 펴기('보호대');
   맞나('칸 (이름 · 열쇠 · 값)', await p.evaluate(() =>
-    [...document.querySelectorAll('.opt[data-opt="보호대"] .optnum')].map(e =>
+    // ⚠ 10-06 엣지설정(§4.9846)이 네 줄을 더했다 — 그 줄에는 `input` 이 없다. **유격 줄만** 본다.
+    [...document.querySelectorAll('.opt[data-opt="보호대"] .optnum')]
+      .filter(e => e.querySelector('input[data-rule]')).map(e =>
       [e.querySelector('label').textContent, e.querySelector('input').dataset.rule, e.querySelector('input').value])),
     [['보호대유격', '보호대유격', '0']]);
   맞나('입력칸 크기 · 걸음', await p.evaluate(() => {

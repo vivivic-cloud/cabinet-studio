@@ -81,7 +81,9 @@ const f = n => n == null ? null : Math.round(n * 1000) / 1000;
   // 그 판에 선 유격 칸들 — 이름·열쇠·크기
   const 판칸 = 부속 => p.evaluate(n => {
     const o = document.querySelector(`.field[data-part="${n}"] .opt`); if (!o) return null;
-    return [...o.querySelectorAll('.optnum')].map(d => { const i = d.querySelector('input');
+    // ⚠ 10-06 엣지설정(§4.9846)이 네 줄을 더했다 — 그 줄에는 `input` 이 없다. **유격 줄만** 본다.
+    return [...o.querySelectorAll('.optnum')].filter(d => d.querySelector('input[data-rule],select[data-rule]'))
+      .map(d => { const i = d.querySelector('input,select');
       const a = i.getBoundingClientRect(), c = d.getBoundingClientRect();
       return { 이름:d.querySelector('label').textContent, 열쇠:i.dataset.rule, max:i.max, step:i.step,
                칸높이:Math.round(a.height), 줄높이:Math.round(c.height) }; }); }, 부속);

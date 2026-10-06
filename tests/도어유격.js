@@ -98,7 +98,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const d = m.parts.filter(x => x.name === '문짝');
     return d.length ? { z:+d[0].z.toFixed(1), 높이:+d[0].h.toFixed(1), x:d.map(x => +x.x.toFixed(1)),
                         폭:+d[0].w.toFixed(1) } : null; });
+  // ⚠ 10-06 엣지설정(§4.9846)이 네 줄을 더했다 — 그 줄에는 `input` 이 없다. **유격 줄만** 본다.
   const 칸들 = () => p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="문짝"] .optnum')]
+    .filter(e => e.querySelector('input[data-rule]'))
     .map(e => [e.querySelector('label').textContent, e.querySelector('input').dataset.rule,
                e.querySelector('input').value]));
 
