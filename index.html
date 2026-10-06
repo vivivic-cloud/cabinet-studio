@@ -200,12 +200,27 @@ input[type=range]{width:100%;accent-color:var(--head)}
 @media (hover:hover) and (pointer:fine){ .hud .tools{display:none} .mouseonly{display:inline} }
 .explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;max-width:360px;margin-left:auto}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
-/* 10-06 — 「분해 / 동작」 고르개(§4.9850). 닿는 자리는 `.seg.mini label::after` 가 44px 로 잡아 준다.
+/* 10-06 — 「분해 / 동작」 고르개(§4.9850).
+   ⚠ `.seg.mini label::after` 는 **세로만** 44 로 잡아 준다 — `left:0;right:0` 이라 **가로는 글자네모 그대로**다.
+      옵션 판 안의 알약은 판 폭을 꽉 채워 넓지만, 이 띠는 `flex:none` 이라 한 칸이 27.55px 밖에 안 된다.
+      그래서 **가로도 44 로 따로 넓힌다**(아래 두 줄 · 10-06 관리자). 보이는 알약은 한 픽셀도 안 건드린다.
    ⚠ 폰에서 이 띠는 **흐름 안에 서서 도면을 아래로 민다**(§4.9861). 그래서 띠 높이를 **예전 그대로 38px 에 못 박는다** —
       여백만 줄이면 41 이 되어 밑의 `.params` 가 2.672px 밀리고, 그러면 부속 줄 × 의 **닿는 네모 맨 아랫점이
       손가락 보정에 밀려 아랫줄을 지운다**(재서 잡았다 · §0 의 「작은 과녁 × 지우기」). 이 한 줄을 지우지 마라. */
 .explode:has(>.seg){padding-top:0;padding-bottom:0;min-height:38px}
 .explode>.seg{flex:none}
+/* 닿는 자리를 **가로로도 44px** — 보이는 네모는 그대로 두고 `::after` 만 넓힌다(10-06 관리자).
+   ⚠ **둘이 서로의 손가락을 안 뺏게 갈라 붙인다.** 겹치면 뒤에 오는 「동작」 이 위에 깔려 「분해」 의 오른끝을 먹는다.
+      「분해」 는 **제 오른끝에서 왼쪽으로 44**(밴드·seg 여백 19px 를 먹는다 · 왼끝 2.55),
+      「동작」 은 **틈(2px) 안쪽에서 오른쪽으로 44**(왼끝 47.05 · 오른끝 91.05).
+   ⚠ `-1.5px` 는 틈 2px 에서 **0.5px 를 남긴 값**이다 — 꼭 남겨야 한다.
+      찍는 자리는 **정수**인데 브라우저는 네모 왼끝을 **내림**해서 그 정수를 claim 한다.
+      `-2px` 로 딱 맞붙이면 왼끝이 46.55 라 **정수 46 을 「동작」 이 claim 해 「분해」 알약의 오른끝을 먹는다**(재서 잡았다).
+      0.5 를 남기면 왼끝 47.05 → 46 은 「분해」, 47 은 「동작」 으로 깨끗이 갈린다.
+   ⚠ `.seg.mini` 전역을 건드리지 마라 — 옵션 판 여러 곳이 그 규칙을 쓴다. 이 띠 안의 것만 잡는다.
+   `max(44px,…)` 는 글자가 44 보다 넓어질 때도 알약을 다 덮게 하는 받침이다. */
+.explode .seg.mini label::after{left:auto;right:0;width:max(44px,100%)}
+.explode .seg.mini label+label::after{left:-1.5px;right:auto;width:max(44px,calc(100% + 1.5px))}
 .explode input[type=range]{flex:1;min-width:0}
 .viewtag{position:absolute;left:14px;bottom:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
 .draw{grid-area:draw;display:flex;flex-direction:column;min-height:440px}

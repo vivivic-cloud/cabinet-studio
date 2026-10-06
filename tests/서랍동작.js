@@ -4,7 +4,8 @@
    열려있는 모습으로 가는 동작 입니다. -이때 서랍설정 옵션의 레일길이와 연동되어 서랍의 시작점 부터
    설정된 레일길이 만큼만 동작하는것이 핵심 입니다.**」
 
-     ① 고르개가 미닫이 옆에 있다 — 기본 「분해」 · 닿는 자리 44px · 폰 375 에서 보이고 넘침 0
+     ① 고르개가 미닫이 옆에 있다 — 기본 「분해」 · 닿는 자리 **가로·세로 둘 다 44px 이상**(점으로 찍어 잰다)
+        · 둘이 서로의 알약을 안 먹는다 · 밀대 네모 그대로 · 폰 375 에서 보이고 넘침 0
      ② **열린 거리 = 그 모델의 레일길이**(말씀의 핵심 · 1순위) — 250 · 400 · 550 에서 딱 그 값
      ③ **제일 아래 칸부터 하나씩** 열리고 끝에서 **다 열려 있다**
      ④ 마이다와 서랍이 **붙어서** 같이 나온다 (상대 자리 불변) · 앞(+Z)으로만 간다
@@ -92,17 +93,34 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 모델값 = () => p.evaluate(() => { const m = window.__probe.model();
     return { 레일:m.레일길이, 칸:m.서랍칸수 }; });
 
-  console.log('① 고르개 — 미닫이 옆 · 기본 「분해」 · 닿는 자리 44px · 폰에서 보인다');
+  console.log('① 고르개 — 미닫이 옆 · 기본 「분해」 · 닿는 자리 **가로도** 44px · 폰에서 보인다');
+  /* ⚠ `::after` 의 `height` 만 보면 안 된다 — 그것은 **세로**다. `left:0;right:0` 이면 **가로는 글자네모 그대로**(27.55)라
+        10-06 에 관리자가 「가로가 17px 모자란다」 고 돌려보냈다(§4.9850-닿는자리).
+        그래서 **점으로 찍어** 가로·세로를 같이 재고, **둘이 서로의 알약을 안 먹는지**까지 못 박는다. */
   맞나('고르개 자리·크기·닿는 자리·기본값', await p.evaluate(() => {
     const seg = document.querySelector('.explode .seg'); if (!seg) return null;
     const labs = [...seg.querySelectorAll('label')];
     const 보임 = el => { let n = el; while (n){ if (getComputedStyle(n).display === 'none') return false; n = n.parentElement; } return true; };
+    const y = Math.round(labs[0].getBoundingClientRect().top + labs[0].getBoundingClientRect().height / 2);
+    const 제것 = (el, x, yy) => { const h = document.elementFromPoint(x, yy); return !!h && el.contains(h); };
+    const 찍기 = el => {                                   // 조상은 안 센다 — 제것(또는 그 속)일 때만
+      const q = el.getBoundingClientRect();
+      const cx = Math.round(q.left + q.width / 2), cy = Math.round(q.top + q.height / 2);
+      const 가 = (dx, dy) => { let n = 0; while (n < 300){ const x = cx + dx*(n+1), yy = cy + dy*(n+1);
+        if (x < 0 || yy < 0 || x >= innerWidth || yy >= innerHeight) break; if (!제것(el, x, yy)) break; n++; } return n; };
+      return [가(-1,0) + 가(1,0) + 1, 가(0,-1) + 가(0,1) + 1]; };
+    const 알약밖 = el => { const q = el.getBoundingClientRect(); const 밖 = [];   // 제 알약 안인데 남이 가져간 점
+      for (let x = Math.ceil(q.left); x <= Math.floor(q.right); x++) if (!제것(el, x, y)) 밖.push(x); return 밖; };
+    const sl = document.querySelector('#explode'), sq = sl.getBoundingClientRect();
     return { 글: labs.map(l => l.textContent.trim()),
       닿음: labs.map(l => getComputedStyle(l, '::after').height),
+      닿는: labs.map(찍기), 제알약밖: labs.map(알약밖),
+      밀대: [Math.round(sq.left*100)/100, Math.round(sq.width*100)/100],
       켜진것: (seg.querySelector('input:checked') || {}).value,
       미닫이옆: !!document.querySelector('.explode #explode'),
       보이나: 보임(seg), 넘침: document.documentElement.scrollWidth }; }),
-    { 글:['분해','동작'], 닿음:['44px','44px'], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
+    { 글:['분해','동작'], 닿음:['44px','44px'], 닿는:[[45,45],[45,45]], 제알약밖:[[],[]],
+      밀대:[90.09, 265.91], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
 
   await 품목('서랍장');
   await 두기({ W:800, D:400, H:1800, doors:4, backMode:'cover', doorMode:'out' });
