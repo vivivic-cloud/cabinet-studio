@@ -2066,8 +2066,9 @@ function 부속쪽SVG(행들, m){
       v = by + bh - c; if (v >= bx && v <= bx+bw) pts.push([v, by+bh]);
       if (pts.length >= 2) 선(pts[0][0], pts[0][1], pts[1][0], pts[1][1], 'ln2');
     } };
-  const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
-    o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
+  // 글자 클래스를 받는다 — 홈 가공도 안에서는 치수를 한 단 크게 적는다(10-06 사장님 말씀). 기본은 예전 그대로다.
+  const 세로치수 = (ay,by,x,str,cls) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
+    o.push(`<text class="${cls || 't3'}" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
   // 머리글에 이 쪽에 든 부속 이름을 적는다 — 훑어 내리다 눈에 걸려야 한다.
   글(줄여서(`부속 도면 — ${행들.map(r => r.name).join(' · ')}`, 6, x1 - x0), x0, M+2, 't2', 'start');
   글('재단 치수 mm · 가로 = 결 길이 · 세로 = 결 폭', x1, M+9, 't4', 'end');
@@ -2078,16 +2079,27 @@ function 부속쪽SVG(행들, m){
     if (i) 선(x0, ty, x1, ty, 'ln2');
     const ix = x1 - A4.정보;                                  // 정보 칸 왼쪽 끝
     const dx = x0 + 13, dy = ty + 6;                          // 왼쪽 13 은 세로 치수 자리
-    // 홈 파는 부속은 칸 아래쪽을 홈 가공도에 내준다 — 그 부속 정보가 있는 자리에 그 부속 홈이 붙는다.
-    // 홈 가공도 배율은 칸 너비가 정한다. 그러니 그만큼만 자리를 떼고 나머지는 겉면 그림에 준다.
+    // 홈 파는 부속의 가공도는 **정보 칸 아래 오른쪽 여백**에 붙는다(10-06 · 아래 `배`).
+    // 그래서 겉면 그림은 칸 세로를 다 쓴다 — 가공도가 세로를 안 뺏는다.
     const dw = (ix - 10) - dx;
     const 보임 = 규칙.우라홈 + 8;                              // 뒤 끝에서 이만큼만 잘라 본다
-    const 배 = (r.홈 && m.홈) ? Math.min(dw*0.95 / 보임, 12) : 0;
-    const 홈칸 = (r.홈 && m.홈) ? Math.min((칸높 - 20)*0.72, r.T*배 + 30.5) : 0;
-    const dh = 칸높 - 6 - 14 - 홈칸;                           // 아래 14 는 가로 치수 자리
+    const dh = 칸높 - 6 - 14;                                 // 아래 14 는 가로 치수 자리
     // 겉면과 두께(측면)를 나란히 놓는다. 두 개가 같은 배율로 들어가게 배율을 잡는다.
     const k = Math.min((dw - 1.5) / (r.L + r.T), dh / r.W);
     const w = r.L*k, h = r.W*k, tw = r.T*k;
+    /* 10-06 사장님 말씀 — 「**2d 도면의 가공정보 도면이 너무 큽니다. 각 부속의 우측 여백에 도면에 표현된
+       부속의 크기에 맞춰 배치**해주고 사이즈표기 텍스트는 지금보다 크게 표기해 주세요」.
+       ⚠ 배율을 **한 값으로 박지 않는다** — 그 부속 그림의 크기를 따라간다(아래 `√(w·h)`).
+          그래서 큰 부속은 크게 · 작은 부속은 작게 그려진다. 전에는 어느 부속에서나 **5.6배** 하나였다.
+       ⚠ 세로(`홈칸`)를 더는 안 뺏는다 — 가공도가 정보 칸 아래로 갔기 때문이다. */
+    const 오른칸 = A4.정보 - 8;                                // 정보 칸 속폭 — 세로 치수 자리를 뺀 것
+    /* ⚠ 홈 폭이 우라홈보다 크면 홈 뒤쪽 벽이 **부속 뒤끝 밖으로** 나간다(§4.9894 의 그 ⚠ · 뒷판 9T 부터).
+       그 길이까지 자리를 잡아야 그림이 A4 밖으로 안 나간다 — 25T 에서 **192점**이 밖으로 나갔다(재서 잡았다). */
+    const 넘 = m.홈 ? Math.max(0, m.홈.폭 - 규칙.우라홈) : 0;
+    // ⚠ 부속 그림의 **가로만** 보면 안 된다 — 가로는 칸 폭에 걸려 어느 부속이나 비슷해 배율이 한 값으로 굳는다.
+    //    가로·세로를 같이 본 크기(`√(w·h)`)라야 부속을 따라간다(측판 2.5 · 상판 3.4 · 큰 장 3.0 · 25T 1.2 …).
+    const 배 = (r.홈 && m.홈)
+      ? Math.min(오른칸 / (보임 + 넘), Math.sqrt(w * h) * 0.9 / (보임 + 넘), 6) : 0;
     const fx = dx + (dw - (w + 1.5 + tw))/2, fy = dy + (dh - h)/2;
     o.push(`<rect class="ln" x="${n2(fx)}" y="${n2(fy)}" width="${n2(w)}" height="${n2(h)}"/>`);
     o.push(`<rect class="ln" x="${n2(fx+w+1.5)}" y="${n2(fy)}" width="${n2(tw)}" height="${n2(h)}"/>`);
@@ -2128,19 +2140,18 @@ function 부속쪽SVG(행들, m){
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
-    // ── 이 부속의 홈 가공도 (끼우기에서 홈 파는 부속만) ──────────────
-    if (홈칸){
-      // 치수가 제자리에 들어갈 만큼 키운다 — 캐드에서 좁은 자리를 재는 법은 상세도를 키우는 것이다.
-      // 위 22 는 이름표·치수선·숫자 자리, 아래 8.5 는 앞·뒤 글자 자리다.
+    // ── 이 부속의 홈 가공도 — **정보 칸 아래, 그 부속의 우측 여백** (10-06 사장님 말씀) ──
+    if (배 > 0){
       const sw = 보임*배, st = r.T*배;
-      const sx = dx, sy = ty + 칸높 - 8.5 - st;
+      // 정보 줄 마지막 밑에서 시작한다 — 줄 수가 결·홈 유무로 달라지므로 재서 잡는다.
+      const sx = ix + 6, sy = (ty + 17 + (줄.length - 1)*7.2) + 27;
       const gx = sx + sw - 규칙.우라홈*배, gw = m.홈.폭*배, gd = m.홈.깊이*배;
       // 홈 파인 면이 위, 뒤 끝이 오른쪽이다
       선(sx, sy+st, sx+sw, sy+st, 'ln'); 선(sx, sy, sx, sy+st, 'ln'); 선(sx+sw, sy, sx+sw, sy+st, 'ln');
       선(sx, sy, gx, sy, 'ln'); 선(gx+gw, sy, sx+sw, sy, 'ln');
       선(gx, sy, gx, sy+gd, 'ln'); 선(gx, sy+gd, gx+gw, sy+gd, 'ln'); 선(gx+gw, sy+gd, gx+gw, sy, 'ln');
       빗금(sx, sy, gx-sx, st); 빗금(gx, sy+gd, gw, st-gd); 빗금(gx+gw, sy, sx+sw-(gx+gw), st);
-      글('앞', sx + 3, sy + st + 3.2, 't5'); 글('뒤', sx + sw - 3, sy + st + 3.2, 't5');
+      글('앞', sx + 3, sy + st + 3.4, 't4'); 글('뒤', sx + sw - 3, sy + st + 3.4, 't4');
       // 홈 치수는 그림에 치수선으로 찍는다 — 1쪽 홈 가공도에서 쓰던 방법 그대로다.
       // 홈이 3.5mm 라 숫자가 제 치수선보다 넓다. 그래서 치수선은 글자 없이 긋고,
       // 숫자는 가리키는 곳에서 지시선을 빼어 옆에 적는다.
@@ -2150,8 +2161,8 @@ function 부속쪽SVG(행들, m){
       const 치수선 = (ax, bx, yy, str) => {
         선(ax, yy, ax, yy + 2.6, 'dim'); 선(bx, yy, bx, yy + 2.6, 'dim');
         선(ax, yy, bx, yy, 'dim'); 자국(ax, yy); 자국(bx, yy);
-        if (글자폭(str, 5.2) + 1.5 <= bx - ax) 글(str, (ax + bx)/2, yy - 3.2, 't3');
-        else { 선(ax - 3.2, yy, ax, yy, 'dim'); 글(str, ax - 4, yy, 't3', 'end'); }
+        if (글자폭(str, 6.3) + 1.5 <= bx - ax) 글(str, (ax + bx)/2, yy - 3.4, 't2');
+        else { 선(ax - 3.2, yy, ax, yy, 'dim'); 글(str, ax - 4, yy, 't2', 'end'); }
       };
       const dyy = sy - 3.6;
       치수선(gx, gx + gw, dyy, fmt(m.홈.폭));               // 홈 폭
@@ -2159,9 +2170,10 @@ function 부속쪽SVG(행들, m){
       const vx = gx + gw + 2.4;                             // 깊이 — 홈 옆 살 안에 세로로
       선(vx, sy, vx, sy + gd, 'dim'); 자국(vx, sy); 자국(vx, sy + gd);
       선(gx + gw, sy + gd, vx + 1.2, sy + gd, 'dim');
-      o.push(`<text class="t3" x="${n2(vx - 1.6)}" y="${n2(sy + gd/2)}" text-anchor="middle" transform="rotate(-90 ${n2(vx - 1.6)} ${n2(sy + gd/2)})">${esc(fmt(m.홈.깊이))}</text>`);
-      글(`홈 가공도 ${배.toFixed(1)}배 · ${r.name} ${홈면[r.name] || ''}`, sx, sy - 13, 't5', 'start');
-      세로치수(sy, sy + st, sx - 4.5, fmt(r.T));
+      o.push(`<text class="t2" x="${n2(vx - 1.8)}" y="${n2(sy + gd/2)}" text-anchor="middle" transform="rotate(-90 ${n2(vx - 1.8)} ${n2(sy + gd/2)})">${esc(fmt(m.홈.깊이))}</text>`);
+      // ⚠ 자를 때는 **폰 글자 크기(4.8px)** 로 재라 — 2.9 로 재면 375 에서 이름표가 쪽 밖으로 잘린다(재서 잡았다).
+      글(줄여서(`${r.name} ${홈면[r.name] || ''} 홈 ${배.toFixed(1)}배`, 5.2, x1 - ix), ix, sy - 13, 't4', 'start');
+      세로치수(sy, sy + st, sx - 4.5, fmt(r.T), 't2');
     }
   });
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
