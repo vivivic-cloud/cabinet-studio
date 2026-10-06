@@ -572,6 +572,19 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
       (잰 값: 깎으면 141,345 → 125,625px² 로 준다). 그래서 3D 칸 줄을 `auto` 로 바꾸고 캔버스에 높이를 박았다.
    ⚠ 2D 는 줄을 안 건드렸다 — 쪽이 **폭에 걸려 있어**(375×530) 세로에 여유가 있다. 띠가 그 여유에서 난다.
    ⚠ 넓은 화면(≥1101px)은 한 줄도 안 바뀐다 — 거기는 안 가린다. */
+/* 고른 부속의 정보 칸 — 3D 칸 **오른쪽 여백**에 늘 자리 잡고 앉아 있다(10-06 사장님 말씀 「팝업이 아닙니다」).
+   `.hud` 와 같은 길이다 — `position:absolute` 라 **캔버스를 한 픽셀도 안 뺏는다**.
+   아무것도 안 고르면 접는다(§0 — 적을 것이 없는 칸을 띄우지 않는다). */
+.pinfo{position:absolute;right:14px;top:134px;max-height:calc(100% - 196px);width:min(26%,240px);
+  display:flex;flex-direction:column;gap:2px;overflow:auto;z-index:4;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;
+  box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.pinfo[hidden]{display:none}
+.pinfo .pititle{font-size:14px;font-weight:700;color:var(--head);padding-bottom:4px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.pinfo .pirow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px;font-size:12px}
+.pinfo .pirow span{color:var(--ink3)}
+.pinfo .pirow b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+
 @media screen and (max-width:1100px){
   /* ⚠ 띠를 도면 위로 올리면 도면이 그만큼 아래로 밀린다 — 폰을 열자마자 도면이 한 점도 안 보였다
      (잰 값 375×812: 도면 y 918 · 첫 화면 0px). 그래서 **입력칸 묶음을 도면 아래로** 내린다.
@@ -582,6 +595,16 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .view3d{display:flex;flex-direction:column;gap:8px;min-height:0;padding-bottom:8px}
   .view3d canvas{position:relative;inset:auto;flex:none;width:100%;height:60vh;min-height:380px;order:2}
   .app.집중 .view3d canvas{height:84vh}
+  /* 폰에는 오른쪽 여백이 없다 — 흐름 안으로 들여 **캔버스 바로 위**(띠 묶음 끝)에 둔다(10-06).
+     ⚠ 캔버스 **아래**로 두었다가 되돌렸다 — 고른 칸이 y 1005 로 **첫 화면 밖**에 떨어져 안 보였다.
+        사장님은 아이폰으로만 쓰신다. 폰에서 못 보면 안 한 것이다.
+     접혀 있을 때는 높이가 0 이라 평소 짜임이 한 픽셀도 안 바뀐다.
+     줄은 **가로로 눕힌다** — 세로로 쌓으면 133px 이 되어 도면을 그만큼 밀어낸다. */
+  .pinfo{position:static;right:auto;top:auto;width:auto;max-height:none;order:1;margin:0;
+    flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:2px;
+    padding:4px 0;border-left:0;border-right:0;border-radius:0;box-shadow:none}
+  .pinfo .pititle{border-bottom:0;margin:0;padding:0;font-size:13px}
+  .pinfo .pirow{justify-content:flex-start;gap:4px}
   .view3d>.dims,.view3d>.hud,.view3d>.explode,.draw>.dims{
     position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0;order:1}
   .draw>.dims{margin-bottom:8px}  /* 틈은 margin 으로 — 띠 **크기**가 두 모드에서 같아야 한다(§4.9888) */
@@ -708,6 +731,7 @@ dialog.phone[open]{display:flex;flex-direction:column}
       <div class="seg mini" role="group" aria-label="분해·동작"><label><input type="radio" name="분해모드" value="분해" checked>분해</label><label><input type="radio" name="분해모드" value="동작">동작</label></div>
       <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해·동작 정도">
     </div>
+    <aside class="pinfo" id="partInfo" aria-label="고른 부속" hidden></aside>
   </main>
 
   <section class="draw" aria-label="2D 도면">
@@ -2050,6 +2074,18 @@ function 부속행들(m){
   return [...map.values()].sort((a, b) => 순(a.name) - 순(b.name));
 }
 
+/* 부속 정보 줄 — 2D 부속 쪽의 정보 칸이 적는 그 줄들이다.
+   10-06 사장님 말씀(「3d도면 상태에서 부속 선택시 해당 부속의 2D도면에서 표현된 정보가 3D 도면 우측 여백에」)으로
+   3D 우측칸도 **이 한 자리**를 쓴다. ⚠ 베껴 쓰면 둘이 어긋난다 — 줄을 더하거나 뺄 때 여기만 고친다. */
+function 부속정보줄(r, m){
+  const 줄 = [['수량', r.qty], ['가로', fmt(r.L)], ['세로', fmt(r.W)], ['두께', fmt(r.T)]];
+  if (r.grain) 줄.push(['결', r.grain]);
+  if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(m.홈.뒤살)}`]);
+  // 10-05 — 서랍재는 제 홈 값을 제가 들고 온다(`p.cut.서랍홈`). 재는 끝이 **바닥**이다.
+  if (r.서랍홈) 줄.push(['홈', `${fmt(r.서랍홈.깊이)}×${fmt(r.서랍홈.폭)}`], ['홈 자리', `바닥에서 ${fmt(r.서랍홈.시작)}`]);
+  return 줄;
+}
+
 // 부속 한 쪽 = A4 한 장. 단위는 mm 그대로다(viewBox 0 0 210 297).
 function 부속쪽SVG(행들, m){
   const M = A4.여백, x0 = M, x1 = A4.W - M, o = [];
@@ -2131,12 +2167,8 @@ function 부속쪽SVG(행들, m){
     가로치수(fx, fx+w, fy + h + 4.5, fmt(r.L));
     가로치수(fx+w+1.5, fx+w+1.5+tw, fy + h + 4.5, fmt(r.T));
     세로치수(fy, fy+h, fx - 4.5, fmt(r.W));
-    // 정보 칸 — 사이즈 정보를 글자로도 적는다.
-    const 줄 = [['수량', r.qty], ['가로', fmt(r.L)], ['세로', fmt(r.W)], ['두께', fmt(r.T)]];
-    if (r.grain) 줄.push(['결', r.grain]);
-    if (r.홈 && m.홈) 줄.push(['홈', `${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}`], ['홈 자리', `뒤 끝에서 ${fmt(m.홈.뒤살)}`]);
-    // 10-05 — 서랍재는 제 홈 값을 제가 들고 온다(`p.cut.서랍홈`). 재는 끝이 **바닥**이다.
-    if (r.서랍홈) 줄.push(['홈', `${fmt(r.서랍홈.깊이)}×${fmt(r.서랍홈.폭)}`], ['홈 자리', `바닥에서 ${fmt(r.서랍홈.시작)}`]);
+    // 정보 칸 — 사이즈 정보를 글자로도 적는다. 줄은 `부속정보줄()` 한 자리가 만든다(3D 우측칸도 그것을 쓴다).
+    const 줄 = 부속정보줄(r, m);
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
     줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
@@ -2401,6 +2433,19 @@ function applySel(){
   const key = selPid === null ? null : pidKey[selPid];
   document.querySelectorAll('#bomBody tr').forEach(tr =>          // 부품표
     tr.classList.toggle('on', !!key && tr.dataset.key === key));
+  부속정보갱신(key);                                               // 3D 우측칸
+}
+/* 3D 칸 오른쪽의 「고른 부속」 칸 — 팝업이 아니다(10-06 사장님 말씀). 고른 것이 바뀌면 글만 갈린다.
+   ⚠ 적는 값은 2D 부속 쪽이 적는 그 줄 그대로다 — `부속행들` 과 `부속정보줄` 을 **같이** 쓴다.
+      베끼면 둘이 어긋난다. 열쇠(`이름|L|W|T`)도 부품표가 쓰는 `pidKey` 그대로다.
+   ⚠ 아무것도 안 고르면 **접는다** — 적을 것이 없는 칸을 띄우지 않는다(§0). */
+function 부속정보갱신(key){
+  const el = $('#partInfo'); if (!el) return;
+  const r = (key && 모델) ? 부속행들(모델).find(x => `${x.name}|${x.L}|${x.W}|${x.T}` === key) : null;
+  if (!r){ el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<b class="pititle">${esc(r.name)}</b>` + 부속정보줄(r, 모델)
+    .map(([이름, 값]) => `<div class="pirow"><span>${esc(이름)}</span><b>${esc(String(값))}</b></div>`).join('');
 }
 function select(pid){ selPid = (pid === null || pid === undefined) ? null : Number(pid); applySel(); }
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
