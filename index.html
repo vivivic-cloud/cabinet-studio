@@ -2166,6 +2166,101 @@ function 부속쪽SVG(행들, m){
   });
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
 }
+
+/* ───────── 서랍 조립도 — 마이다 + 서랍 한 벌 (10-06 사장님 말씀) ─────────
+   사장님 말씀: 「**서랍장 품목의 2D 도면에 조립된 서랍(마이다+서랍)에 대한 정보가 포함 되어야 합니다.**」
+   부속 쪽은 **조각 하나하나**(마이다 · 서랍재W · 서랍재D · 서랍바닥)를 따로 보여 준다.
+   여기는 그 조각들이 **붙어 선 한 벌**이다 — 짜 맞춘 폭·깊이·높이와 한 벌에 든 장수.
+
+   ⚠ **치수를 새로 셈하지 않는다** — 선 조각(`m.parts`)을 그대로 감싸서 잰다(§1.5 실제 외경과 같은 길).
+      베껴 쓰면 마이다측판유격(`마이다민`) · 레일 · 깊이줄임 · 바닥꼴을 고칠 때 둘이 어긋난다.
+   ⚠ **조각을 합쳐서 지우는 것이 아니다** — 서랍재는 부속서에 그대로 따로따로 나온다. 이 쪽은 거기에 더하는 것이다.
+   ⚠ **맨 뒤에 한 쪽을 더한다.** 1쪽(메인)은 10-06 에 사장님이 「가공모습을 보여줄 필요 없다」 하고 물리신 자리다(§4.9852).
+      앞 쪽들의 담기(`무게합`·물려주기)를 한 톨도 건드리지 않으므로 **기존 쪽은 그대로다.** */
+function 서랍조립값(m){
+  const 문 = n => 본이름(n) === '문짝';
+  const 한벌 = m.parts.filter(p => p.서랍번호 === 0);          // 맨 아래 한 벌이 본이다 — 칸 높이가 다 같다
+  const 재 = 한벌.filter(p => !문(p.name));
+  if (!재.length) return null;                                 // 서랍재가 안 서면 적을 조립이 없다
+  const 네모 = 목 => ({
+    W:+(Math.max(...목.map(p => p.x + p.w)) - Math.min(...목.map(p => p.x))).toFixed(3),
+    D:+(Math.max(...목.map(p => p.y + p.d)) - Math.min(...목.map(p => p.y))).toFixed(3),
+    H:+(Math.max(...목.map(p => p.z + p.h)) - Math.min(...목.map(p => p.z))).toFixed(3),
+    x:Math.min(...목.map(p => p.x)), y:Math.min(...목.map(p => p.y)), z:Math.min(...목.map(p => p.z)) });
+  // 한 벌에 든 장수 — 부속서의 **온 수량**(벌 수를 곱한 것)과 다른 새 값이다.
+  const 목록 = [];
+  한벌.forEach(p => {
+    const r = 목록.find(q => q.name === p.name && q.L === p.cut.L && q.W === p.cut.W && q.T === p.cut.T);
+    if (r) r.qty += 1; else 목록.push({ name:p.name, qty:1, L:p.cut.L, W:p.cut.W, T:p.cut.T });
+  });
+  const 순 = n => { const i = 부속차례.indexOf(n); return i < 0 ? 부속차례.length : i; };
+  목록.sort((a, b) => 순(a.name) - 순(b.name));
+  const 벌 = new Set(m.parts.filter(p => p.서랍번호 !== undefined && !문(p.name)).map(p => p.서랍번호)).size;
+  return { 조립:네모(한벌), 서랍:네모(재), 조각:한벌, 목록, 벌, 레일:m.레일길이 };
+}
+
+// 조립도 한 쪽 = A4 한 장. 단위는 부속 쪽과 같이 mm 그대로다(viewBox 0 0 210 297).
+// 그리는 자(선·글·치수)는 부속 쪽 것과 같은 꼴인데 그 함수 안에 갇혀 있어 여기서 다시 적는다 —
+// 밖으로 빼면 이미 나가는 부속 쪽 그림이 흔들린다(§0 — 요청한 것 말고는 손대지 않는다).
+function 서랍조립쪽SVG(z, m){
+  const M = A4.여백, x0 = M, x1 = A4.W - M, o = [];
+  const 선 = (ax,ay,bx,by,c) => o.push(`<line class="${c}" x1="${n2(ax)}" y1="${n2(ay)}" x2="${n2(bx)}" y2="${n2(by)}"/>`);
+  const 글 = (str,x,y,c,a) => o.push(`<text class="${c}" x="${n2(x)}" y="${n2(y)}" text-anchor="${a || 'middle'}">${esc(String(str))}</text>`);
+  // ⚠ `.pg .ln2` 에는 `fill:none` 이 없다 — 네모에 쓰려면 제자리에서 꺼야 까맣게 안 찬다.
+  const 네 = (bx,by,bw,bh,c) => o.push(`<rect class="${c}" x="${n2(bx)}" y="${n2(by)}" width="${n2(bw)}" height="${n2(bh)}" fill="none"/>`);
+  const 가로치수 = (ax,bx,y,str) => { 선(ax,y-2.6,ax,y+1,'dim'); 선(bx,y-2.6,bx,y+1,'dim'); 선(ax,y,bx,y,'dim'); 글(str,(ax+bx)/2,y+3.4,'t3'); };
+  const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
+    o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
+  const 문 = n => 본이름(n) === '문짝';
+  // ⚠ 머리 오른쪽(`x1, M+9`)에는 글을 두지 마라 — 쪽 오른쪽 위의 「크게」 단추가 덮는다(재서 잡았다).
+  //    단위(mm)는 아래 표 머리에 적는다.
+  글('서랍 조립도 — 마이다 + 서랍', x0, M+2, 't2', 'start');
+  선(x0, M+12, x1, M+12, 'ln2');
+  const b = z.조립, 표높 = 76, 틈 = 8;
+  const 위 = M + 18, 아래 = A4.H - 4 - 표높;
+  const 칸x = x0 + 14, 칸w = x1 - 칸x, 칸h = 아래 - 위;        // 왼쪽 14 는 세로 치수 자리
+  // 평면과 정면을 한 배율로 위아래에 놓는다. 아래 16 은 가로 치수 자리, 6 씩은 투상 이름 자리.
+  const k = Math.min(칸w / Math.max(1, b.W), (칸h - 16 - 틈 - 12) / Math.max(1, b.D + b.H));
+  const ox = 칸x, oy = 위 + 6, fy = oy + b.D*k + 틈 + 6;
+  // ── 평면 — 좌우에 서랍재D, 그 사이로 서랍재W 가 전·후. 사장님이 일러 주신 조립방식 그대로 보인다.
+  글('평면', ox, oy - 2.4, 't5', 'start');
+  z.조각.forEach(p => 네(ox + (p.x - b.x)*k, oy + (p.y - b.y)*k, p.w*k, p.d*k,
+                         p.name === '서랍바닥' ? 'ln2' : 'ln'));   // 바닥판은 한 단 아래라 가는 선이다
+  // ⚠ 딱지를 제 네모 **가운데**에 놓지 마라 — 서랍재는 12mm 라 그 자리가 곧 선 위고 글자가 안 읽힌다(재서 잡았다).
+  //    셋을 빈 자리로 흩어 놓는다.
+  const 딱 = (이름, 고름, 자리, a) => { const 목 = z.조각.filter(p => p.name === 이름); if (!목.length) return;
+    const p = 고름(목), [dx, dy] = 자리(p);
+    글(이름, ox + (p.x - b.x)*k + dx, oy + (p.y - b.y)*k + dy, 't5', a); };
+  딱('서랍재D', 목 => 목.reduce((a, c) => a.x <= c.x ? a : c), p => [p.w*k + 1.5, b.D*k*0.45], 'start');  // 왼쪽 것 — 그 옆
+  딱('서랍재W', 목 => 목.reduce((a, c) => a.y <= c.y ? a : c), p => [p.w*k/2, p.d*k + 4]);                // 앞쪽 것 — 그 아래
+  딱('서랍바닥', 목 => 목[0], p => [p.w*k/2, p.d*k*0.72]);                                                // 바닥판 한가운데 아래쪽
+  세로치수(oy, oy + b.D*k, ox - 4.5, fmt(b.D));
+  // ── 정면 — 마이다가 앞을 막고 서랍은 그 뒤에 선다(가는 선).
+  글('정면', ox, fy - 2.4, 't5', 'start');
+  z.조각.forEach(p => 네(ox + (p.x - b.x)*k, fy + ((b.z + b.H) - (p.z + p.h))*k, p.w*k, p.h*k,
+                         문(p.name) ? 'ln' : 'ln2'));
+  const 마 = z.조각.find(p => 문(p.name));
+  if (마) 글(마.name, ox + b.W*k/2, fy + b.H*k/2, 't5');
+  가로치수(ox, ox + b.W*k, fy + b.H*k + 4.5, fmt(b.W));
+  세로치수(fy, fy + b.H*k, ox - 4.5, fmt(b.H));
+  // ── 표 — 왼쪽은 짜 맞춘 치수, 오른쪽은 한 벌에 든 장수.
+  const ty = 아래 + 4;
+  선(x0, 아래, x1, 아래, 'ln2');
+  const 열 = (bx, bw, 제, 줄) => {
+    글(제, bx, ty + 3, 't1', 'start');
+    선(bx, ty + 6, bx + bw, ty + 6, 'ln2');
+    줄.forEach(([이름, 값], j) => { const y = ty + 12 + j*7.2;
+      글(이름, bx, y, 't4', 'start'); 글(값, bx + bw, y, 't2', 'end'); });
+  };
+  const 왼 = [['조립 폭', fmt(b.W)], ['조립 깊이', fmt(b.D)], ['조립 높이', fmt(b.H)],
+              ['서랍 폭', fmt(z.서랍.W)], ['서랍 깊이', fmt(z.서랍.D)], ['서랍 높이', fmt(z.서랍.H)],
+              ['벌 수', z.벌]];
+  if (z.레일) 왼.push(['레일길이', fmt(z.레일)]);
+  const cw = (x1 - x0 - 10) / 2;
+  열(x0, cw, '조립 치수 mm', 왼);
+  열(x1 - cw, cw, '한 벌 부속', z.목록.map(r => [`${r.name} ${r.qty}장`, `${fmt(r.L)} × ${fmt(r.W)} × ${fmt(r.T)}`]));
+  return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
+}
 // 한 쪽에 세 자리. 홈 파는 부속은 홈 가공도까지 들어가므로 한 자리 반을 쓴다 —
 // 그래서 그 부속은 한 쪽에 둘까지만 들어가고 그림이 그만큼 커진다.
 function 부속쪽들(m){
@@ -2185,7 +2280,12 @@ function 부속쪽들(m){
     while (쪽[i-1].length > 1
            && 무게합(쪽[i]) + 무게(쪽[i-1][쪽[i-1].length-1]) <= Math.min(A4.칸수, 무게합(쪽[i-1])))
       쪽[i].unshift(쪽[i-1].pop());
-  return 쪽.map(칸 => ({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) }));   // 이름은 1쪽 차례가 쓴다
+  const 쪽들 = 쪽.map(칸 => ({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) }));   // 이름은 1쪽 차례가 쓴다
+  // 10-06 사장님 말씀 — 조립된 서랍(마이다+서랍) 한 쪽을 **맨 뒤에** 더한다.
+  // 앞 쪽들은 위에서 이미 다 짜였으므로 **한 톨도 안 흔들린다**. 서랍이 없으면 쪽도 없다.
+  const 조립 = 서랍조립값(m);
+  if (조립) 쪽들.push({ svg: 서랍조립쪽SVG(조립, m), 이름들: ['서랍 조립도'] });
+  return 쪽들;
 }
 
 /* ───────── DXF 작성 (R12 / AC1009) ───────── */
