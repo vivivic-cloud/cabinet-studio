@@ -200,6 +200,13 @@ input[type=range]{width:100%;accent-color:var(--head)}
 @media (hover:hover) and (pointer:fine){ .hud .tools{display:none} .mouseonly{display:inline} }
 .explode{position:absolute;right:14px;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:8px 16px;max-width:360px;margin-left:auto}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
+/* 10-06 — 「분해 / 동작」 고르개(§4.9850). 닿는 자리는 `.seg.mini label::after` 가 44px 로 잡아 준다.
+   ⚠ 폰에서 이 띠는 **흐름 안에 서서 도면을 아래로 민다**(§4.9861). 그래서 띠 높이를 **예전 그대로 38px 에 못 박는다** —
+      여백만 줄이면 41 이 되어 밑의 `.params` 가 2.672px 밀리고, 그러면 부속 줄 × 의 **닿는 네모 맨 아랫점이
+      손가락 보정에 밀려 아랫줄을 지운다**(재서 잡았다 · §0 의 「작은 과녁 × 지우기」). 이 한 줄을 지우지 마라. */
+.explode:has(>.seg){padding-top:0;padding-bottom:0;min-height:38px}
+.explode>.seg{flex:none}
+.explode input[type=range]{flex:1;min-width:0}
 .viewtag{position:absolute;left:14px;bottom:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
 .draw{grid-area:draw;display:flex;flex-direction:column;min-height:440px}
 .panelhead{display:flex;align-items:baseline;gap:10px;padding:12px 18px 8px;border-bottom:1px solid var(--line2)}
@@ -668,8 +675,8 @@ dialog.phone[open]{display:flex;flex-direction:column}
       </div>
     </div>
     <div class="explode">
-      <label for="explode">분해도</label>
-      <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해 정도">
+      <div class="seg mini" role="group" aria-label="분해·동작"><label><input type="radio" name="분해모드" value="분해" checked>분해</label><label><input type="radio" name="분해모드" value="동작">동작</label></div>
+      <input id="explode" type="range" min="0" max="100" value="0" aria-label="분해·동작 정도">
     </div>
   </main>
 
@@ -1017,7 +1024,7 @@ function 품목바꾸기(새){
 const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', 밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out',
   /* 10-05 사장님 말씀 — 서랍재 세 가지. 「서랍의 기본 소재의 두께는 **12mm**」 라 셋 다 12 다.
      서랍바닥은 「뒷판과 같은 원리로 **끼우기/덮기**」 — 홈 시작점을 기본값으로 주셨으니 **끼우기가 기본**이다(내가 정했다). */
-  Tsw:12, Tsd:12, Tsb:12, 서랍바닥꼴:'insert', explode:0 };
+  Tsw:12, Tsd:12, Tsb:12, 서랍바닥꼴:'insert', explode:0, 분해모드:'분해' };   // 10-06 — 기본은 「분해」(§4.9850)
 /* 10-02 사장님 말씀: 「**수납장과 서랍장은 다른개념의 제품이므로 동일 외경입력치를 적용받지 않습니다.
    품목변환시 각각의 입력에 맞는 제품도면이 나타나야 합니다.**」
    그래서 `state` 를 **곳간의 여섯째**로 태웠다 — `cabinet-studio.<품목>.상태`.
@@ -1420,6 +1427,9 @@ function buildModel(s){
       // — 사장님 말씀(09-22) 「아웃도어 선택시 도어 자체가 사라진다」 가 이것이다.
       // 그래서 짝 번호로 붙잡는 열쇠를 따로 붙인다(밴드의 단 열쇠와 같은 길).
       parts[parts.length-1].단열쇠 = `${도어명}@짝:${k}`;
+      // 10-06 — 「동작」 이 **아래 칸부터 하나씩** 열려면 번호가 있어야 한다(§4.9850).
+      // `k` 는 아래에서 위로 도는 그 차례라 **0 이 제일 아래 칸**이다. 치수는 한 톨도 안 쓴다.
+      if (세로분할) parts[parts.length-1].서랍번호 = k;
       if (세로분할) 서랍칸.push([z0 + k*(dh+gap), dh]);        // 10-05 — 마이다마다 서랍 하나
     }
   }
@@ -1463,9 +1473,10 @@ function buildModel(s){
        ⚠ **보이는 것만의 이야기다.** `dir` 은 분해도와 측판 홈 면 가르기에만 쓰이고
        부속서·부품표·재단은 한 글자도 안 본다 — **서랍재는 부속서에 그대로 따로따로 나온다**(관리자가 못 박았다). */
     const 안흩어짐 = 왼덩이;          // 마이다와 **같은 값** — 그래서 한 덩어리로 같이 나간다
-    if (서랍폭 > 0 && 서랍깊 > 0 && 서랍폭 - 2*Tsd > 0 && 서랍깊 - 2*Tsw > 0) 서랍칸.forEach(([mz, mh]) => {
+    if (서랍폭 > 0 && 서랍깊 > 0 && 서랍폭 - 2*Tsd > 0 && 서랍깊 - 2*Tsw > 0) 서랍칸.forEach(([mz, mh], 칸번째) => {
       const 서랍키 = mh - 위틈 - 아래틈;
       if (!(서랍키 > 0)) return;
+      const 처음조각 = parts.length;                     // 10-06 — 이 칸의 서랍재에 같은 번호를 붙일 자리
       const z0 = mz + 아래틈;                           // 마이다 하부 끝에서 올라간 지점
       // 좌우 — 서랍재D 두 장. 길이가 서랍의 앞뒤(폭)를 결정한다.
       add('서랍재D', sx,                 sy, z0, Tsd, 서랍깊, 서랍키, 안흩어짐, 재컷(서랍깊, 서랍키, Tsd));
@@ -1487,6 +1498,9 @@ function buildModel(s){
         add('서랍바닥', sx + 물, sy + 물, z0 - Tsb, 서랍폭 - 2*물, 서랍깊 - 2*물, Tsb, 안흩어짐,
             {L:서랍폭 - 2*물, W:서랍깊 - 2*물, T:Tsb, grain:'가로'});
       }
+      // 10-06 — 이 칸에서 선 서랍재에 **그 마이다와 같은 번호**를 붙인다(§4.9850).
+      // 번호가 같아야 「동작」 에서 마이다와 서랍이 **붙어서 같이** 나온다.
+      for (let i = 처음조각; i < parts.length; i++) parts[i].서랍번호 = 칸번째;
     });
   }
   // 만든 부속 가운데 사장님이 자리를 일러 주신 것 — 「밴드」 (09-16 고쳐 주신 규칙).
@@ -1594,7 +1608,12 @@ function buildModel(s){
   외경.같나 = Math.abs(외경.W - W) < 0.001 && Math.abs(외경.D - D) < 0.001 && Math.abs(외경.H - H) < 0.001;
   return { parts: 산것, pitch, CD, bz, 커버, 밴드키, sideH, 측아랫끝, innerH, innerW: 안폭, 안왼, 안오, 상판밑, 측밈, 측깊들, 측깊, 이동단, 문수,
            앞으로, 홈, 밴드넘침, 넘침들, 밴드바닥, 밴드천장, 밴드높, 걸림자리, 외경,
-           선반깊이 };   // 10-06 — 「측판의 실제 사용깊이」. 레일 고르개가 이 값을 본다(§4.9851)
+           선반깊이,     // 10-06 — 「측판의 실제 사용깊이」. 레일 고르개가 이 값을 본다(§4.9851)
+           /* 10-06 사장님 말씀 — 「**서랍설정 옵션의 레일길이와 연동되어 서랍의 시작점 부터 설정된
+              레일길이 만큼만 동작하는것이 핵심**」. 그래서 「동작」 이 **이 한 값**만 보고 연다(§4.9850).
+              고르개와 **같은 자**(`레일맞춤`)를 쓴다 — 깊이가 줄어 못 쓰게 된 레일은 들어가는 가장 긴 것이 된다. */
+           레일길이: 서랍칸.length ? 레일맞춤(선반깊이, 규칙.레일길이) : 0,
+           서랍칸수: 서랍칸.length };
 }
 
 /* ───────── 2D 도면: 프리미티브 생성 (SVG·DXF 공용) ───────── */
@@ -2267,6 +2286,13 @@ function setTool(t){
 /* 분해도에서는 조각이 `dir × e` 만큼 흩어진다(§4.9854) — 「전체」 가 그만큼을 같이 세야 다 담는다.
    `e` 식은 `applyExplode()` 것을 그대로 쓴다. **분해 0 이면 0 이라 고치기 전 값과 한 톨도 같다.** */
 const 분해늘음 = () => {
+  /* 10-06 — 「동작」 에서는 서랍이 **레일길이만큼 앞으로** 나온다(§4.9850). 「전체」 가 그만큼을 안 세면
+     10-05 에 관리자가 짚은 그 탈(분해 뒤 「전체」 가 그림을 자른다)이 그대로 되살아난다.
+     **내가 판단으로 더 한 것이다** — 되돌리면 이 세 줄이고, 그때 동작 100% 에서 서랍 앞쪽이 잘린다. */
+  if (state.분해모드 === '동작'){
+    const 레일 = (모델 && Number.isFinite(모델.레일길이)) ? 모델.레일길이 : 0;
+    return state.explode && 레일 ? 레일 * 2 : 0;
+  }
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
   if (!e || !group) return 0;
   let 큰 = 0;
@@ -2651,7 +2677,8 @@ function rebuild3D(m){
     const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
-      baseMat:base, pid:p.pid, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}` };   // 부속 번호와 부품표 열쇠
+      baseMat:base, pid:p.pid, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`,
+      서랍번호:p.서랍번호 };   // 부속 번호와 부품표 열쇠 · 10-06 「동작」 이 보는 서랍 번호(없으면 undefined)
     group.add(mesh);
   });
   applyExplode();
@@ -2661,7 +2688,23 @@ function rebuild3D(m){
   // 다시 맞추고 싶으시면 도구줄의 「전체」 나 Shift+Z 를 쓰시면 된다.
   if (첫판){ zoomExtents(); 첫판 = false; }
 }
+/* 10-06 사장님 말씀 — 「**분해조절에 분해/동작 두가지**를 두어 동작선택후 볼륨 조절시 제품이 동작하는 화면이
+   나오도록 … 서랍장에서의 동작은 서랍(마이다+서랍)이 **제일 아래칸 부터 하나씩** 나중에는 모든 서랍이
+   열려있는 모습으로 … **레일길이와 연동되어 서랍의 시작점 부터 설정된 레일길이 만큼만** 동작하는것이 핵심」(§4.9850).
+   ⚠ **열린 길이 = 그 모델의 레일길이.** 그 이상 못 나온다 — 이 한 가지가 말씀의 핵심이다.
+   ⚠ **앞은 three 의 +Z 다** — `base[2] = D/2 − (p.y + p.d/2)` 라 모델 y 가 작을수록(앞일수록) z 가 크다.
+      분해에서 덩어리가 가는 **왼쪽(−X)이 아니다**(재서 확인했다). */
+const 칸열림 = (v, n, i) => Math.max(0, Math.min(1, v*n - i));   // 아래(i=0)부터 차례로 · v=1 이면 다 1
 function applyExplode(){
+  if (state.분해모드 === '동작'){
+    // 서랍이 없는 품목(수납장)·레일이 하나도 안 들어가는 얕은 장에서는 **아무것도 안 움직인다** — 닫힌 모습 그대로다.
+    const 레일 = (모델 && Number.isFinite(모델.레일길이)) ? 모델.레일길이 : 0;
+    const n = (모델 && 모델.서랍칸수) || 0;
+    group.children.forEach(c => { const {base, 서랍번호} = c.userData;
+      const 나옴 = (n && 레일 && 서랍번호 !== undefined) ? 레일 * 칸열림(state.explode, n, 서랍번호) : 0;
+      c.position.set(base[0], base[1], base[2] + 나옴); });   // 몸통은 `나옴` 이 0 이라 한 톨도 안 움직인다
+    그리자(); return;
+  }
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
   group.children.forEach(c => { const {base,dir} = c.userData; c.position.set(base[0]+dir[0]*e, base[1]+dir[1]*e, base[2]+dir[2]*e); });
   그리자();
@@ -2923,6 +2966,10 @@ document.addEventListener('change', e => {
   }
 });
 $('#explode').addEventListener('input', e => { state.explode = e.target.value/100; applyExplode(); });
+/* 10-06 — 「분해 / 동작」. **모델을 다시 세우지 않는다** — 보는 것만 바뀌므로 `applyExplode()` 하나면 된다.
+   그래서 치수·부속서·부품표·DXF·SVG 가 한 글자도 안 바뀐다(10-05 분해도 때와 같은 자리다). */
+document.querySelectorAll('input[name=분해모드]').forEach(r =>
+  r.addEventListener('change', e => { if (e.target.checked){ state.분해모드 = e.target.value; applyExplode(); } }));
 document.querySelectorAll('.views button').forEach(b => b.addEventListener('click', () => { const [t,p] = VIEWS[b.dataset.view]; cam.tTheta = t; cam.tPhi = p; zoomExtents(); setPressed(b.dataset.view); }));
 
 /* ───────── 도면 위 조절 칸을 조용히 숨긴다 ─────────
@@ -3505,6 +3552,10 @@ const 두께값 = [12,15,18,23,24,25,28,55];
 const 레일값 = [250, 300, 350, 400, 450, 500, 550];
 const 레일깊이 = () => (모델 && Number.isFinite(모델.선반깊이)) ? 모델.선반깊이 : 0;
 const 고를레일 = () => 레일값.filter(v => v <= 레일깊이() + 1e-9);
+/* 10-06 — 「동작」(서랍 열림 · §4.9850)이 **이 자를 그대로** 써야 해서 깊이를 받는 꼴로 갈라 두었다.
+   `buildModel` 은 제 안에 `선반깊이` 가 있으므로 `모델` 을 안 보고 이것을 부른다 — 베끼면 둘이 어긋난다. */
+const 레일맞춤 = (깊이, 고른값) => { const 고 = 레일값.filter(v => v <= 깊이 + 1e-9), v = Number(고른값) || 0;
+  return 고.includes(v) ? v : (고.length ? 고[고.length - 1] : 0); };
 const 쓸레일 = () => { const 고 = 고를레일(), v = Number(규칙.레일길이) || 0;
   return 고.includes(v) ? v : (고.length ? 고[고.length - 1] : 0); };   // 0 = 안 고름 · 안 들어가면 가장 긴 것
 const 레일칸 = () => {

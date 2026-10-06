@@ -122,15 +122,45 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         /* 탭마다 자리를 다시 잰다 — 지운 줄이 사라지면 아래 줄이 올라온다.
            ⚠ 10-04 부터 폰에서는 설정 칸이 도면 **아래**라 줄이 첫 화면 밖이다(§4.98617) —
               **먼저 굴려 넣어야** 손가락이 그 줄에 떨어진다(안 굴리면 아무 줄도 안 지워진다). */
-        const z = await p.evaluate(v => {
+        /* ⚠ **굴리기와 재기를 갈라 둔다** — 한 `evaluate` 안에서 굴리고 바로 재면 굴림이 아직 앉지 않아
+           잰 자리가 1px 어긋난다. 닿는 네모 27px 이 빈틈없이 맞붙어 있어 그 1px 이 **옆 줄로 넘어간다**
+           (10-06 에 띠가 3px 높아져 자리가 소수(.172)가 되면서 드러났다. 보는 규칙은 한 자도 안 바뀌었다). */
+        const 있나 = await p.evaluate(v => {
+          const r = [...document.querySelectorAll('#boardBox .field[data-home]')]
+            .filter(q => q.style.display !== 'none').find(q => q.dataset.part === v);
+          if (!r) return false;
+          r.scrollIntoView({ block:'center' }); return true; }, 부속);
+        await 잠(200);
+        const 재기 = () => p.evaluate(v => {
           const r = [...document.querySelectorAll('#boardBox .field[data-home]')]
             .filter(q => q.style.display !== 'none').find(q => q.dataset.part === v.부속);
           if (!r) return null;
-          r.scrollIntoView({ block:'center' });
           const x = r.querySelector('.x'), a = getComputedStyle(x, '::after'), b2 = x.getBoundingClientRect();
           const h = parseFloat(a.height), cx = b2.left + b2.width/2, cy = b2.top + b2.height/2;
-          return { x:cx, y: v.어디 === '위' ? cy - h/2 + 1 : v.어디 === '아래' ? cy + h/2 - 1 : cy }; }, { 부속, 어디 });
+          if (v.어디 === '가운데') return { x:cx, y:cy, 바깥:true };
+          /* ⚠ **재서 고른다 — 셈하지 않는다**(§4.55 와 같은 길). `::after` 는 `translateY(-50%)` 라
+             그려지는 네모가 **정수 픽셀로 스냅된다** — 잰 끝(549.17)이 진짜 끝이 아니다.
+             그래서 끝에서 한 픽셀씩 되짚어 **그 줄이 실제로 받는 가장 바깥 점**을 찾는다.
+             `바깥` 은 그 점이 **보이는 단추(20px) 밖**이라는 뜻이다 — 그래야 `::after` 가 일하는 증거가 된다. */
+          const 끝 = v.어디 === '아래' ? Math.ceil(cy + h/2) : Math.floor(cy - h/2);
+          for (let k = 0; k < Math.ceil(h/2); k++){
+            const y = v.어디 === '아래' ? 끝 - k - 0.5 : 끝 + k + 0.5;
+            const el = document.elementFromPoint(cx, y);
+            if (el && el.closest('.field[data-home]') === r)
+              return { x:cx, y, 바깥: v.어디 === '아래' ? y > b2.bottom : y < b2.top };
+          }
+          return null; }, { 부속, 어디 });
+        /* ⚠ **자리가 멎을 때까지 기다렸다 집는다.** `되돌()` 의 `update()` 뒤에 3D 칸이 한 프레임 늦게
+           자리를 잡아 `.params` 가 2~3px 밀린다 — 재자마자 집으면 그 사이에 밀려 **옆 줄이 지워진다**
+           (10-06 에 분해도 띠가 3px 높아지며 드러났다. 보는 규칙은 한 자도 안 바뀌었다). */
+        let z = !있나 ? null : await 재기();
+        for (let i = 0; z && i < 8; i++){
+          await 잠(120); const z2 = await 재기();
+          if (z2 && z2.y === z.y) break;
+          z = z2;
+        }
         if (!z){ 결과[부속] = '줄이 없다'; continue; }
+        if (어디 !== '가운데' && !z.바깥) 결과[부속 + '(보이는 단추 밖이 아니다)'] = true;
         await 톡(z.x, z.y);
         const 이름들 = [...new Set((await 지움()).map(k => k.split('@')[0]))];
         결과[부속] = 이름들.join('·');
