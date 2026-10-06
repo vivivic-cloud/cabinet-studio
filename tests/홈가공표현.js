@@ -102,8 +102,10 @@ const 맞나 = (이름, 잰것, 바라는것) => {
   맞나('부속 장수 (끼우기)', await p.evaluate(() => window.__t.build({ backMode:'insert' }).parts.length), 11);
 
   console.log('⑥ 부속 쪽의 홈 가공도는 그대로 남는다  ⑦ 「부품표 BOM」 제목은 쪽 0 그대로다');
+  /* ⚠ 이름표 글이 10-06 에 「홈 가공도 N배 · 측판 안쪽면」 → 「측판 안쪽면 홈 N배」 로 바뀌었다(§4.9848).
+     가공도 자체는 그대로 셋이다 — **자를 옮겨 적은 것**이지 되돌린 것이 아니다. */
   맞나('부속 쪽에 홈 가공도가 있나 (끼우기 · 덮기)', await p.evaluate(() =>
-    ['insert','cover'].map(v => window.__t.쪽들({ backMode:v }).filter(x => /홈 가공도/.test(x.svg)).length)), [3, 0]);
+    ['insert','cover'].map(v => window.__t.쪽들({ backMode:v }).filter(x => /홈 [\d.]+배/.test(x.svg)).length)), [3, 0]);
   /* ⚠ `쪽` 은 **흐르는 값**이다 — 홈 가공도에서 2 로 두고 안 되돌리면
      바로 뒤의 「부품표 BOM」 제목까지 DXF 만으로 샌다(10-06 에 재서 잡았다). */
   맞나('「부품표 BOM」 제목의 쪽 (끼우기 · 덮기)', await p.evaluate(() =>
