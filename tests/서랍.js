@@ -194,14 +194,18 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 펴기('서랍설정');
   맞나('판 — 네 칸(23px · 줄 25px · 0.5) · 결 방향 없음 · 저장/닫기', await p.evaluate(() => {
     const el = document.querySelector('.opt[data-opt="서랍설정"]'); if (!el || el.hidden) return null;
-    return { 칸: [...el.querySelectorAll('.optnum')].map(d => { const i = d.querySelector('input');
-        return [d.querySelector('label').textContent, i.dataset.rule, i.step,
+    /* ⚠ 10-06 「레일길이」(§4.9851)가 들어오며 이 판에 **`select` 줄**이 하나 생겼다 —
+       `querySelector('input')` 만 보면 거기서 널이라 시험이 **터진다**(한 번 그랬다). */
+    return { 칸: [...el.querySelectorAll('.optnum')].map(d => { const i = d.querySelector('input,select');
+        return [d.querySelector('label').textContent, i.dataset.rule, i.step || '',
           Math.round(i.getBoundingClientRect().height), Math.round(d.getBoundingClientRect().height)]; }),
       결: el.querySelectorAll('[data-grainon]').length,
       단추: [...el.querySelectorAll('.optbtns button')].map(x => x.textContent),
       넘침: el.scrollWidth - el.clientWidth }; }),
+    // 10-06 「레일길이」 한 줄이 레일유격과 깊이유격 사이에 들어왔다(§4.9851) — 고르개라 걸음이 없다
     { 칸: [['상부유격','서랍위유격','0.5',23,25], ['하부유격','서랍아래유격','0.5',23,25],
-           ['레일유격','서랍레일','0.5',23,25], ['깊이유격','서랍깊이줄임','0.5',23,25]],
+           ['레일유격','서랍레일','0.5',23,25], ['레일길이','레일길이','',25,25],
+           ['깊이유격','서랍깊이줄임','0.5',23,25]],
       결:0, 단추:['저장','닫기'], 넘침:0 });
 
   console.log('⑤ 값을 바꾸면 서랍과 부속서가 따라간다 (진짜 손가락으로 치고 저장)');
