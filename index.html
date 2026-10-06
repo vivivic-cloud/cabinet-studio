@@ -192,6 +192,13 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .hint{position:absolute;left:14px;bottom:56px;font-size:11px;color:var(--ink3);letter-spacing:.04em;pointer-events:none}
 .view3d canvas.tool-select{cursor:default}.view3d canvas.tool-orbit{cursor:grab}.view3d canvas.tool-pan{cursor:move}.view3d canvas.tool-zoom{cursor:zoom-in}
 .view3d canvas.dragging{cursor:grabbing}
+/* 10-06 「동작」 의 나옴 딱지 — 서랍 옆 틈에 떠서 측판 끝에서 나온 거리를 적는다(§4.9850-나옴).
+   `.view3d` 가 `position:relative` 라 그 안에서 뜬다. 폰 갈래(`position:static`) 목록에 넣지 마라 —
+   흐름에 들어가면 도면을 아래로 민다. */
+.outtag{position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,-50%);
+  padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--surface);
+  font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);white-space:nowrap;
+  box-shadow:0 1px 4px rgba(0,0,0,.14)}
 /* 도구줄(선택·궤도·이동·줌·전체)은 마우스 있는 곳에서는 감춘다 — 사장님 말씀(09-17 「마우스로 다 된다」).
    마우스는 이 단추를 아예 안 본다: 왼쪽 끌기=이동 · 휠 끌기=궤도 · 스크롤=줌 · Shift+Z=전체.
    손가락으로 돌리기·옮기기는 이 단추가 유일한 길이다 — 폰에서는 그대로 둔다.
@@ -665,6 +672,10 @@ dialog.phone[open]{display:flex;flex-direction:column}
 
   <main class="view3d" aria-label="3D 뷰">
     <canvas id="c3d"></canvas>
+    <!-- 10-06 사장님 말씀 — 「동작시 서랍측면에 측판 끝으로 부터 몇mm 나오는지 표기해줘 **제일 하단서랍 1칸에**」.
+         떠 있는 딱지 하나다(`position:absolute`) — **칸 높이를 한 픽셀도 안 뺏는다**(§4.94 의 그 길).
+         `pointer-events:none` 이라 3D 를 짚는 손가락을 안 가로챈다. -->
+    <div class="outtag" id="outTag" hidden></div>
     <!-- 외형 치수 — 3D·2D 칸 위에 떠 있는 띠. 높이를 안 뺏는다 (사장님 말씀 09-28 · 관리자가 정한 길).
          `모드띠맞추기()` 가 보이는 칸으로 옮겨 붙인다. -->
     <div class="dims" id="dimsBar">
@@ -2220,6 +2231,9 @@ function buildDXF(d){
    휠 버튼 드래그 = 궤도, Shift+휠 드래그 = 이동, 스크롤 = 커서 기준 줌
    왼쪽 드래그 = 현재 도구 (선택 Space / 궤도 O / 이동 H / 줌 Z), Shift+Z = 범위 확대 */
 let renderer, scene, camera, group, grid, axes;
+/* 10-06 「동작」 의 나옴 딱지가 붙을 자리(§4.9850-나옴). `rebuild3D` 가 모델에서 한 번 뜬다 —
+   매 프레임 다시 셈하지 않는다. 서랍이 없으면 `null` 이다. */
+let 나옴기준 = null;
 const cam = { theta:0.75, phi:1.15, r:3200, tTheta:0.75, tPhi:1.15, tR:3200,
               tgt:new THREE.Vector3(), tTgt:new THREE.Vector3() };
 const VIEWS = { iso:[0.75,1.15], front:[0,Math.PI/2], side:[Math.PI/2,Math.PI/2], top:[0,0.02], back:[Math.PI,Math.PI/2] };
@@ -2647,6 +2661,7 @@ function init3D(){
     camera.position.set(cam.tgt.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta), cam.tgt.y + cam.r*Math.cos(cam.phi), cam.tgt.z + cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
     camera.lookAt(cam.tgt);
     renderer.render(scene, camera);
+    나옴표맞추기();          // 10-06 — 딱지는 카메라를 따라간다
   })(performance.now());
 }
 /* ───────── 3D 에도 홈을 판다 (10-02 사장님 말씀 — 「3d에는 안보여」) ─────────
@@ -2722,6 +2737,18 @@ function rebuild3D(m){
                       p.경첩 === 'L' ? -1 : 1, p.w] : undefined };
     group.add(mesh);
   });
+  /* 10-06 사장님 말씀 — 「동작시 **서랍측면에** 측판 끝으로 부터 몇mm 나오는지 표기해줘 **제일 하단서랍 1칸에**」.
+     ⚠ 거리를 새로 셈하지 않는다 — **「측판 앞끝」 과 「맨 아래 서랍재D 앞면」 두 자리를 모델에서 그대로 받아**
+        그 차와 `나옴`(= 레일 × 칸열림)으로 낸다. 베끼면 우라홈·도어 방식을 고칠 때 두 자리가 어긋난다(§4.9851 의 그 길).
+     ⚠ 「제일 하단」 은 `서랍번호 === 0` 이다(`서랍칸` 이 아래에서 위로 돌므로 · §4.9850).
+     딱지는 **왼쪽 서랍재D** 옆에 붙는다 — 분해에서 덩어리가 가는 그 쪽이라 가려질 일이 적다. */
+  나옴기준 = null;
+  const 밑서랍 = m.parts.filter(p => p.name === '서랍재D' && p.서랍번호 === 0 && !p.숨김);
+  const 측판하나 = m.parts.find(p => p.name === '측판');
+  if (밑서랍.length && 측판하나){
+    const d = 밑서랍.reduce((a, b) => a.x <= b.x ? a : b);          // 왼쪽 것
+    나옴기준 = { x:d.x + d.w/2 - W/2, y:d.z + d.h/2 - H/2, 앞:d.y, 측앞:측판하나.y, D };
+  }
   applyExplode();
   makeGrid(); makeAxes();
   그리자();                            // 치수를 바꿔 조각이 새로 섰다
@@ -2736,6 +2763,28 @@ function rebuild3D(m){
    ⚠ **앞은 three 의 +Z 다** — `base[2] = D/2 − (p.y + p.d/2)` 라 모델 y 가 작을수록(앞일수록) z 가 크다.
       분해에서 덩어리가 가는 **왼쪽(−X)이 아니다**(재서 확인했다). */
 const 칸열림 = (v, n, i) => Math.max(0, Math.min(1, v*n - i));   // 아래(i=0)부터 차례로 · v=1 이면 다 1
+/* 10-06 사장님 말씀 — 「**동작시 서랍측면에 측판 끝으로 부터 몇mm 나오는지 표기**해줘 제일 하단서랍 1칸에」.
+   그린 **뒤에** 부른다 — 카메라가 움직이면 딱지도 따라가야 한다(그림 고리 안 · §4.11 의 그 ⚠).
+   ⚠ 3D 조각으로 글자를 만들지 않았다 — 돌려도 안 눕고 글꼴이 또렷해야 읽힌다. **떠 있는 딱지**다.
+   ⚠ 자리는 `.view3d` 기준이다 — 폰에서는 캔버스가 띠 밑으로 내려가 둘이 다르다(§4.9861). */
+function 나옴표맞추기(){
+  const el = $('#outTag'); if (!el) return;
+  const t = 나옴기준, m = 모델;
+  if (!t || !m || state.분해모드 !== '동작' || !m.레일길이 || !m.서랍칸수 || !camera){ el.hidden = true; return; }
+  const 나옴 = m.레일길이 * 칸열림(state.explode, m.서랍칸수, 0);
+  const mm = 나옴 - (t.앞 - t.측앞);                 // 측판 앞끝 ~ 서랍재D 앞면 (나온 뒤)
+  if (!(mm > 0.05)){ el.hidden = true; return; }      // 아직 안 나왔으면 적을 것이 없다(§0)
+  const 가운데 = (t.측앞 + (t.앞 - 나옴)) / 2;        // 그 틈의 한가운데 — 치수를 적는 자리
+  const v = new THREE.Vector3(t.x, t.y, t.D/2 - 가운데).project(camera);
+  if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1){ el.hidden = true; return; }   // 화면 밖이면 접는다
+  const cv = $('#c3d'), 칸 = cv && cv.parentElement;
+  if (!cv || !칸) { el.hidden = true; return; }
+  const a = cv.getBoundingClientRect(), b = 칸.getBoundingClientRect();
+  el.textContent = fmt(Math.round(mm * 10) / 10) + 'mm';
+  el.style.left = ((a.left - b.left) + (v.x + 1) / 2 * a.width) + 'px';
+  el.style.top  = ((a.top  - b.top ) + (1 - v.y) / 2 * a.height) + 'px';
+  el.hidden = false;
+}
 /* 10-06 사장님 말씀 — 「수납장 품목의 동작의 경우 양쪽 도어가 열리는 모습을 … **기본 110** 열리는 모습」.
    사장님이 숫자를 글자로 주셨다. 칸을 따로 만들지 않았다 — 고르개로 내려면 한 줄이다(§4.9850-도어). */
 const 도어열림각 = 110;

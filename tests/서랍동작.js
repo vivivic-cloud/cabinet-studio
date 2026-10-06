@@ -12,7 +12,9 @@
      ⑤ **몸통은 한 톨도 안 움직인다**
      ⑥ 「분해」 로 돌리면 예전과 **글자까지 같다** · 미닫이 0 이면 닫혀 있다
      ⑦ **부속서·부품표·DXF 가 한 글자도 안 바뀐다** — 보는 것일 뿐이다
-     ⑧ 수납장에서 「동작」 을 골라도 **안 터지고 아무것도 안 움직인다**
+     ⑧ 수납장에서 「동작」 은 **양쪽 도어가 110도 열리는 모습**이다(10-06 사장님 말씀 · §4.9850-도어)
+        — 그 전에는 「아무것도 안 움직인다」 였다. **되돌린 것이 아니라 말씀만큼 뒤집어 적은 것이다.**
+        몸통은 그대로 안 움직이고, 두 짝이 **좌우 대칭**으로 간다
 
    돌리는 법:  node tests/서랍동작.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -90,6 +92,16 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
                                 +(c.position.z - u.base[2]).toFixed(2)].join(',')); });
     const r = {}; Object.keys(o).sort().forEach(k => r[k] = [...new Set(o[k])]);
     return r; });
+  // 10-06 — 수납장 도어는 **돈다**. 각도와 「몸통만」 을 따로 잰다(§4.9850-도어).
+  const 각도 = () => p.evaluate(() => { const g = window.__probe.grp(); if (!g) return null;
+    return g.children.filter(c => c.userData.경첩)
+      .sort((a, b) => a.userData.경첩[0] - b.userData.경첩[0])
+      .map(c => Math.round(c.rotation.y * 180 / Math.PI)); });
+  const 몸통만 = () => p.evaluate(() => { const g = window.__probe.grp(); if (!g) return null;
+    return [...new Set(g.children.filter(c => !c.userData.경첩).map(c => {
+      const u = c.userData;
+      return [+(c.position.x - u.base[0]).toFixed(2), +(c.position.y - u.base[1]).toFixed(2),
+              +(c.position.z - u.base[2]).toFixed(2)].join(','); }))]; });
   const 모델값 = () => p.evaluate(() => { const m = window.__probe.model();
     return { 레일:m.레일길이, 칸:m.서랍칸수 }; });
 
@@ -217,12 +229,18 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 밀기(0);
   맞나('부속서·부품표·DXF 가 동작 중과 한 글자도 같다', await 내보낸것(), 동작중);
 
-  console.log('⑧ 수납장에서 「동작」 — 안 터지고 아무것도 안 움직인다');
+  console.log('⑧ 수납장에서 「동작」 — 양쪽 도어가 110도 열린다 (10-06 사장님 말씀)');
   await 품목('수납장');
   await 두기({ W:800, D:400, H:1800, doors:2 });
-  await 모드('동작'); await 밀기(100);
-  맞나('수납장 · 동작 100 — 움직인 조각 0', await 움직임(), { 몸통:['0,0,0'] });
-  await 모드('분해');
+  await 모드('동작'); await 밀기(0);
+  맞나('수납장 · 동작 0 — 닫혀 있다', await 각도(), [0, 0]);
+  await 밀기(100);
+  맞나('수납장 · 동작 100 — 두 짝이 ∓110도', await 각도(), [-110, 110]);
+  맞나('몸통은 한 톨도 안 움직인다', await 몸통만(), ['0,0,0']);
+  await 밀기(50); 맞나('동작 50 — 절반', await 각도(), [-55, 55]);
+  await 모드('분해'); await 밀기(60);
+  맞나('「분해」 로 돌리면 도어가 곧게 선다', await 각도(), [0, 0]);
+  await 밀기(0);
 
   맞나('오류', 터짐, []);
   await ctx.close(); await b.close(); 서버.close();
