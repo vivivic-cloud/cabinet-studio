@@ -4,8 +4,8 @@
    열려있는 모습으로 가는 동작 입니다. -이때 서랍설정 옵션의 레일길이와 연동되어 서랍의 시작점 부터
    설정된 레일길이 만큼만 동작하는것이 핵심 입니다.**」
 
-     ① 고르개가 미닫이 옆에 있다 — 기본 「분해」 · 닿는 자리 **가로·세로 둘 다 44px 이상**(점으로 찍어 잰다)
-        · 둘이 서로의 알약을 안 먹는다 · 밀대 네모 그대로 · 폰 375 에서 보이고 넘침 0
+     ① 고르개가 미닫이 옆에 있다 — 기본 「분해」 · **보이는 알약이 44px** · 닿는 자리 가로·세로 둘 다 44 이상
+        · 둘이 서로의 알약을 안 먹는다 · **진짜 손가락으로 찍어 센 폭도 둘 다 44 이상** · 폰 375 에서 보이고 넘침 0
      ② **열린 거리 = 그 모델의 레일길이**(말씀의 핵심 · 1순위) — 250 · 400 · 550 에서 딱 그 값
      ③ **제일 아래 칸부터 하나씩** 열리고 끝에서 **다 열려 있다**
      ④ 마이다와 서랍이 **붙어서** 같이 나온다 (상대 자리 불변) · 앞(+Z)으로만 간다
@@ -96,7 +96,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('① 고르개 — 미닫이 옆 · 기본 「분해」 · 닿는 자리 **가로도** 44px · 폰에서 보인다');
   /* ⚠ `::after` 의 `height` 만 보면 안 된다 — 그것은 **세로**다. `left:0;right:0` 이면 **가로는 글자네모 그대로**(27.55)라
         10-06 에 관리자가 「가로가 17px 모자란다」 고 돌려보냈다(§4.9850-닿는자리).
-        그래서 **점으로 찍어** 가로·세로를 같이 재고, **둘이 서로의 알약을 안 먹는지**까지 못 박는다. */
+     ⚠ `elementFromPoint` 네모도 모자랐다 — 그것으로 45×45 였는데 **진짜 손가락으로 찍으니 「동작」 이 41px** 이었다
+        (경계에서 크로미움이 손가락을 당긴다 · 10-06 관리자). 그래서 아래 ①-나 에서 **띠 한 줄을 정수 한 점씩 진짜로 찍어**
+        골라진 쪽을 센다. 그것이 사장님 손가락이 겪는 그 수다. */
   맞나('고르개 자리·크기·닿는 자리·기본값', await p.evaluate(() => {
     const seg = document.querySelector('.explode .seg'); if (!seg) return null;
     const labs = [...seg.querySelectorAll('label')];
@@ -113,14 +115,42 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       for (let x = Math.ceil(q.left); x <= Math.floor(q.right); x++) if (!제것(el, x, y)) 밖.push(x); return 밖; };
     const sl = document.querySelector('#explode'), sq = sl.getBoundingClientRect();
     return { 글: labs.map(l => l.textContent.trim()),
+      보임: labs.map(l => Math.round(l.getBoundingClientRect().width)),
       닿음: labs.map(l => getComputedStyle(l, '::after').height),
       닿는: labs.map(찍기), 제알약밖: labs.map(알약밖),
       밀대: [Math.round(sq.left*100)/100, Math.round(sq.width*100)/100],
       켜진것: (seg.querySelector('input:checked') || {}).value,
       미닫이옆: !!document.querySelector('.explode #explode'),
       보이나: 보임(seg), 넘침: document.documentElement.scrollWidth }; }),
-    { 글:['분해','동작'], 닿음:['44px','44px'], 닿는:[[45,45],[45,45]], 제알약밖:[[],[]],
-      밀대:[90.09, 265.91], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
+    { 글:['분해','동작'], 보임:[44,44], 닿음:['44px','44px'], 닿는:[[64,45],[46,45]], 제알약밖:[[],[]],
+      밀대:[123, 233], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
+
+  /* ①-나 **진짜 손가락**으로 띠 한 줄을 정수 한 점씩 찍어 누가 골라지는지 센다(10-06 관리자 조건 1).
+        한 점당 모드를 반대로 두고 찍어 바뀌는지 보고, 안 바뀌면 다시 반대로 두고 한 번 더 찍는다.
+        밀대는 50 으로 두고 찍어 값이 달라지면 밀대가 가져간 것이다. */
+  const 탭폭 = await (async () => {
+    const y = await p.evaluate(() => { const r = document.querySelector('.explode').getBoundingClientRect();
+      return Math.round(r.top + r.height / 2); });
+    const 세팅 = async (m, v) => { await p.evaluate(([m, v]) => {
+      const i = [...document.querySelectorAll('.explode .seg.mini label input')].find(x => x.value === m);
+      i.checked = true; i.dispatchEvent(new Event('change', { bubbles:true }));
+      const s = document.querySelector('#explode'); s.value = String(v);
+      s.dispatchEvent(new Event('input', { bubbles:true })); }, [m, v]); await 잠(20); };
+    const 읽기 = () => p.evaluate(() => [window.__probe.st().분해모드, Number(document.querySelector('#explode').value)]);
+    const 셈 = { 분해:0, 동작:0, 밀대:0, 없음:0 };
+    for (let x = 0; x <= 130; x++){
+      await 세팅('동작', 50); await p.touchscreen.tap(x, y); await 잠(45);
+      let [m, v] = await 읽기();
+      if (m === '분해'){ 셈.분해++; continue; }
+      if (v !== 50){ 셈.밀대++; continue; }
+      await 세팅('분해', 50); await p.touchscreen.tap(x, y); await 잠(45);
+      const r = await 읽기();
+      if (r[0] === '동작') 셈.동작++; else if (r[1] !== 50) 셈.밀대++; else 셈.없음++;
+    }
+    await 세팅('분해', 0);
+    return 셈; })();
+  맞나('진짜 손가락으로 센 폭 — 분해 ' + 탭폭.분해 + ' · 동작 ' + 탭폭.동작 + ' · 밀대 ' + 탭폭.밀대 + ' · 아무것도 ' + 탭폭.없음,
+    [탭폭.분해 >= 44, 탭폭.동작 >= 44, 탭폭.없음], [true, true, 0]);
 
   await 품목('서랍장');
   await 두기({ W:800, D:400, H:1800, doors:4, backMode:'cover', doorMode:'out' });

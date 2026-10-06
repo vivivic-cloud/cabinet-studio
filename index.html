@@ -202,25 +202,29 @@ input[type=range]{width:100%;accent-color:var(--head)}
 .explode label{font-size:12px;color:var(--ink2);white-space:nowrap}
 /* 10-06 — 「분해 / 동작」 고르개(§4.9850).
    ⚠ `.seg.mini label::after` 는 **세로만** 44 로 잡아 준다 — `left:0;right:0` 이라 **가로는 글자네모 그대로**다.
-      옵션 판 안의 알약은 판 폭을 꽉 채워 넓지만, 이 띠는 `flex:none` 이라 한 칸이 27.55px 밖에 안 된다.
-      그래서 **가로도 44 로 따로 넓힌다**(아래 두 줄 · 10-06 관리자). 보이는 알약은 한 픽셀도 안 건드린다.
+      옵션 판 안의 알약은 판 폭을 꽉 채워 넓지만, 이 띠는 `flex:none` 이라 한 칸이 27.55px 밖에 안 됐다.
+      그래서 **보이는 알약을 44 로 넓힌다**(아래 `min-width` · 10-06 관리자가 정했다).
+      ⚠ `::after` 만 넓히던 판으로 되돌리지 마라 — 그 판에서는 **진짜 손가락으로 재면 「동작」 이 41px 밖에 안 됐다**.
+         밀대 네모가 90.09 에서 시작해 **0~83 의 84칸을 둘이 나눠야 해서 44+44 가 산술로 안 들어간다**(재서 잡았다).
+         알약을 넓혀 밀대를 123 으로 밀어야 비로소 둘 다 44 를 넘는다(64 · 53).
    ⚠ 폰에서 이 띠는 **흐름 안에 서서 도면을 아래로 민다**(§4.9861). 그래서 띠 높이를 **예전 그대로 38px 에 못 박는다** —
       여백만 줄이면 41 이 되어 밑의 `.params` 가 2.672px 밀리고, 그러면 부속 줄 × 의 **닿는 네모 맨 아랫점이
       손가락 보정에 밀려 아랫줄을 지운다**(재서 잡았다 · §0 의 「작은 과녁 × 지우기」). 이 한 줄을 지우지 마라. */
 .explode:has(>.seg){padding-top:0;padding-bottom:0;min-height:38px}
 .explode>.seg{flex:none}
-/* 닿는 자리를 **가로로도 44px** — 보이는 네모는 그대로 두고 `::after` 만 넓힌다(10-06 관리자).
-   ⚠ **둘이 서로의 손가락을 안 뺏게 갈라 붙인다.** 겹치면 뒤에 오는 「동작」 이 위에 깔려 「분해」 의 오른끝을 먹는다.
-      「분해」 는 **제 오른끝에서 왼쪽으로 44**(밴드·seg 여백 19px 를 먹는다 · 왼끝 2.55),
-      「동작」 은 **틈(2px) 안쪽에서 오른쪽으로 44**(왼끝 47.05 · 오른끝 91.05).
-   ⚠ `-1.5px` 는 틈 2px 에서 **0.5px 를 남긴 값**이다 — 꼭 남겨야 한다.
-      찍는 자리는 **정수**인데 브라우저는 네모 왼끝을 **내림**해서 그 정수를 claim 한다.
-      `-2px` 로 딱 맞붙이면 왼끝이 46.55 라 **정수 46 을 「동작」 이 claim 해 「분해」 알약의 오른끝을 먹는다**(재서 잡았다).
-      0.5 를 남기면 왼끝 47.05 → 46 은 「분해」, 47 은 「동작」 으로 깨끗이 갈린다.
+/* 보이는 알약을 44px 로 넓히고, 닿는 네모가 **알약 밖 빈자리까지** 덮게 한다(10-06 관리자).
    ⚠ `.seg.mini` 전역을 건드리지 마라 — 옵션 판 여러 곳이 그 규칙을 쓴다. 이 띠 안의 것만 잡는다.
-   `max(44px,…)` 는 글자가 44 보다 넓어질 때도 알약을 다 덮게 하는 받침이다. */
-.explode .seg.mini label::after{left:auto;right:0;width:max(44px,100%)}
-.explode .seg.mini label+label::after{left:-1.5px;right:auto;width:max(44px,calc(100% + 1.5px))}
+      옵션 판 알약은 판 폭을 꽉 채워 이미 넓다(375 에서 175.5px) — 전·후가 글자까지 같다(재 봤다).
+   ⚠ 아래 두 줄은 **알약 밖 빈자리를 줍는 것**이고, 둘이 서로의 손가락을 안 뺏게 갈라 붙인다.
+      「분해」 는 왼쪽으로 **19px**(= 띠 왼여백 16 + 테두리 1 + seg 여백 2) 를 먹어 **왼끝이 0** 이다 —
+      그 19px 을 안 주우면 **화면 맨 왼쪽 18칸이 아무것도 안 눌리는 자리로 남는다**(재서 잡았다 · 내가 더한 것).
+      「동작」 은 둘 사이 틈(2px) 가운데 **1px 만** 왼쪽으로 먹는다.
+   ⚠ `right:-0.5px` 의 0.5 를 지우지 마라 — 알약 폭이 **딱 44 정수**라 오른끝이 정수에 떨어진다.
+      네모는 오른끝을 **안 품으므로**(`[왼, 오)`) 0.5 를 안 주면 **알약 맨 오른쪽 정수 한 칸이 아무것도 아닌 자리**가 된다
+      (재서 잡았다 — 알약밖 `[63]`·`[109]`). 「동작」 왼끝을 **−2px** 로 두면 그 칸을 뒤엣것이 뺏는다(내림 claim · 그래서 −1px 다). */
+.explode .seg.mini label{min-width:44px}
+.explode .seg.mini label::after{left:-19px;right:-0.5px;width:auto}
+.explode .seg.mini label+label::after{left:-1px;right:-0.5px;width:auto}
 .explode input[type=range]{flex:1;min-width:0}
 .viewtag{position:absolute;left:14px;bottom:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:11px;color:var(--ink3);letter-spacing:.08em}
 .draw{grid-area:draw;display:flex;flex-direction:column;min-height:440px}
