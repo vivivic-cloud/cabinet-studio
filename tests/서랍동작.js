@@ -213,7 +213,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       v.add([+(c.position.x - c.userData.base[0]).toFixed(2),
              +(c.position.y - c.userData.base[1]).toFixed(2),
              +(c.position.z - c.userData.base[2]).toFixed(2)].join(',')); });
-    return [...v]; }), ['-514.08,0,0']);
+    return [...v]; }), ['-1334.4,0,0']);
   await 밀기(0);
   맞나('부속서·부품표·DXF 가 동작 중과 한 글자도 같다', await 내보낸것(), 동작중);
 

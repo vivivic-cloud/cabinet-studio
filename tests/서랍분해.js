@@ -8,7 +8,7 @@
      ③ **마이다끼리의 틈**이 분해 전·후로 한 톨도 안 바뀐다
      ④ **서랍과 제 마이다의 상대 자리**가 분해 전·후로 한 톨도 안 바뀐다
      ⑤ 몸통은 **예전 그대로 흩어진다**(측판 · 상판 · 하판 · 뒷판)
-     ⑥ 덩어리가 **왼 측판보다 더 나가** 몸통을 빠져나온다
+     ⑥ 덩어리가 **왼 측판보다 더 나가** 몸통을 빠져나온다 · **몸통 부속과 겹친 길이 0**(50·60·100%)
      ⑦ 마이다 **두 칸·세 칸·네 칸**이 다 같은 모양이다
      ⑧ **부속서에는 셋이 따로 나온다** — 「서랍」 이라는 부속은 어디에도 안 선다(§4.9855)
      ⑨ 수납장은 서랍재가 0장이고 몸통 분해가 그대로다 · 문짝은 예전대로 앞으로 나간다
@@ -37,7 +37,7 @@ const 손질 = () => {
   const 못 = 'init3D();';
   if (!s.includes(못)) throw new Error('init3D() 자리를 못 찾았다 — 시험을 고쳐야 한다');
   return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),' +
-    'st:()=>state,grp:()=>group,행:()=>부속행들(buildModel(state))};' + 못);
+    'st:()=>state,grp:()=>group,T:()=>THREE,행:()=>부속행들(buildModel(state))};' + 못);
 };
 
 const 띄우기 = (html) => new Promise(res => {
@@ -113,7 +113,9 @@ const 서랍재 = ['서랍재W','서랍재D','서랍바닥'];
 
     // ① 넷이 다 똑같은 거리를 간다 ② 왼쪽으로만
     맞나(`마이다 ${분할}칸 — 덩어리가 다 같은 거리를 가나`, 덩이.every(v => JSON.stringify(v) === 한값), true);
-    맞나(`마이다 ${분할}칸 — 그 거리 (왼쪽으로만)`, JSON.parse(한값), [-514.08, 0, 0]);
+    /* 10-06 사장님 말씀으로 거리가 늘었다 — 「분해된 측판과 겹치지 않도록 서랍부를 더 멀리」(§4.9854-멀리).
+       514.08(= 1.7×302.4) → **1334.4**(= 4.4127×302.4). 왼쪽으로만 가는 것은 그대로다. */
+    맞나(`마이다 ${분할}칸 — 그 거리 (왼쪽으로만)`, JSON.parse(한값), [-1334.4, 0, 0]);
     맞나(`마이다 ${분할}칸 — 덩어리 조각 수`, 덩이.length, 분할 * 6);
 
     // ③ 마이다끼리의 틈
@@ -135,6 +137,30 @@ const 서랍재 = ['서랍재W','서랍재D','서랍바닥'];
     // ⑥ 왼 측판보다 더 나가 몸통을 빠져나온다
     맞나(`마이다 ${분할}칸 — 덩어리가 왼 측판보다 더 나가나`,
       Math.abs(JSON.parse(한값)[0]) > Math.abs(이동('측판')[0][0]), true);
+
+    /* ⑥-나 **왼 측판과 한 톨도 안 겹친다** (10-06 사장님 말씀 · §4.9854-멀리).
+       전에는 덩어리가 몸통만큼 넓어 어떤 분해 값에서도 측판이 그 **속**에 박혀 있었다(겹침 18 = 측판 두께). */
+    맞나(`마이다 ${분할}칸 — 분해 50·60·100 에서 몸통 부속과 겹친 길이`,
+      await p.evaluate(async () => {
+        const 잠 = ms => new Promise(r => setTimeout(r, ms));
+        const T = window.__probe.T(), 밖 = [];
+        for (const v of [50, 60, 100]){
+          const s = document.querySelector('#explode'); s.value = String(v);
+          s.dispatchEvent(new Event('input', { bubbles:true })); await 잠(80);
+          const g = window.__probe.grp(), 것 = [];
+          g.children.forEach(c => { const u = c.userData; if (!u || !u.key) return;
+            const bb = new T.Box3().setFromObject(c);
+            것.push({ 번호:u.서랍번호, x:[bb.min.x, bb.max.x] }); });
+          const 서랍 = 것.filter(x => x.번호 !== undefined);
+          const 덩 = [Math.min(...서랍.map(x => x.x[0])), Math.max(...서랍.map(x => x.x[1]))];
+          let 큰 = 0;
+          것.filter(x => x.번호 === undefined).forEach(x =>
+            { 큰 = Math.max(큰, Math.min(덩[1], x.x[1]) - Math.max(덩[0], x.x[0])); });
+          밖.push(Math.max(0, Math.round(큰 * 10) / 10));
+        }
+        const s = document.querySelector('#explode'); s.value = '60';
+        s.dispatchEvent(new Event('input', { bubbles:true })); await 잠(80);
+        return 밖; }), [0, 0, 0]);
   }
 
   // ⑧ 부속서
