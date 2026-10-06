@@ -7,7 +7,7 @@
      ① **사장님이 드신 보기** — W 800 · 필름 1 · W-2 · D-2 · RT 0.5 → 재단 W **799**  (1순위)
      ② 면 0·1·2 × 필름 넷 × RT 넷 = **48갈래**가 식과 맞는다 · **0.45 는 0.5 로 센다**
      ③ **기본(W-0 · D-0)이면 재단 줄이 안 뜬다** — 오늘 도면과 한 톨도 안 달라진다
-     ④ 두 품목 **모든 부속 판**에 칸 넷(23px · 줄 25) · 「서랍설정」 에는 없다 · 가로 넘침 0
+     ④ 두 품목 **모든 부속 판**에 칸 넷(겉 25 · **안 23** · 줄 25) · 「서랍설정」 에는 없다 · 가로 넘침 0
      ⑤ **「저장」 을 눌러야 먹는다** · 「닫기」 는 버린다
      ⑥ 2D 부속 쪽에 「재단 사이즈」 가 뜨고 **3D 우측칸에도 같이** 뜬다 · A4 밖 0
      ⑦ 품목마다 갈라진다 · 새로 열면 그대로 · **깨진 글에도 안 터진다**
@@ -123,15 +123,25 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         const el = document.querySelector(`.opt[data-opt="${x}"]`);
         const se = [...el.querySelectorAll('select[data-edge]')];
         const 칸 = se.map(q => Math.round(q.getBoundingClientRect().height));
+        // ⚠ **값이 앉는 자리는 테두리 안쪽**이다 — 집 규칙의 23 은 그것이다(10-06 관리자 · §4.9846-높이).
+        //    겉 25 는 유격 칸의 겉 네모(`.num`)와 같은 값이라 한 칸에서 턱이 안 생긴다.
+        const 안 = se.map(q => q.clientHeight);
         const 줄 = [...el.querySelectorAll('.optnum')].filter(q => q.querySelector('select[data-edge]'))
           .map(q => Math.round(q.getBoundingClientRect().height));
-        return [se.length, [...new Set(칸)], [...new Set(줄)]];
+        const 유 = el.querySelector('.optnum .num');
+        return [se.length, [...new Set(칸)], [...new Set(줄)], [...new Set(안)],
+          유 ? Math.round(유.getBoundingClientRect().height) : null];
       }, n)]);
       await 손가락(`.pname[data-opt="${n}"]`);
     }
-    맞나(`${품} — 판마다 칸 넷 · 23px · 줄 25`, 표.map(([n, v]) =>
-      [n, n === '서랍설정' ? v[0] : (v[0] === 4 && v[1].join() === '25' && v[2].join() === '25')]),
+    맞나(`${품} — 판마다 칸 넷 · 겉 25(안 23) · 줄 25`, 표.map(([n, v]) =>
+      [n, n === '서랍설정' ? v[0] : (v[0] === 4 && v[1].join() === '25' && v[2].join() === '25'
+        && v[3].join() === '23')]),
       표.map(([n]) => [n, n === '서랍설정' ? 0 : true]));
+    // 유격 칸이 있는 판에서는 **겉 네모가 고르개와 같은 높이**여야 한다 — 그래야 한 칸에 턱이 없다
+    맞나(`${품} — 유격 겉 네모와 같은 높이`, 표.filter(([n, v]) => v[4] !== null && n !== '서랍설정')
+      .map(([n, v]) => [n, v[1].join() === String(v[4])]),
+      표.filter(([n, v]) => v[4] !== null && n !== '서랍설정').map(([n]) => [n, true]));
     맞나(`${품} — 가로 넘침`, await p.evaluate(() => document.documentElement.scrollWidth), 375);
   }
   await 품목('수납장');
