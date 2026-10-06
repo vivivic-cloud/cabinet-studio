@@ -166,7 +166,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     ['cabinet-studio.품목'].concat(
       // 10-02 사장님 말씀으로 `상태`(§4.9872) 와 되돌리기 `역사`(§4.9871) 가 들어왔다
       ['수납장','서랍장'].reduce((a2, 품) =>
-        a2.concat(['결','규칙','부속','상태','손질','역사','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
+        a2.concat(['결','규칙','부속','상태','손질','엣지','역사','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
 
   console.log('④ 새로 열면 마지막에 보던 품목이 그대로다');
   await p.reload({ waitUntil:'domcontentloaded' });

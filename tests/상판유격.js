@@ -138,8 +138,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('⑥ 칸 이름 — 네 갈래 · 같은 이름 두 줄 없음 · 한 마디는 좌우 두 줄 바로 아래');
   const 줄 = async o => { await 두기(o); await 펴기('상판', '하판', '측판');
+    // ⚠ 10-06 엣지설정(§4.9846)이 모든 판에 「엣지설정」 머리글 + 네 줄을 더했다 — 이 자는 **유격 줄만** 본다.
     return p.evaluate(() => [...document.querySelector('.opt[data-opt="측판"]').children]
       .filter(c => c.classList.contains('optnum') || c.classList.contains('opthead'))
+      .filter(c => !c.querySelector('select[data-edge]') && c.textContent.trim() !== '엣지설정')
       .map(c => { const l = c.querySelector('label'); return l ? l.textContent : c.textContent.trim(); })); };
   { 맞나('상판 사이 · 하판 사이', await 줄({ topStyle:'inset', botStyle:'inset' }), ['측판유격']);
     맞나('상판 위 · 하판 사이 (상판유격은 상판 판으로 갔다)', await 줄({ topStyle:'overlay', botStyle:'inset' }), ['측판 들임']);
@@ -150,6 +152,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('상판유격은 상판 판에 있고 거기에도 한 마디가 붙는다',
       await p.evaluate(() => [...document.querySelector('.opt[data-opt="상판"]').children]
         .filter(c => c.classList.contains('optnum') || (c.classList.contains('opthead') && c.querySelector('small')))
+        .filter(c => !c.querySelector('select[data-edge]'))
         .map(c => { const l = c.querySelector('label'); return l ? l.textContent : c.textContent.trim(); })),
       ['상판유격', '「측판 들임 (하판)」 과 큰 쪽만 들어갑니다']);
     맞나('같은 이름 두 줄', r.length - new Set(r).size, 0); }

@@ -160,7 +160,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     const k = []; for (let i = 0; i < localStorage.length; i++){ const n = localStorage.key(i);
       if (n.indexOf('cabinet-studio') === 0) k.push(n); }
     return k.sort(); }), ['cabinet-studio.품목'].concat(['수납장','서랍장'].reduce((a2, 품) =>
-      a2.concat(['결','규칙','부속','상태','손질','역사','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
+      a2.concat(['결','규칙','부속','상태','손질','엣지','역사','지난부속'].map(k => `cabinet-studio.${품}.${k}`)), [])).sort());
 
   console.log('⑦ 옛 설정 · 깨진 글에서도 안 터진다');
   await p.evaluate(() => {

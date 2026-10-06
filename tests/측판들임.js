@@ -71,7 +71,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 판 = async o => { await p.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await p.evaluate(x => window.__probe.set(x), o); await 잠(300);
     return p.evaluate(() => { const 읽 = n => { const el = document.querySelector('.opt[data-opt="' + n + '"]');
-        return el && !el.hidden ? [...el.querySelectorAll('.optnum label')].map(l => l.textContent) : null; };
+        // ⚠ 10-06 엣지설정(§4.9846)이 모든 판에 네 줄을 더했다 — 이 자는 **유격 줄만** 본다.
+        return el && !el.hidden ? [...el.querySelectorAll('.optnum')]
+          .filter(c => !c.querySelector('select[data-edge]'))
+          .map(c => c.querySelector('label').textContent) : null; };
       return { 측판: 읽('측판'), 상판: 읽('상판'), 하판: 읽('하판'),
                말: [...document.querySelectorAll('.opt[data-opt="측판"] small')].map(x => x.textContent),
                낮은칸: [...document.querySelectorAll('.opt[data-opt="측판"] .optnum input')]
@@ -143,7 +146,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     // 담긴 값(2.5)은 그대로 두고 **보고 쓰는 것만** 막는다
     맞나('측판 위 — 내밈 0 과 같고 담긴 값은 남는다', await 측(), [0, 400, 0, 402.7, 2.5]);
     맞나('측판 위 — 측판 판에 내밈 칸 없다',
-      await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="측판"] .optnum label')].map(l => l.textContent)),
+      await p.evaluate(() => [...document.querySelectorAll('.opt[data-opt="측판"] .optnum')]
+        .filter(c => !c.querySelector('select[data-edge]'))      // 엣지설정 네 줄은 뺀다(§4.9846)
+        .map(c => c.querySelector('label').textContent)),
       ['측판 들임']);   // 「측판 내밈」 은 안 나온다 · 「상판유격」 은 상판 판에 있다
     await 판({ topStyle:'inset' });
     맞나('도로 측판 사이 — 2.5 가 살아난다', await 측(), [0, 400, 2.5, 402.7, 2.5]);

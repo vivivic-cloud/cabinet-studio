@@ -180,7 +180,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
   맞나('다시 열면 서랍장 · 고르개도 서랍장 · 그 값', await 본(),
     { 품목:'서랍장', 고르개:'서랍장', W:900, Ttop:25, 우라홈:15, 만든부속:1 });
-  맞나('담긴 열쇠 — 마지막 품목 + 품목마다 일곱', 열쇠.length, 15);
+  맞나('담긴 열쇠 — 마지막 품목 + 품목마다 여덟', 열쇠.length, 17);
   맞나('마지막 품목 열쇠', await p.evaluate(() => localStorage.getItem('cabinet-studio.품목')), '서랍장');
 
   맞나('오류', 터짐, []);

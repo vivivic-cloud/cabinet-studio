@@ -158,8 +158,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 두기({ doors:2 });
   if (!await p.$('.opt[data-opt="문짝"]:not([hidden])')) await 손가락('.pname[data-opt="문짝"]');
   await 잠(300);
+  // ⚠ 10-06 엣지설정(§4.9846)이 모든 판에 네 줄을 더했다 — 이 자는 **유격 줄만** 본다.
   맞나('수납장 문짝 판의 유격 줄 이름', await p.evaluate(() => [...document
-    .querySelectorAll('.opt[data-opt="문짝"] .optnum label')].map(x => x.textContent)),
+    .querySelectorAll('.opt[data-opt="문짝"] .optnum')]
+    .filter(c => !c.querySelector('select[data-edge]'))
+    .map(c => c.querySelector('label').textContent)),
     ['도어 위 유격', '도어 아래 유격']);
   맞나('수납장 문짝 자리 (유격은 서랍장 것이라 안 먹는다)', await p.evaluate(() =>
     window.__probe.model().parts.filter(x => x.name === '문짝').map(x => `${x.x}|${x.w}`)),

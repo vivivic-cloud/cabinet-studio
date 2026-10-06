@@ -140,7 +140,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         window.__probe.set({ topStyle:v.위, botStyle:v.아래 }); }, { 위, 아래 }); await 잠(350);
       const b2 = p.locator(`.pname[data-opt="${이름}"]`);
       if (await b2.getAttribute('aria-expanded') !== 'true') await 손가락(`.pname[data-opt="${이름}"]`);
-      const r = await p.evaluate(n => [...document.querySelectorAll(`.opt[data-opt="${n}"] .optnum label`)].map(l => l.textContent), 이름);
+      // ⚠ 10-06 엣지설정(§4.9846)이 모든 판에 네 줄을 더했다 — 이 자는 **유격 줄만** 본다.
+      const r = await p.evaluate(n => [...document.querySelectorAll(`.opt[data-opt="${n}"] .optnum`)]
+        .filter(c => !c.querySelector('select[data-edge]'))
+        .map(c => c.querySelector('label').textContent), 이름);
       await 손가락(`.pname[data-opt="${이름}"]`); return r; };
     맞나('하판 판 — 상판 사이 · 하판 사이', await 판줄('inset', 'inset', '하판'), ['하판유격']);
     맞나('하판 판 — 상판 **위** · 하판 사이 (상판과 상관없이 선다)', await 판줄('overlay', 'inset', '하판'), ['하판유격']);
