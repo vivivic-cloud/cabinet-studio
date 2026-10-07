@@ -6,11 +6,8 @@
 
      ① **사장님이 드신 보기** — W 800 · 필름 1 · W-2 · D-2 · RT 0.5 → 재단 W **799**  (1순위)
      ② 면 0·1·2 × 필름 넷 × RT 넷 = **48갈래**가 식과 맞는다 · **0.45 는 0.5 로 센다**
-     ③ **엣지가 하나도 안 붙는 부속(전면밴드)은 재단 줄이 안 뜬다**
-        ⚠ 10-07 사장님 말씀(「해봐」)으로 **기본세팅이 접촉 기하에서 난다** — 그래서 옛 ③ 의
-           「기본이면 어디서나 재단 줄이 안 뜬다」 는 **말씀만큼 뒤집혔다**(되돌린 것이 아니다 · §4.9844).
-     ④ 두 품목 **모든 부속 판**에 **면 알약 넷 + 고르개 둘**(겉 25 · **안 23** · 줄 25) ·
-        「서랍설정」 에는 없다 · 가로 넘침 0
+     ③ **기본(W-0 · D-0)이면 재단 줄이 안 뜬다** — 오늘 도면과 한 톨도 안 달라진다
+     ④ 두 품목 **모든 부속 판**에 칸 넷(겉 25 · **안 23** · 줄 25) · 「서랍설정」 에는 없다 · 가로 넘침 0
      ⑤ **「저장」 을 눌러야 먹는다** · 「닫기」 는 버린다
      ⑥ 2D 부속 쪽에 「재단 사이즈」 가 뜨고 **3D 우측칸에도 같이** 뜬다 · A4 밖 0
      ⑦ 품목마다 갈라진다 · 새로 열면 그대로 · **깨진 글에도 안 터진다**
@@ -41,7 +38,6 @@ const 손질 = () => {
   return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),' +
     'sel:()=>selPid,고르기:(n)=>select(n),dxf:()=>buildDXF(drawing),쪽:()=>부속쪽들(모델||buildModel(state)),' +
     '엣지:()=>(typeof 엣지설정!=="undefined"?엣지설정:null),' +
-    '엣지값:(n)=>(typeof 엣지==="function"?엣지(n):null),' +
     '재단:(n,l,w)=>(typeof 재단사이즈==="function"?재단사이즈(n,l,w):null)};' + 못);
 };
 
@@ -80,23 +76,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await 잠(320); return true; };
   const 품목 = async 품 => { await 손가락('#itemSel'); await p.selectOption('#itemSel', 품); await 잠(700); };
   const 엣지보기 = () => p.evaluate(() => window.__probe.엣지());
-  /* 10-07 — 면수 고르개가 **면 알약 넷**이 되었다(§4.9844). 켜는 길도 손가락이다.
-     ⚠ 고치기 전 판에는 알약이 아예 없다 — 널에 견디게 한다(§4.986-모바일 과 같은 자리). */
-  const 면켜기 = async (부속, 면) => {
-    const h = await p.evaluateHandle(([n, v]) =>
-      [...document.querySelectorAll(`.opt[data-opt="${n}"] .seg.mini label`)].find(l => l.textContent.trim() === v) || null,
-      [부속, 면]);
-    const el = h.asElement(); if (!el) return false;
-    await el.scrollIntoViewIfNeeded(); const q = await el.boundingBox(); if (!q) return false;
-    await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:q.x+q.width/2, y:q.y+q.height/2 }] });
-    await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
-    await 잠(260); return true; };
   const 재단 = (n, L, W) => p.evaluate(([a,b,c]) => window.__probe.재단(a,b,c), [n,L,W]);
 
   console.log('① 사장님이 드신 보기 — 800 · 필름 1 · W-2 · D-2 · RT 0.5 → 799');
   { const r = await p.evaluate(() => {
       const e = window.__probe.엣지(); if (!e) return null;
-      e['시험'] = { 면:['상','하','좌','우'], 필름:1, RT:0.5 };   // 10-07 — 면수가 아니라 면 이름이다
+      e['시험'] = { W:2, D:2, 필름:1, RT:0.5 };
       const v = window.__probe.재단('시험', 800, 400);
       delete e['시험']; return v; });
     맞나('재단 W(800 기준)', r && r.L, 799);
@@ -107,7 +92,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       const e = window.__probe.엣지(); if (!e) return null;
       const 표 = [];
       for (const D of [0,1,2]) for (const f of [0.45,1,1.5,2]) for (const rt of [0.5,1,1.5,2]){
-        e['시험'] = { 면:['좌','우'].slice(0, D), 필름:f, RT:rt };
+        e['시험'] = { W:0, D, 필름:f, RT:rt };
         const r = window.__probe.재단('시험', 800, 400);
         표.push([D, f, rt, r ? r.L : 800]);
       }
@@ -119,16 +104,15 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('면 1 은 한쪽만 준다', z && z.find(x => x[0]===1 && x[1]===1 && x[2]===0.5)[3], 799.5);
     맞나('RT 가 필름보다 크면 재단이 커진다', z && z.find(x => x[0]===2 && x[1]===1 && x[2]===2)[3], 802); }
 
-  console.log('③ 엣지가 안 붙는 부속은 재단 줄이 안 뜬다 · DXF 는 그대로');
-  { 맞나('손으로 담은 것이 없다', await 엣지보기(), {});
-    // 전면밴드는 네 변이 다 바닥·측판·하판에 닿아 엣지가 0 이다 — 그래서 재단 = 도면이다
-    맞나('전면밴드는 재단사이즈가 null', await 재단('전면밴드', 764, 80), null);
+  console.log('③ 기본(W-0 · D-0)이면 재단 줄이 안 뜬다');
+  { 맞나('담긴 것이 없다', await 엣지보기(), {});
+    맞나('재단사이즈가 null', await 재단('측판', 1800, 400), null);
     await p.evaluate(() => window.__probe.set({ backMode:'insert' })); await 잠(400);
-    맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007);
-    await p.evaluate(() => window.__probe.set({ backMode:'cover' })); await 잠(300);
-    맞나('DXF 덮기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 71286); }
+    const z = await p.evaluate(() => window.__probe.쪽().map(x => x.svg).join(''));
+    맞나('2D 에 「재단 사이즈」 글이 없다', /재단 사이즈/.test(z), false);
+    맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007); }
 
-  console.log('④ 두 품목 모든 부속 판에 면 알약 넷 + 고르개 둘 · 「서랍설정」 에는 없다');
+  console.log('④ 두 품목 모든 부속 판에 칸 넷 · 「서랍설정」 에는 없다');
   for (const 품 of ['수납장','서랍장']){
     await 품목(품);
     const 이름들 = await p.evaluate(() =>
@@ -139,7 +123,6 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       표.push([n, await p.evaluate(x => {
         const el = document.querySelector(`.opt[data-opt="${x}"]`);
         const se = [...el.querySelectorAll('select[data-edge]')];
-        const 알 = [...el.querySelectorAll('input[data-edgef]')];
         const 칸 = se.map(q => Math.round(q.getBoundingClientRect().height));
         // ⚠ **값이 앉는 자리는 테두리 안쪽**이다 — 집 규칙의 23 은 그것이다(10-06 관리자 · §4.9846-높이).
         //    겉 25 는 유격 칸의 겉 네모(`.num`)와 같은 값이라 한 칸에서 턱이 안 생긴다.
@@ -148,12 +131,12 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
           .map(q => Math.round(q.getBoundingClientRect().height));
         const 유 = el.querySelector('.optnum .num');
         return [se.length, [...new Set(칸)], [...new Set(줄)], [...new Set(안)],
-          유 ? Math.round(유.getBoundingClientRect().height) : null, 알.length];
+          유 ? Math.round(유.getBoundingClientRect().height) : null];
       }, n)]);
       await 손가락(`.pname[data-opt="${n}"]`);
     }
-    맞나(`${품} — 판마다 면 알약 넷 + 고르개 둘 · 겉 25(안 23) · 줄 25`, 표.map(([n, v]) =>
-      [n, n === '서랍설정' ? v[0] : (v[0] === 2 && v[5] === 4 && v[1].join() === '25' && v[2].join() === '25'
+    맞나(`${품} — 판마다 칸 넷 · 겉 25(안 23) · 줄 25`, 표.map(([n, v]) =>
+      [n, n === '서랍설정' ? v[0] : (v[0] === 4 && v[1].join() === '25' && v[2].join() === '25'
         && v[3].join() === '23')]),
       표.map(([n]) => [n, n === '서랍설정' ? 0 : true]));
     // 유격 칸이 있는 판에서는 **겉 네모가 고르개와 같은 높이**여야 한다 — 그래야 한 칸에 턱이 없다
@@ -165,20 +148,20 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 품목('수납장');
 
   console.log('⑤ 「저장」 을 눌러야 먹는다 · 「닫기」 는 버린다');
-  { /* 10-07 — 면 알약으로 켠다. 덮기·측판사이에서 측판 기본은 **상·우** 이므로(앞 노출 · 위끝 노출)
-       거기에 「하」·「좌」 를 더 켜면 네 면이 다 선다 → 재단 1799 × 399. */
-    await p.evaluate(() => window.__probe.set({ backMode:'cover', topStyle:'inset' })); await 잠(400);
+  { // ⚠ 고치기 전 판에는 그 칸이 아예 없다 — 널에 견디게 한다(§4.986-모바일 과 같은 자리).
+    const 고르기 = async (칸, 값) => {
+      const 자 = `.opt[data-opt="측판"] select[data-edge$="|${칸}"]`;
+      if (!(await p.$(자))) return false;
+      await p.selectOption(자, String(값)); await 잠(200); return true; };
     await 손가락('.pname[data-opt="측판"]');
-    맞나('측판 기본은 상·우', await p.evaluate(() => {
-      const e = window.__probe.엣지값('측판'); return e && Array.isArray(e.면) ? e.면.join('·') : null; }), '상·우');
-    await 면켜기('측판', '하'); await 면켜기('측판', '좌');
+    await 고르기('W', 2); await 고르기('D', 2);
     맞나('치기만 하면 안 먹는다', await 엣지보기(), {});
     await 손가락('.opt[data-opt="측판"] [data-optclose]');          // 닫기 — 버린다
     await 손가락('.pname[data-opt="측판"]');
     맞나('닫으면 버려진다', await 엣지보기(), {});
-    await 면켜기('측판', '하'); await 면켜기('측판', '좌');
+    await 고르기('W', 2); await 고르기('D', 2);
     await 손가락('.opt[data-opt="측판"] [data-optsave]');            // 저장
-    맞나('저장하면 먹는다', await 엣지보기(), { 측판:{ 면:['상','하','좌','우'] } });
+    맞나('저장하면 먹는다', await 엣지보기(), { 측판:{ W:2, D:2 } });
     맞나('재단이 따라온다', await 재단('측판', 1800, 400), { L:1799, W:399 }); }
 
   console.log('⑥ 2D 부속 쪽 · 3D 우측칸 · A4 밖 0');
@@ -211,24 +194,25 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await p.reload({ waitUntil:'domcontentloaded' });
     await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
     await 품목('서랍장');
-    맞나('서랍장 첫 전환 — 수납장 것을 베껴 온다', await 엣지보기(), { 측판:{ 면:['상','하','좌','우'] } });
+    맞나('서랍장 첫 전환 — 수납장 것을 베껴 온다', await 엣지보기(), { 측판:{ W:2, D:2 } });
     await 손가락('.pname[data-opt="측판"]');
-    await 면켜기('측판', '하'); await 면켜기('측판', '좌'); await 면켜기('측판', '우');   // 상만 남긴다
+    for (const [칸, v] of [['W','1'],['D','0']]){
+      const 자 = `.opt[data-opt="측판"] select[data-edge$="|${칸}"]`;
+      if (await p.$(자)) await p.selectOption(자, v); await 잠(200); }
     await 손가락('.opt[data-opt="측판"] [data-optsave]');
-    맞나('서랍장을 고친다', await 엣지보기(), { 측판:{ 면:['상'] } });
+    맞나('서랍장을 고친다', await 엣지보기(), { 측판:{ W:1, D:0 } });
     await 품목('수납장');
-    맞나('수납장은 그대로', await 엣지보기(), { 측판:{ 면:['상','하','좌','우'] } });
+    맞나('수납장은 그대로', await 엣지보기(), { 측판:{ W:2, D:2 } });
     await p.reload({ waitUntil:'domcontentloaded' });
     await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
-    맞나('새로 열어도 그대로', await 엣지보기(), { 측판:{ 면:['상','하','좌','우'] } });
+    맞나('새로 열어도 그대로', await 엣지보기(), { 측판:{ W:2, D:2 } });
     // 깨진 글
     await p.evaluate(() => { localStorage.setItem('cabinet-studio.수납장.엣지',
       '{"측판":{"W":"둘","D":9,"필름":null,"RT":0.5},"없는것":5,"상판":"글"}'); });
     await p.reload({ waitUntil:'domcontentloaded' });
     await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
     맞나('꼴이 맞는 것만 받는다', await 엣지보기(), { 측판:{ RT:0.5 } });
-    // 담긴 면이 깨져 안 받아졌으므로 **기본세팅**이 선다 — 덮기·측판사이에서 상·우 라 재단이 따라온다
-    맞나('그래도 안 터지고 기본세팅이 선다', await 재단('측판', 1800, 400), { L:1799.5, W:399.5 }); }
+    맞나('그래도 재단은 null(면 0)', await 재단('측판', 1800, 400), null); }
 
   console.log('⑧ RT 목록에 「RT없음」(0) — 10-07 사장님 말씀');
   { await p.evaluate(() => { localStorage.removeItem('cabinet-studio.수납장.엣지'); });
@@ -253,9 +237,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         [...document.querySelector(q).options].some(o => o.value === v), [자, String(값)]);
       if (!있나) return false;
       await p.selectOption(자, String(값)); await 잠(200); return true; };
-    await 면켜기('측판', '하'); await 면켜기('측판', '좌'); await 고르기('RT', 0);
+    await 고르기('W', 2); await 고르기('D', 2); await 고르기('RT', 0);
     await 손가락('.opt[data-opt="측판"] [data-optsave]');
-    맞나('RT없음을 저장하면 0 이 담긴다', await 엣지보기(), { 측판:{ 면:['상','하','좌','우'], RT:0 } });
+    맞나('RT없음을 저장하면 0 이 담긴다', await 엣지보기(), { 측판:{ W:2, D:2, RT:0 } });
     // 깎아 내는 것이 없으므로 한 면당 필름 두께(1)만큼만 작게 재단한다
     맞나('재단 1800×400 → 1798×398', await 재단('측판', 1800, 400), { L:1798, W:398 });
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 375); }
