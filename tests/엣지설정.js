@@ -11,6 +11,7 @@
      ⑤ **「저장」 을 눌러야 먹는다** · 「닫기」 는 버린다
      ⑥ 2D 부속 쪽에 「재단 사이즈」 가 뜨고 **3D 우측칸에도 같이** 뜬다 · A4 밖 0
      ⑦ 품목마다 갈라진다 · 새로 열면 그대로 · **깨진 글에도 안 터진다**
+     ⑧ RT 목록에 **「RT없음」(0)** — 10-07 사장님 말씀. 고르면 재단이 필름 두께만큼만 작아진다
 
    돌리는 법:  node tests/엣지설정.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -212,6 +213,36 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
     맞나('꼴이 맞는 것만 받는다', await 엣지보기(), { 측판:{ RT:0.5 } });
     맞나('그래도 재단은 null(면 0)', await 재단('측판', 1800, 400), null); }
+
+  console.log('⑧ RT 목록에 「RT없음」(0) — 10-07 사장님 말씀');
+  { await p.evaluate(() => { localStorage.removeItem('cabinet-studio.수납장.엣지'); });
+    await p.reload({ waitUntil:'domcontentloaded' });
+    await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
+    await 손가락('.pname[data-opt="측판"]');
+    const r = await p.evaluate(() => {
+      const s = document.querySelector('.opt[data-opt="측판"] select[data-edge$="|RT"]');
+      if (!s) return null;                                   // 고치기 전 판에는 그 칸이 아예 없다
+      const b = s.getBoundingClientRect(), 줄 = s.closest('.optnum').getBoundingClientRect();
+      return { 목록:[...s.options].map(o => [o.value, o.textContent]), 기본:s.value,
+        칸:[Math.round(b.width), Math.round(b.height)], 안:s.clientHeight, 줄:Math.round(줄.height) };
+    });
+    맞나('목록 다섯 · 첫째가 RT없음(0)', r && r.목록,
+      [['0','RT없음'],['0.5','0.5'],['1','1'],['1.5','1.5'],['2','2']]);
+    맞나('기본값은 0.5 그대로', r && r.기본, '0.5');
+    맞나('칸 82×25 · 안 23 · 줄 25', r && [r.칸[0], r.칸[1], r.안, r.줄], [82, 25, 23, 25]);
+    // ⚠ 고치기 전 판에는 「RT없음」 이 아예 없다 — 없는 값을 고르면 시간초과로 **터진다**. 먼저 있는지 본다.
+    const 고르기 = async (칸, 값) => { const 자 = `.opt[data-opt="측판"] select[data-edge$="|${칸}"]`;
+      if (!(await p.$(자))) return false;
+      const 있나 = await p.evaluate(([q, v]) =>
+        [...document.querySelector(q).options].some(o => o.value === v), [자, String(값)]);
+      if (!있나) return false;
+      await p.selectOption(자, String(값)); await 잠(200); return true; };
+    await 고르기('W', 2); await 고르기('D', 2); await 고르기('RT', 0);
+    await 손가락('.opt[data-opt="측판"] [data-optsave]');
+    맞나('RT없음을 저장하면 0 이 담긴다', await 엣지보기(), { 측판:{ W:2, D:2, RT:0 } });
+    // 깎아 내는 것이 없으므로 한 면당 필름 두께(1)만큼만 작게 재단한다
+    맞나('재단 1800×400 → 1798×398', await 재단('측판', 1800, 400), { L:1798, W:398 });
+    맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 375); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();
