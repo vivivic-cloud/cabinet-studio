@@ -217,12 +217,13 @@ const 짚을자리 = (n) => {
 
     console.log('⑧ 도면 첫 화면 · 넘침 · 오류');
     await 모드('3d');
-    /* ⚠ 10-06 — 부속을 고른 채라 3D 우측칸(§4.9847)이 캔버스 위에 **38px** 선다.
-       그래서 캔버스 y 440 → 478 · 첫 화면 372 → 334 다. 안 고른 때는 전과 한 톨도 같다. */
+    /* ⚠ 10-06 — 부속을 고른 채라 3D 우측칸(§4.9847)이 캔버스 위에 선다.
+       10-08 에 엣지 기본세팅이 켜지며(§4.9842) 그 칸에 「엣지」 줄이 한 줄 늘어 **38 → 60px** 이 되었다.
+       그래서 캔버스 y 440 → **500** · 첫 화면 372 → **312** 다. 안 고른 때는 전과 한 톨도 같다. */
     맞나('고른 뒤 캔버스 y · 첫 화면', await p.evaluate(() => { window.scrollTo(0, 0);
       const c = document.querySelector('#c3d').getBoundingClientRect();
       return [Math.round(c.top), Math.round(Math.max(0, Math.min(c.bottom, innerHeight) - Math.max(c.top, 0)))]; }),
-      폭 === 375 ? [478, 334] : [69, 831]);
+      폭 === 375 ? [500, 312] : [69, 831]);
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 폭);
 
     console.log('⑨ 보이는 화면이 줄어도 안 잘린다 — 글쇠·주소창·벌리기');

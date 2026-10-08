@@ -1,13 +1,15 @@
 #!/usr/bin/env node
-/* 10-08 사장님 말씀: 「**도면에 엣지작업 표현 안해주나요?**」
-   — 10-07 에 여쭌 세 읽기(§4.9843) 가운데 ㉯ 라는 답이다: **판은 이전설정 그대로, 도면 표현은 살린다.**
+/* 10-08 사장님 말씀 둘: 「**도면에 엣지작업 표현 안해주나요?**」 ·
+   「엣지설정은 이전설정으로 되돌려 라는 말은 … **접촉에 따른 자동 설정은 건들면 안되는거지**」 ·
+   「**도면이라함은 2D 3D 모두 포함이야 모두 표현되게 해줘**」
 
-     ① **기본(W-0 · D-0)이면 도면에 아무것도 안 나온다** — 굵은 변 0 · 「엣지」 줄 0 · DXF 기준값  (1순위)
+     ① **기본세팅은 3D 접촉이 낸다** — 사장님 보기 넷(문짝 2,2 · 상판 2,2 · 측판 2,0 · 고정선반 1,0)  (1순위)
      ② W-2 는 **판의 상·하**, D-2 는 **판의 좌·우** 에 굵은 변을 긋는다 (§4.9846 의 엇갈림 그대로)
      ③ **면수 1 은 드러난 쪽**이다 — 측판 D-1 → **우**(바닥이 가려졌다) · 고정선반 W-1 → **상**(앞)
      ④ 정보 칸에 「엣지 상·하 · 1」 이 뜨고 **3D 우측칸에도 같은 줄**이 뜬다
      ⑤ 여덟 갈래 × 모든 부속 W-2·D-2 에서 **A4 밖 0**
      ⑥ **판은 이전설정 그대로다** — 고르개 넷 · 면 알약 0 · 담는 꼴이 `{W,D,필름,RT}`
+     ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 필름 색으로 덮고, 짚기를 안 뺏는다
 
    돌리는 법:  node tests/엣지도면.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -34,6 +36,8 @@ const 손질 = () => {
   return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),' +
     'sel:()=>selPid,고르기:(n)=>select(n),dxf:()=>buildDXF(drawing),쪽:()=>부속쪽들(모델||buildModel(state)),' +
     '엣지:()=>(typeof 엣지설정!=="undefined"?엣지설정:null),' +
+    '엣지값:(n)=>(typeof 엣지==="function"?엣지(n):null),변:(n)=>(typeof 엣지변==="function"?엣지변(n):[]),' +
+    '본:(n)=>(typeof 본이름==="function"?본이름(n):n),행:()=>부속행들(모델||buildModel(state)),grp:()=>group,' +
     '재단:(n,l,w)=>(typeof 재단사이즈==="function"?재단사이즈(n,l,w):null)};' + 못);
 };
 
@@ -86,8 +90,11 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       // 굵은 변은 그 부속의 겉면 네모와 견줘 어느 변인지 가린다
       [...pg.querySelectorAll('line.엣지')].forEach(ln => {
         const x1 = +ln.getAttribute('x1'), y1 = +ln.getAttribute('y1'), x2 = +ln.getAttribute('x2'), y2 = +ln.getAttribute('y2');
+        // ⚠ 이름표는 그림 **위**에 있다 — 그냥 가까운 것을 집으면 아랫 칸의 변이 윗 이름에 붙는다
         let 임 = null, 작 = 1e9;
-        ts.filter(t => t.classList.contains('t1')).forEach(t => { const d = Math.abs(t.getBBox().y - y1); if (d < 작){ 작 = d; 임 = t.textContent; } });
+        // ⚠ `getBBox().y` 는 이 글꼴에서 0 으로 나온다 — `y` 속성을 읽어야 한다(한 번 헛짚었다)
+        ts.filter(t => t.classList.contains('t1')).forEach(t => { const ty = +t.getAttribute('y');
+          if (ty > y1 + 0.5) return; const d = y1 - ty; if (d < 작){ 작 = d; 임 = t.textContent; } });
         const o = out[임] = out[임] || {};
         (o.변 = o.변 || []).push(Math.abs(y1-y2) < 0.01 ? 'ㅡ' : '|');
       });
@@ -97,13 +104,27 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 변수 = () => p.evaluate(() => document.querySelectorAll('#pageBox > .page line.엣지').length);
   const 줄수 = () => p.evaluate(() => [...document.querySelectorAll('#pageBox > .page text')].filter(t => t.textContent === '엣지').length);
 
-  console.log('① 기본(W-0 · D-0)이면 도면에 아무것도 안 나온다');
+  console.log('① 기본세팅은 3D 접촉이 낸다 — 사장님 보기 넷');
   { 맞나('담긴 것이 없다', await p.evaluate(() => window.__probe.엣지()), {});
-    맞나('굵은 변 0', await 변수(), 0);
-    맞나('「엣지」 줄 0', await 줄수(), 0);
-    await 상태({ backMode:'insert' });
+    await 상태({ backMode:'insert', topStyle:'overlay', shelvesM:2 });
+    const 보기 = await p.evaluate(() => { const P = window.__probe, o = {};
+      ['문짝','상판','측판','고정선반','이동선반','전면밴드','뒷판'].forEach(n => {
+        const e = P.엣지값(n); o[n] = e ? [e.W, e.D] : null; }); return o; });
+    맞나('문짝 2,2', 보기['문짝'], [2,2]);
+    맞나('상판 2,2', 보기['상판'], [2,2]);
+    맞나('측판 2,0', 보기['측판'], [2,0]);
+    맞나('고정선반 1,0', 보기['고정선반'], [1,0]);
+    맞나('이동선반 1,0', 보기['이동선반'], [1,0]);
+    맞나('전면밴드 0,0', 보기['전면밴드'], [0,0]);
+    맞나('뒷판(홈에 묻힘) 0,0', 보기['뒷판'], [0,0]);
+    맞나('뒷판 2.7T 은 RT없음', await p.evaluate(() => window.__probe.엣지값('뒷판').RT), 0);
+    // ⚠ 기본세팅이 켜져도 **DXF 는 한 바이트도 안 움직인다** — 엣지는 부속 쪽·3D 것이다
+    await 상태({ topStyle:'inset', shelvesM:0 });
     맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007);
-    맞나('굵은 변 0 (끼우기)', await 변수(), 0); }
+    await 상태({ backMode:'cover' });
+    맞나('DXF 덮기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 71286);
+    맞나('굵은 변이 그려진다', (await 변수()) > 0, true);
+    맞나('「엣지」 줄이 뜬다', (await 줄수()) > 0, true); }
 
   console.log('② W-2 는 판의 상·하 · D-2 는 판의 좌·우');
   { await 넣({ 측판:{ W:2, D:0, 필름:1, RT:0.5 } });
@@ -177,6 +198,49 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('면 알약 0', r.알약, 0);
     맞나('고르개 이름', r.이름, ['측판|W','측판|D','측판|필름','측판|RT']);
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 375); }
+
+  console.log('⑦ 3D 에도 엣지가 보인다 (10-08 사장님 말씀 「도면이라함은 2D 3D 모두 포함」)');
+  { await 상태({ 품목:'수납장', backMode:'insert', topStyle:'overlay', doorMode:'out', W:800, D:400, H:1800, shelvesM:2, TB:2.7, doors:0 });
+    const r = await p.evaluate(() => {
+      const P = window.__probe, g = P.grp(); if (!g) return null;
+      const 살 = {}, 꼴 = {};
+      g.children.forEach(m => { const n = m.userData.key.split('|')[0];
+        const sk = m.children.filter(c => c.isMesh);
+        살[n] = (살[n] || 0) + sk.length;
+        if (sk.length && !꼴[n]) 꼴[n] = { 색: sk[0].material.color.getHexString(),
+          비침: `${sk[0].material.transparent}/${sk[0].material.opacity}`,
+          짚기끔: sk[0].raycast.toString().length < 30 }; });
+      return { 살, 꼴 }; });
+    맞나('측판 — 상·하 × 두 장', (r.살 || {})['측판'], 4);
+    맞나('상판 — 네 면', (r.살 || {})['상판'], 4);
+    맞나('고정선반 — 앞 한 면 × 세 장', (r.살 || {})['고정선반'], 3);
+    맞나('이동선반 — 앞 한 면 × 두 장', (r.살 || {})['이동선반'], 2);
+    맞나('뒷판 — 홈에 묻혀 0', (r.살 || {})['뒷판'], 0);
+    맞나('전면밴드 — 0', (r.살 || {})['전면밴드'], 0);
+    맞나('필름 색', ((r.꼴 || {})['측판'] || {}).색, '6b4b2a');
+    맞나('꽉 참', ((r.꼴 || {})['측판'] || {}).비침, 'false/1');
+    맞나('이동선반은 같이 비친다 (§4.9883)', ((r.꼴 || {})['이동선반'] || {}).비침, 'true/0.45');
+    맞나('짚기를 안 뺏는다', ((r.꼴 || {})['측판'] || {}).짚기끔, true);
+    // 고르면 그 부속의 엣지 살도 같이 붉어진다 — 반만 붉으면 고른 것으로 안 보인다(§4.11)
+    // ⚠ 고치기 전 판에는 살이 아예 없다 — 널에 견디게 감싼다(§4.986-모바일 과 같은 자리)
+    const 고 = await p.evaluate(() => { const P = window.__probe, g = P.grp();
+      const m = g && g.children.find(c => c.userData.key.startsWith('측판') && c.children.filter(x => x.isMesh).length);
+      if (!m) return { 몸:null, 살:null, 남의살:null };
+      P.고르기(m.userData.pid);
+      const 남 = g.children.find(c => c.userData.pid !== m.userData.pid && c.children.filter(x => x.isMesh).length);
+      return { 몸: m.material.color.getHexString(),
+               살: m.children.filter(x => x.isMesh).map(x => x.material.color.getHexString())[0],
+               남의살: 남 ? 남.children.filter(x => x.isMesh)[0].material.color.getHexString() : null }; });
+    맞나('고른 몸이 붉다', 고.몸, 'f2654e');
+    맞나('고른 살도 붉다', 고.살 !== '6b4b2a', true);
+    맞나('남의 살은 그대로', 고.남의살, '6b4b2a');
+    // 뒷판 얇은 두께는 3D 에도 살이 없다
+    const 뒷 = [];
+    for (const t of [2.7, 9, 12, 18, 25]){ await 상태({ TB:t });
+      뒷.push(await p.evaluate(() => { const g = window.__probe.grp();
+        return g.children.filter(c => c.userData.key.startsWith('뒷판'))
+          .reduce((a, c) => a + c.children.filter(x => x.isMesh).length, 0); })); }
+    맞나('뒷판 2.7·9·12·18·25T 다 0 (홈에 묻힘)', 뒷, [0,0,0,0,0]); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();

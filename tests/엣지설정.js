@@ -104,12 +104,17 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('면 1 은 한쪽만 준다', z && z.find(x => x[0]===1 && x[1]===1 && x[2]===0.5)[3], 799.5);
     맞나('RT 가 필름보다 크면 재단이 커진다', z && z.find(x => x[0]===2 && x[1]===1 && x[2]===2)[3], 802); }
 
-  console.log('③ 기본(W-0 · D-0)이면 재단 줄이 안 뜬다');
+  /* ③ 은 10-08 에 뒤집혔다 — 사장님이 「접촉에 따른 자동 설정은 건들면 안 된다」 고 못 박으셔서
+        기본세팅이 **켜진 채**다(§4.9842). 그래서 「어디서나 안 뜬다」 가 아니라
+        **엣지가 안 붙는 부속(전면밴드)에서만 안 뜬다** 가 맞다. DXF 불변은 그대로다. */
+  console.log('③ 담긴 것이 없으면 접촉 기본세팅이 낸다 · 엣지가 없는 부속은 재단 줄이 안 뜬다');
   { 맞나('담긴 것이 없다', await 엣지보기(), {});
-    맞나('재단사이즈가 null', await 재단('측판', 1800, 400), null);
+    await p.evaluate(() => window.__probe.set({ backMode:'cover', topStyle:'inset', doorMode:'out', W:800, D:400, H:1800, shelvesM:0, TB:2.7 })); await 잠(400);
+    맞나('측판 — 덮기에서 상·우(1,1)', await 재단('측판', 1800, 400), { L:1799.5, W:399.5 });
+    맞나('전면밴드 — 엣지가 없어 null', await 재단('전면밴드', 764, 80), null);
     await p.evaluate(() => window.__probe.set({ backMode:'insert' })); await 잠(400);
     const z = await p.evaluate(() => window.__probe.쪽().map(x => x.svg).join(''));
-    맞나('2D 에 「재단 사이즈」 글이 없다', /재단 사이즈/.test(z), false);
+    맞나('2D 에 「재단 사이즈」 글이 뜬다', /재단 사이즈/.test(z), true);
     맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007); }
 
   console.log('④ 두 품목 모든 부속 판에 칸 넷 · 「서랍설정」 에는 없다');
@@ -212,7 +217,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await p.reload({ waitUntil:'domcontentloaded' });
     await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(700);
     맞나('꼴이 맞는 것만 받는다', await 엣지보기(), { 측판:{ RT:0.5 } });
-    맞나('그래도 재단은 null(면 0)', await 재단('측판', 1800, 400), null); }
+    // 깨진 값은 버려지고 **접촉 기본세팅**이 그 자리를 메운다(10-08) — 덮기에서 측판은 상·우(1,1)
+    await p.evaluate(() => window.__probe.set({ backMode:'cover', topStyle:'inset', doorMode:'out', W:800, D:400, H:1800, shelvesM:0, TB:2.7 })); await 잠(400);
+    맞나('깨진 값 자리는 기본세팅이 메운다', await 재단('측판', 1800, 400), { L:1799.5, W:399.5 }); }
 
   console.log('⑧ RT 목록에 「RT없음」(0) — 10-07 사장님 말씀');
   { await p.evaluate(() => { localStorage.removeItem('cabinet-studio.수납장.엣지'); });
