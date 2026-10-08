@@ -352,6 +352,8 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
    폰에서는 A4 한 장이 355px 로 눌려 종이 크기 글자가 4px 이 된다. */
 .pg text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2);dominant-baseline:central}
 .pg .ln{stroke:var(--ink);stroke-width:.35px;fill:none}
+/* 엣지가 붙는 변 — 겉면 선(.35)의 2.6배. 재서 고른 값이다: .35 는 안 보이고 1.4 는 치수선을 먹는다 */
+.pg .엣지{stroke:var(--ink);stroke-width:.9px;fill:none}
 .pg .ln2{stroke:var(--ink3);stroke-width:.2px}
 .pg .dim{stroke:var(--dim);stroke-width:.18px}
 .pg .gr{stroke:var(--accent);stroke-width:.22px}
@@ -360,7 +362,9 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .pg .t3{font-size:3px;fill:var(--dim)}
 .pg .t4{font-size:2.9px;fill:var(--ink3)}
 .pg .t5{font-size:2.5px;fill:var(--ink3)}
-@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}.pg .t5{font-size:4.2px}}
+/* 긴 값(재단 사이즈 따위)이 이름표를 덮을 때만 쓰는 한 단 작은 자 — 재서 골랐다(§4.9844) */
+.pg .tv{font-size:3.2px;fill:var(--ink)}
+@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}.pg .t5{font-size:4.2px}.pg .tv{font-size:4.6px}}
 .bom{grid-area:bom;display:none;flex-direction:column}   /* 10-01 — 「부품표」 단추로만 본다 */
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
@@ -522,7 +526,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .svgwrap{overflow:visible;padding:0;flex:none}
   .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
-  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}
+  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}.pg .tv{font-size:2.9px}
   .svgwrap .toc b{font-size:8pt}.svgwrap .toc>div{font-size:9.5pt}
 }
 /* 넓은 화면에서는 한 화면 안에 다 넣는다. 칸마다 제 안에서 굴린다 —
@@ -989,6 +993,66 @@ const 엣지 = 이름 => {
            필름: 엣지필름값.includes(v.필름) ? v.필름 : 엣지기본.필름,
            RT: 엣지RT값.includes(v.RT) ? v.RT : 엣지기본.RT };
 };
+/* ── 엣지가 **어느 변**인가 — 도면에 그리기 위한 것뿐이다 (10-07 사장님 말씀) ──
+   사장님 말씀: 「지금 설정된 엣지상태로 엣지면이 어디인지 알 수 있지? 즉 고정선반의 경우 w면이 1 인데
+   w면은 두면 이잖아 이럴때 **어느면인지 특정이 되는지**를 알아야해」 → 「**도면상에 엣지 작업 모습이 보이게 해줘**」
+   ⚠ **담는 꼴은 고르개 그대로 면수(W·D) 다.** 10-07 에 사장님이 「엣지설정은 이전설정으로 되돌려」 하셨으므로(§4.9843)
+      면 이름을 담지 않는다 — **그릴 때만** 면수에서 어느 변인지 풀어낸다. `엣지설정`·`엣지()`·판은 한 글자도 안 건드렸다.
+   이름은 **판 기준**이다 — 재단판을 눕혀 놓고 가로가 L(결 길이) · 세로가 W(결 폭)다.
+   「W 면」 = 판의 **상·하** · 「D 면」 = 판의 **좌·우**. §4.9846 의 엇갈림과 딱 맞는다(상·하를 깎으면 세로가 준다).
+   ⚠ 세상 기준(앞·뒤)으로 두지 마라 — 측판은 판 상·하가 세상 앞·뒤인데 **문짝은 눕혀 그려 세상 좌·우**다. */
+const 엣지면이름 = ['상','하','좌','우'], 엣지W면 = ['상','하'], 엣지D면 = ['좌','우'];
+let 노출표 = {};                                    // `update()` 가 모델을 세운 뒤 채운다
+/* 면수가 **1** 일 때 어느 쪽인지는 3D 접촉이 가른다 — 바닥에 닿는 면·다른 부속과 맞닿는 면은 가려져 있으니
+   **드러난 쪽**에 붙는다. 둘 다 드러났거나 둘 다 가려졌으면 앞엣것('상'·'좌')으로 둔다(모델이 없을 때도 그렇다). */
+const 엣지변 = 이름 => {
+  const e = 엣지(이름), 드 = 노출표[이름] || [];
+  const 골 = (쌍, n) => {
+    if (n >= 2) return 쌍.slice();
+    if (n <= 0) return [];
+    const 뜬 = 쌍.filter(x => 드.includes(x));
+    return 뜬.length === 1 ? 뜬 : [쌍[0]];
+  };
+  return [...골(엣지W면, e.W), ...골(엣지D면, e.D)];
+};
+/* 드러난 면 — **선 모델에서 잰다.** `buildModel` 은 한 글자도 안 건드렸다(치수·DXF 가 안 움직인다).
+   ⚠ 문짝·마이다는 접촉 상대가 아니다 — 열리는 것이라 모서리를 영영 안 가린다.
+   ⚠ 틈 2mm 까지는 닿은 것으로 본다 — 이동선반 좌우 1mm 같은 끼움 유격이 있다.
+   ⚠ 끼우기 뒷판은 홈 안쪽선까지 채운 것으로 본다(사장님 「가공홈의 끝까지 뒷판이 들어왔다는 가정」). */
+function 노출면(m){
+  const 표 = {};
+  if (!m || !m.parts) return 표;
+  const 산것 = m.parts.filter(q => !q.숨김).map(q => Object.assign({}, q, { _d0:q.d }));
+  const 홈 = m.홈, 홈부속 = ['측판','상판','하판'], 문 = ['문짝','마이다'], 틈허용 = 2;
+  if (홈) 산것.forEach(q => { if (q.name === '뒷판'){ const 뒤 = q.y + q.d; q.y = 홈.앞; q.d = 뒤 - q.y; } });
+  const 구간 = (q,a) => a === 'X' ? [q.x, q.x+q.w] : a === 'Y' ? [q.y, q.y+q.d] : [q.z, q.z+q.h];
+  const 겹 = (a,b) => Math.min(a[1],b[1]) - Math.max(a[0],b[0]);
+  const 홈묻힘 = (p,축,끝) => { if (!홈 || p.name !== '뒷판') return false;
+    const r = 구간(p,축), 면 = 끝 ? r[1] : r[0];
+    return 산것.some(q => 홈부속.includes(q.name) && 겹(구간(q,축), [면-0.01, 면+0.01]) > 0
+      && ['X','Y','Z'].filter(a => a !== 축).every(a => 겹(구간(p,a), 구간(q,a)) > 0.5)); };
+  // 재단 치수(T·L·W)가 어느 축인지 맞춰 본다 — 부속마다 눕는 방향이 다르다
+  const 축찾기 = p => { const d = { X:p.w, Y:p._d0, Z:p.h }, 쓴 = new Set();
+    const 고 = v => { for (const k of ['X','Y','Z']) if (!쓴.has(k) && Math.abs(d[k]-v) < 1e-6){ 쓴.add(k); return k; } return null; };
+    const T = 고(p.cut.T), L = 고(p.cut.L), W = 고(p.cut.W); return T && L && W ? {T,L,W} : null; };
+  const 닿나 = (p,축,끝) => {
+    const [c0,c1] = 구간(p,축), 면 = 끝 ? c1 : c0;
+    if (축 === 'Z' && !끝 && Math.abs(면) < 0.01) return true;          // 바닥
+    if (홈묻힘(p,축,끝)) return true;
+    const 딴 = ['X','Y','Z'].filter(a => a !== 축);
+    return 산것.some(q => { if (q === p) return false;
+      if (문.includes(q.name) && !문.includes(p.name)) return false;
+      const [d0,d1] = 구간(q,축), 틈 = 끝 ? (d0 - 면) : (면 - d1);
+      return 틈 >= -0.01 && 틈 <= 틈허용 && 딴.every(a => 겹(구간(p,a), 구간(q,a)) > 0.5); }); };
+  산것.forEach(p => {
+    const 본 = 본이름(p.name); if (표[본]) return;
+    const a = 축찾기(p); if (!a) return;
+    const 면 = [...(닿나(p,a.W,0) ? [] : ['상']), ...(닿나(p,a.W,1) ? [] : ['하']),
+                ...(닿나(p,a.L,0) ? [] : ['좌']), ...(닿나(p,a.L,1) ? [] : ['우'])];
+    표[본] = 엣지면이름.filter(x => 면.includes(x));
+  });
+  return 표;
+}
 /* 재단 사이즈 — 도면 치수(가공 완료 기준)에서 거꾸로 센다.
    **차이가 0 이면 null** 이다 — 도면 치수와 같은 값을 한 번 더 적지 않는다(§0 · §1.5 실제 외경과 같은 길). */
 function 재단사이즈(이름, L, W){
@@ -2140,6 +2204,10 @@ function 부속정보줄(r, m){
   /* 재단 사이즈 — 엣지 가공을 하기 **전** 판의 크기다(10-06 사장님 말씀).
      ⚠ 도면 치수와 같으면 `재단사이즈()` 가 null 이라 **줄이 안 붙는다** — 같은 값을 두 번 적지 않는다(§0).
         그래서 엣지를 안 켠 기본값에서는 도면이 한 톨도 안 바뀐다. */
+  /* 엣지 — **어느 변에 몇 mm** 인가 (10-07 사장님 말씀). 재단 사이즈 바로 위에 둔다 — 그것이 이 값의 결과다.
+     ⚠ 그림 위에 딱지를 또 붙이지 않는다 — 같은 글을 두 번 적지 않는다(§0). 자리는 굵은 변이 말해 준다. */
+  const 변 = 엣지변(본이름(r.name));
+  if (변.length) 줄.push(['엣지', `${변.join('·')} · ${fmt(엣지(본이름(r.name)).필름)}`]);
   const 재 = 재단사이즈(본이름(r.name), r.L, r.W);
   if (재) 줄.push(['재단 사이즈', `${fmt(재.L)} × ${fmt(재.W)}`]);
   return 줄;
@@ -2198,6 +2266,14 @@ function 부속쪽SVG(행들, m){
     const fx = dx + (dw - (w + 1.5 + tw))/2, fy = dy + (dh - h)/2;
     o.push(`<rect class="ln" x="${n2(fx)}" y="${n2(fy)}" width="${n2(w)}" height="${n2(h)}"/>`);
     o.push(`<rect class="ln" x="${n2(fx+w+1.5)}" y="${n2(fy)}" width="${n2(tw)}" height="${n2(h)}"/>`);
+    /* 엣지가 붙는 변만 굵게 (10-07 사장님 말씀 — 「도면상에 엣지 작업 모습이 보이게 해줘」).
+       ⚠ **두께대로는 못 그린다** — 겉면 배율에서 필름 0.45~2mm 는 0.04~0.55px 이라 겉면 선(0.63px)보다 얇다.
+          그래서 **자리는 선이, 두께는 정보 칸 글이** 말한다(§4.9844 에 잰 값이 있다). */
+    엣지변(본이름(r.name)).forEach(v => {
+      const [ax,ay,bx,by] = v === '상' ? [fx, fy, fx+w, fy] : v === '하' ? [fx, fy+h, fx+w, fy+h]
+                          : v === '좌' ? [fx, fy, fx, fy+h] : [fx+w, fy, fx+w, fy+h];
+      o.push(`<line class="엣지" x1="${n2(ax)}" y1="${n2(ay)}" x2="${n2(bx)}" y2="${n2(by)}"/>`);
+    });
     // 결은 언제나 「결 길이」 쪽으로 간다 — 부품표의 결 길이·결 폭과 같은 뜻이다.
     // 사장님이 결을 안 켠 부속은 **화살표도 글자도 안 그린다**(사장님 말씀 09-22).
     if (r.grain){
@@ -2230,7 +2306,10 @@ function 부속쪽SVG(행들, m){
     const 줄 = 부속정보줄(r, m);
     글(r.name, ix, ty + 8, 't1', 'start');
     선(ix, ty + 11, x1, ty + 11, 'ln2');
-    줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2; 글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 't2', 'end'); });
+    줄.forEach(([이름, 값], j) => { const y = ty + 17 + j*7.2;
+      // 값이 길면 이름을 덮는다 — 폰 크기로 재서 한 단 작은 자(`tv`)로 적는다(§4.9844)
+      const 길다 = 글자폭(String(이름), 4.8) + 글자폭(String(값), 6) > (x1 - ix);
+      글(이름, ix, y, 't4', 'start'); 글(값, x1, y, 길다 ? 'tv' : 't2', 'end'); });
     // ── 이 부속의 홈 가공도 — **정보 칸 아래, 그 부속의 우측 여백** (10-06 사장님 말씀) ──
     if (배 > 0){
       const sw = 보임*배, st = r.T*배;
@@ -3036,6 +3115,9 @@ let drawing = null, 화면도면 = null, 모델 = null;
 function update(){
   const m = buildModel(state);
   모델 = m;
+  /* 드러난 면은 **선 모델에서 저절로 난다** — 설정이 바뀌면 여기서 다시 난다.
+     ⚠ 이 한 줄을 지우지 마라. 표가 비면 면수 1 인 부속이 모두 앞엣변('상'·'좌')으로 떨어진다. */
+  노출표 = 노출면(m);
   rebuild3D(m);
   drawing = buildDrawing(state, m);
   도면그리기();
