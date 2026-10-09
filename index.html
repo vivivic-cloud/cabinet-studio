@@ -3080,12 +3080,10 @@ function init3D(){
 
    단면은 (a, b) 로 그린다 — `a` 는 **깊이축**, `b` 는 **판 두께축**이다. 홈은 b 의 한 끝면에 있다.
    둘레는 **늘 반시계**로 돈다(면 뒤집힘을 막는다). */
-function 홈모양(길이, 두께, g0, g1, 깊이, 위쪽){
+function 홈모양(길이, 두께, c0, c1, 깊이, 위쪽){
   const aB = -길이/2, aT = 길이/2, bB = -두께/2, bT = 두께/2;
-  /* 홈이 판 밖으로 나가면 **그 끝에서 잘라 쓴다** — 그러면 홈이 그 면으로 **뚫려 나간 꼴**로 선다.
-     뒷판이 두꺼워 홈 폭이 우라홈보다 커지면 실제로 그렇게 된다(1쪽 홈 가공도의 「뒤 끝에서 −0.8」 · §4.9894).
-     **메꾸지 않는다** — 프로그램이 아는 그대로 보여 주는 것이 사장님이 보실 것이다. */
-  const c0 = Math.max(aB, Math.min(g0, aT)), c1 = Math.max(aB, Math.min(g1, aT));
+  /* ⚠ 자르는 자리(c0·c1)는 **부르는 데서 정한다**(10-09) — 엣지가 있는 면에서는 필름 두께만큼 물러나야 한다.
+     엣지가 없는 면에서는 예전 그대로 판 끝에서 잘려 **뚫려 나간 꼴**로 선다(§4.9894 · 「메꾸지 않는다」). */
   const 점 = 위쪽
     ? [[aB,bB],[aT,bB],[aT,bT],[c1,bT],[c1,bT-깊이],[c0,bT-깊이],[c0,bT],[aB,bT]]
     : [[aB,bB],[c0,bB],[c0,bB+깊이],[c1,bB+깊이],[c1,bB],[aT,bB],[aT,bT],[aB,bT]];
@@ -3095,6 +3093,38 @@ function 홈모양(길이, 두께, g0, g1, 깊이, 위쪽){
   s.moveTo(줄인[0][0], 줄인[0][1]);
   for (let i = 1; i < 줄인.length; i++) s.lineTo(줄인[i][0], 줄인[i][1]);
   s.closePath(); return s;
+}
+/* 홈 없는 네모 단면 — 엣지필름이 홈을 덮은 자리(아래 `조각꼴`)에 쓴다. */
+function 네모꼴(길이, 두께){
+  const s = new THREE.Shape();
+  s.moveTo(-길이/2, -두께/2); s.lineTo(길이/2, -두께/2); s.lineTo(길이/2, 두께/2); s.lineTo(-길이/2, 두께/2);
+  s.closePath(); return s;
+}
+/* 같은 재질의 덩어리 둘·셋을 **한 꼴로** 합친다 — 이 집 three(r128 min)에는 `BufferGeometryUtils` 가 없다.
+   ⚠ 조각을 따로 세우면 안 된다 — 맞닿은 면이 서로 잡아먹고(§4.11) 고르기·놓아주기가 갈린다. */
+function 꼴합치기(gs){
+  if (gs.length === 1) return gs[0];
+  const out = new THREE.BufferGeometry();
+  ['position','normal','uv'].forEach(k => {
+    const a = gs.map(g => g.attributes[k].array), n = a.reduce((x, y) => x + y.length, 0);
+    const f = new Float32Array(n); let o = 0; a.forEach(x => { f.set(x, o); o += x.length; });
+    out.setAttribute(k, new THREE.BufferAttribute(f, gs[0].attributes[k].itemSize));
+  });
+  gs.forEach(g => g.dispose());
+  return out;
+}
+/* 이은 자리(밀어낸 쪽 z = 면들)의 선은 **안 긋는다** — 거기는 덩어리 속이다.
+   ⚠ 안 걸러내면 필름 바로 뒤에 **홈 테두리가 그대로 비친다** — 덮었다고 보이지 않는다. */
+function 선걸러(eg, 면들){
+  if (!면들.length) return eg;
+  const a = eg.attributes.position.array, 둔 = [];
+  for (let i = 0; i + 5 < a.length; i += 6){
+    if (면들.some(f => Math.abs(a[i+2] - f) < 1e-4 && Math.abs(a[i+5] - f) < 1e-4)) continue;
+    for (let k = 0; k < 6; k++) 둔.push(a[i+k]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(둔), 3));
+  eg.dispose(); return g;
 }
 /* 그 부속의 3D 꼴을 만든다. 홈이 없으면 **예전 그대로 민짜 상자**다.
    세우는 자리·크기는 한 톨도 안 바뀐다 — 홈은 **안으로 파는 것**이지 판을 키우거나 줄이는 것이 아니다.
@@ -3107,18 +3137,41 @@ function 조각꼴(p, m){
   const g0 = (p.y + p.d/2) - m.홈.뒤, g1 = (p.y + p.d/2) - m.홈.앞;   // 깊이축(local Z) 에서의 홈 자리
   const aB = -p.d/2, aT = p.d/2;
   const 두께 = (p.name === '측판') ? p.w : p.h;
-  // 홈이 판 밖에 통째로 있거나 두께를 다 먹으면 **그리지 않는다** — 예전 그대로 민짜 상자다.
-  // (판 끝을 조금 넘는 것은 `홈모양` 이 끝에서 잘라 **뚫린 꼴**로 그린다.)
-  if (!(g1 > aB + 0.01 && g0 < aT - 0.01 && g1 - g0 > 0.01 && 깊이 > 0.01 && 깊이 < 두께 - 0.01)) return 상자();
+  /* 10-09 사장님 말씀 — 「**엣지작업이 없다면 홈이 보여야 하지만 엣지작업이 이 자리를 지나간다면
+     이홈은 엣지필름으로 가려 졌음을 표현해 주어야 합니다**」(실제 가공에서 필름이 홈을 덮는다).
+     그래서 홈은 **엣지가 있는 면에서 필름 두께만큼 물러난다** — 물러난 자리는 필름(엣지 살)이 메운다.
+     엣지가 없는 면은 **예전 그대로 홈이 보인다.** 치수·재단·DXF 는 한 톨도 안 바뀐다(보기만이다). */
+  const 본 = 본이름(p.name), 변 = 엣지변(본), 필 = 엣지(본).필름;
+  const 필름 = 필 === 0.45 ? 0.5 : 필;              // 0.45 는 셈할 때 0.5 (§4.9846)
+  const 물 = v => (변.includes(v) ? 필름 : 0);
+  /* 판 기준이다(§4.9844) — 「W 면」 = 상·하 = **단면 a 축의 양끝**(상 = 앞 = aT · 하 = 뒤 = aB) ·
+     「D 면」 = 좌·우 = **밀어내는 쪽의 양끝**. 홈 단면이 드러나는 자리가 바로 이 넷이다. */
+  const lo = aB + 물('하'), hi = aT - 물('상');
+  const c0 = Math.max(lo, Math.min(g0, hi)), c1 = Math.max(lo, Math.min(g1, hi));
+  // 홈이 판 밖에 통째로 있거나(= 자른 폭 0) 두께를 다 먹으면 **그리지 않는다** — 예전 그대로 민짜 상자다.
+  if (!(c1 - c0 > 0.01 && 깊이 > 0.01 && 깊이 < 두께 - 0.01)) return 상자();
   // 어느 면에 파는가 — 양 측판은 **둘 다 몸통 안쪽**을 본다(왼쪽은 +X 면, 오른쪽은 −X 면)
   const 위쪽 = (p.name === '측판') ? (p.dir[0] < 0) : (p.name === '하판');
-  const geo = new THREE.ExtrudeGeometry(홈모양(p.d, 두께, g0, g1, 깊이, 위쪽),
-    { depth: (p.name === '측판') ? p.h : p.w, bevelEnabled:false, curveSegments:1 });
-  if (p.name === '측판'){            // 단면 (a,b) → (Z,X) · 밀어내는 쪽은 Y(높이)
-    geo.rotateZ(-Math.PI/2); geo.rotateX(-Math.PI/2); geo.translate(0, -p.h/2, 0);
-  } else {                           // 단면 (a,b) → (Z,Y) · 밀어내는 쪽은 X(폭)
-    geo.rotateY(-Math.PI/2); geo.translate(p.w/2, 0, 0);
-  }
+  const 길이 = (p.name === '측판') ? p.h : p.w;      // 밀어내는 길이 = 판 기준 L
+  /* ⚠ 밀어내는 쪽 t 가 어느 변인가 — **측판은 t 가 위로**(t=0 이 아래 = '좌') · **상·하판은 t 가 왼쪽으로** 간다
+     (`rotateY(-90°)` 라 t 가 커지면 x 가 작아진다). 이 두 값을 뒤집으면 **엣지 반대쪽 홈이 덮인다.** */
+  const [rA, rB] = (p.name === '측판') ? [물('좌'), 물('우')] : [물('우'), 물('좌')];
+  const 밀 = (s, d, z0) => { const g = new THREE.ExtrudeGeometry(s, { depth:d, bevelEnabled:false, curveSegments:1 });
+    if (z0) g.translate(0, 0, z0); return g; };
+  if (!(길이 - rA - rB > 0.01)) return 상자();     // 필름보다 얇은 판은 덮을 것이 없다
+  const 몸 = [밀(홈모양(p.d, 두께, c0, c1, 깊이, 위쪽), 길이 - rA - rB, rA)], 이은 = [];
+  if (rA > 0){ 몸.push(밀(네모꼴(p.d, 두께), rA, 0)); 이은.push(rA); }
+  if (rB > 0){ 몸.push(밀(네모꼴(p.d, 두께), rB, 길이 - rB)); 이은.push(길이 - rB); }
+  const geo = 꼴합치기(몸), 선 = 선걸러(new THREE.EdgesGeometry(geo), 이은);
+  const 돌 = g => {
+    if (p.name === '측판'){          // 단면 (a,b) → (Z,X) · 밀어내는 쪽은 Y(높이)
+      g.rotateZ(-Math.PI/2); g.rotateX(-Math.PI/2); g.translate(0, -p.h/2, 0);
+    } else {                         // 단면 (a,b) → (Z,Y) · 밀어내는 쪽은 X(폭)
+      g.rotateY(-Math.PI/2); g.translate(p.w/2, 0, 0);
+    }
+  };
+  돌(geo); 돌(선);
+  geo.userData.선 = 선;              // 이은 자리를 걸러낸 선 — `rebuild3D` 가 이것을 쓴다
   return geo;
 }
 function rebuild3D(m){
@@ -3132,7 +3185,7 @@ function rebuild3D(m){
     const geo = 조각꼴(p, m);               // 끼우기의 홈 파는 세 부속은 진짜로 홈이 파인다 (10-02)
     const base = mat(p.cut.T, p.name === 부속이름('문짝'), p.name === '이동선반');
     const mesh = new THREE.Mesh(geo, base);
-    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+    mesh.add(new THREE.LineSegments(geo.userData.선 || new THREE.EdgesGeometry(geo), edgeMat));
     엣지살붙이기(mesh, p, base);        // 10-08 — 엣지가 붙는 좁은 면을 덮는다 (색은 10-09 로 그 부속 색)
     mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
       baseMat:base, pid:p.pid, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`, 옅음:p.name === '이동선반',
