@@ -336,7 +336,10 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .zoomwrap{position:relative;flex:1 1 auto;min-height:0;padding:0;overflow:hidden;
   touch-action:none;background:var(--fill2);display:block;cursor:grab}
 .zoomwrap.끄는중{cursor:grabbing}
-.zoomwrap .zoombox{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+/* 10-09 사장님 말씀 — 「확대시 도면라인과 텍스트가 명확하지 않다」.
+   ⚠ `transform:scale` 로 키우면 **375px 로 그려 둔 그림을 늘인다**(레이아웃 375 · 보임 3000).
+      `will-change:transform` 은 그 그림을 레이어로 굳혀 다시 안 그리게 한다. 둘 다 뺐다 — §4.9838. */
+.zoomwrap .zoombox{position:absolute;left:0;top:0;transform-origin:0 0}
 .zoomwrap .page{margin:0;width:100%}
 .zoomwrap .pick{pointer-events:none}          /* 큰 그림에서는 부속을 짚지 않는다 — 밀고 키우는 자리다 */
 .zoomwrap .big{display:none}                  /* 큰 그림 안에 또 「크게」 를 두지 않는다 */
@@ -3983,8 +3986,14 @@ if (new URLSearchParams(location.search).get('viggle') === '1'){
   const dlg = $('#zoomDlg'), wrap = $('#zoomWrap'), box = $('#zoomBox');
   if (!dlg) return;
   let 배 = 1, 맞춤배 = 1, ox = 0, oy = 0, 폭 = 0, 높 = 0;
+  /* `zoom` 은 레이아웃을 다시 잡아 **그 크기 그대로 벡터로 그린다** — `transform:scale` 처럼
+     작게 그려 둔 그림을 늘이지 않는다. 보이는 모습은 같다(선·글자가 똑같이 배만큼 커진다).
+     ⚠ `zoom` 은 제 안의 길이를 다 곱하므로 **제 `transform` 의 밀기도 배로 나눠** 넣어야 한다.
+     ⚠ `scale` 로 되돌리지 마라 — 그러면 해상도가 배만큼 떨어진다(§4.9838). */
+  const 줌됨 = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom','2');
   const 칠 = () => {
-    box.style.transform = `translate(${ox}px, ${oy}px) scale(${배})`;
+    if (줌됨){ box.style.zoom = 배; box.style.transform = `translate(${ox/배}px, ${oy/배}px)`; }
+    else box.style.transform = `translate(${ox}px, ${oy}px) scale(${배})`;   // `zoom` 을 모르는 옛 브라우저
     $('#zoomPct').textContent = Math.round(배 / 맞춤배 * 100) + '%';
   };
   const 가두기 = () => {                      // 쪽이 화면보다 작으면 가운데, 크면 가장자리까지만
