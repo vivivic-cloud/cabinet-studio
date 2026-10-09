@@ -101,7 +101,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   await 품목('서랍장');
   await 두기({ W:800, D:400, H:1800, doors:4, backMode:'cover', doorMode:'out', plinth:80 });
   const 서랍쪽 = await 쪽들();
-  맞나('쪽 이름 — 맨 뒤가 조립도', 서랍쪽, ['측판·상판','하판·마이다·서랍재W','서랍재D·서랍바닥·가로대','전면밴드·뒷판','서랍 조립도']);
+  // 10-09 — 맨 앞에 「제품 스펙서」 한 쪽이 늘었다(§4.9834). **조립도가 맨 뒤라는 것**이 여기서 보는 것이다.
+  맞나('쪽 이름 — 맨 뒤가 조립도', 서랍쪽, ['제품 스펙서','측판·상판','하판·마이다·서랍재W','서랍재D·서랍바닥·가로대','전면밴드·뒷판','서랍 조립도']);
 
   console.log('② 쪽에 적힌 조립 치수 = 조각을 감싼 네모');
   for (const 유격 of [0, 10]){
@@ -145,7 +146,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   const 끝 = 썸[썸.length - 1];
   await 끝.scrollIntoViewIfNeeded(); await 잠(150);
   const 썸크기 = await 끝.boundingBox();
-  맞나('썸네일 단추 — 닿는 자리 44 이상', [썸.length, Math.round(썸크기.width) >= 44, Math.round(썸크기.height) >= 44], [6, true, true]);
+  맞나('썸네일 단추 — 닿는 자리 44 이상', [썸.length, Math.round(썸크기.width) >= 44, Math.round(썸크기.height) >= 44], [7, true, true]);
   const r = await 끝.boundingBox();
   await cdp.send('Input.dispatchTouchEvent', { type:'touchStart', touchPoints:[{ x:r.x+r.width/2, y:r.y+r.height/2 }] });
   await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
@@ -156,7 +157,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
              크게: (() => { const z = pg.querySelector('.big').getBoundingClientRect(); return [Math.round(z.width), Math.round(z.height)]; })(),
              쪽: [Math.round(q.width), Math.round(q.height)],
              넘침: document.documentElement.scrollWidth }; }),
-    { 번호:'6 / 6', 크게:[56,44], 쪽:[375,530], 넘침:375 });
+    { 번호:'7 / 7', 크게:[56,44], 쪽:[375,530], 넘침:375 });
   맞나('1쪽 차례에 든다', await p.evaluate(() =>
     [...document.querySelectorAll('.toc div span')].length && document.querySelector('.toc').textContent.includes('서랍 조립도')), true);
   await p.evaluate(() => document.querySelector('.modeseg button[data-mode="3d"]').click());
@@ -176,7 +177,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
   console.log('⑦ 수납장은 한 톨도 안 바뀐다');
   await 품목('수납장');
   await 두기({ W:800, D:400, H:1800, doors:2, backMode:'cover', doorMode:'out', plinth:80 });
-  맞나('수납장 쪽 이름', await 쪽들(), ['측판·상판','하판·문짝·고정선반','전면밴드·뒷판']);
+  맞나('수납장 쪽 이름', await 쪽들(), ['제품 스펙서','측판·상판','하판·문짝·고정선반','전면밴드·뒷판']);
   맞나('수납장에는 조립 쪽이 없다', await 조립글(), null);
   맞나('수납장 부속서 · 도면 조각', await p.evaluate(() => ({
     부속서: window.__probe.행().map(r => `${r.name}|${r.qty}|${r.L}|${r.W}|${r.T}`).join('|'),

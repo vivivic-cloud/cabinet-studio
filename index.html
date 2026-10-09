@@ -373,7 +373,9 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .pg .t5{font-size:2.5px;fill:var(--ink3)}
 /* 긴 값(재단 사이즈 따위)이 이름표를 덮을 때만 쓰는 한 단 작은 자 — 재서 골랐다(§4.9844) */
 .pg .tv{font-size:3.2px;fill:var(--ink)}
-@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}.pg .t5{font-size:4.2px}.pg .tv{font-size:4.6px}}
+/* 제품 스펙서의 상표 글자 (10-09 사장님 말씀 · §4.9834). 다른 자(t1~t5·tv)는 한 글자도 안 건드렸다. */
+.pg .tb{font-size:9px;fill:var(--head);font-weight:800;letter-spacing:.4px}
+@media (max-width:760px){.pg .t1{font-size:8px}.pg .t2{font-size:6px}.pg .t3{font-size:5.2px}.pg .t4{font-size:4.8px}.pg .t5{font-size:4.2px}.pg .tv{font-size:4.6px}.pg .tb{font-size:14px}}
 .bom{grid-area:bom;display:none;flex-direction:column}   /* 10-01 — 「부품표」 단추로만 본다 */
 .bom table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 .bom th,.bom td{padding:7px 18px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap}
@@ -535,7 +537,7 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .svgwrap{overflow:visible;padding:0;flex:none}
   .svgwrap .page{width:210mm;height:297mm;aspect-ratio:auto;margin:0;border:0;break-after:page;page-break-after:always}
   .svgwrap .page:last-child{break-after:auto;page-break-after:auto}
-  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}.pg .tv{font-size:2.9px}
+  .pg .t1{font-size:4.6px}.pg .t2{font-size:3.2px}.pg .t3{font-size:2.8px}.pg .t4{font-size:2.6px}.pg .t5{font-size:2.3px}.pg .tv{font-size:2.9px}.pg .tb{font-size:8.3px}
   .svgwrap .toc b{font-size:8pt}.svgwrap .toc>div{font-size:9.5pt}
 }
 /* 넓은 화면에서는 한 화면 안에 다 넣는다. 칸마다 제 안에서 굴린다 —
@@ -2469,6 +2471,146 @@ function 서랍조립쪽SVG(z, m){
   열(x1 - cw, cw, '한 벌 부속', z.목록.map(r => [`${r.name} ${r.qty}장`, `${fmt(r.L)} × ${fmt(r.W)} × ${fmt(r.T)}`]));
   return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
 }
+/* ───────── 제품 스펙서 — 사장님이 보여 주신 양식 (10-09 사장님 말씀) ─────────
+   사장님 말씀: 「**제작도면에 스펙서를 추가해서 제시한 사진과 같은 양식의 제품스펙서가 생성되게 해줘**」
+   보여 주신 사진 — Volumen 「Aspen / Armchair AS10S」 제품 스펙서 한 장(Page 02 / 04).
+   그 양식은 여섯 켜다 — ① 머리(상표 · Product Sheet · 품명) ② 제품명 ③ 왼쪽 제품 그림 + 오른쪽 사양표
+   ④ 치수 띠 ⑤ 아래 절반의 선 도면 셋(측면 · 정면 · 평면) ⑥ 바닥 글. 그 차례와 자리를 그대로 따랐다.
+
+   ⚠ **값을 새로 셈하지 않는다** — 표제란(`buildDrawing`)과 부속서가 쓰는 그 값을 그대로 쓴다.
+      베껴 쓰면 결합 방식·유격·품목 이름을 고칠 때 둘이 어긋난다(§4.9849 의 그 길).
+   ⚠ **1쪽 바로 뒤에 한 쪽을 더한다.** 부속 쪽 담기(`무게합`·물려주기)는 그 뒤에 따로 돌므로
+      **이미 나가던 부속 쪽 그림이 한 톨도 안 흔들린다**(markup md5 로 쟀다).
+      부속 쪽은 `P` 를 안 건드리므로(§4.5) **DXF·저장 SVG 도 한 바이트도 안 움직인다.**
+   ⚠ **없는 것은 안 지어낸다** — 사진의 「색 견본 · 웹사이트 · 인증 마크 · 전화 · 메일」 은
+      이 프로그램에 자료가 없다. 지어내면 공장에 나가는 종이에 거짓이 실린다. 그 자리는 비웠다. */
+function 스펙값(m){
+  if (!m.parts.length) return null;                       // 부속이 하나도 없으면 적을 제품이 없다
+  const s = state;
+  const 선반명 = 부속이름('고정선반', s.품목), 도어명 = 부속이름('문짝', s.품목);
+  const 선 = new Set(m.parts.map(p => p.name));
+  /* ⚠ 값 한 칸을 길게 쓰지 마라 — **폰(375)에서는 글자가 두 배라** 이름표를 덮는다(§4.9844 의 그 자).
+     그래서 부속마다 한 줄씩 짧게 끊는다. 가장 긴 줄로 재서 88mm 칸에 든다. */
+  const 표 = [];
+  표.push(['측판', `${fmt(s.Tside)}T`]);
+  표.push(['상판', `${fmt(s.Ttop)}T · ${s.topStyle === 'overlay' ? '측판 위' : '측판 사이'}`]);
+  표.push(['하판', `${fmt(s.Tbot)}T · ${s.botStyle === 'under' ? '측판 아래' : '측판 사이'}`]);
+  if (선.has(선반명))      표.push([선반명, `${s.shelves}단 · ${fmt(s.Tshelf)}T`]);
+  if (m.이동단)            표.push(['이동선반', `${m.이동단}단 · ${fmt(s.Tshelf2)}T`]);
+  if (m.문수)              표.push([도어명, `${m.문수}${도어명 === '마이다' ? '개' : '짝'} · ${모드글(s.doorMode, s.품목)}`]);
+  if (선.has('전면밴드'))  표.push(['전면밴드', `${fmt(s.plinth)} · ${fmt(s.Tplinth)}T`]);
+  if (선.has('뒷판'))      표.push(['뒷판', `${fmt(s.TB)}T · ${s.backMode === 'insert' ? '끼우기' : '덮기'}`]);
+  if (m.홈)                표.push(['우라홈', fmt(규칙.우라홈)]);
+  // 엣지 — 부속마다 고를 수 있다(§4.9846). 한 가지로 맞춰져 있으면 그 값을, 갈리면 「부속마다 다름」.
+  const 엣부 = [...선].filter(n => 엣지변(본이름(n)).length);
+  if (엣부.length){
+    const 짝 = [...new Set(엣부.map(n => { const e = 엣지(본이름(n));
+      return `필름 ${fmt(e.필름)} · RT ${Number(e.RT) === 0 ? '없음' : fmt(e.RT)}`; }))];
+    표.push(['엣지', 짝.length === 1 ? 짝[0] : '부속마다 다름']);
+  }
+  /* 결 — 켠 부속만 센다. 하나도 안 켰으면 줄이 아예 없다(결없음이 기본값이다 · §4.96).
+     ⚠ 부속 이름을 늘어놓지 마라 — 여덟을 다 켜면 한 줄이 칸을 넘는다. 관계제어판처럼 **세어 적는다**. */
+  const 결수 = { 세로:0, 가로:0 };
+  선.forEach(n => { const g = 결표기(본이름(n)); if (g) 결수[g]++; });
+  if (결수.세로 || 결수.가로)
+    표.push(['결 방향', [결수.세로 ? `세로 ${결수.세로}` : '', 결수.가로 ? `가로 ${결수.가로}` : ''].filter(Boolean).join(' · ')]);
+
+  const 치수 = [['높이', fmt(s.H)], ['내부 폭', fmt(m.innerW)], ['내부 높이', fmt(m.innerH)]];
+  if (m.pitch) 치수.push(['선반 간격', fmt(m.pitch)]);
+  const 끝 = f => m.parts.map(f);
+  const bb = { x0:Math.min(...끝(p => p.x)), x1:Math.max(...끝(p => p.x + p.w)),
+               y0:Math.min(...끝(p => p.y)), y1:Math.max(...끝(p => p.y + p.d)),
+               z0:Math.min(...끝(p => p.z)), z1:Math.max(...끝(p => p.z + p.h)) };
+  return { 품명: 규칙.이름 || s.품목 || '수납장', 품목: s.품목 || '수납장',
+           치수글: `W${fmt(s.W)} × D${fmt(s.D)} × H${fmt(s.H)}`,
+           외경글: m.외경.같나 ? '' : `실제외경 W${fmt(m.외경.W)} × D${fmt(m.외경.D)} × H${fmt(m.외경.H)}`,
+           표, 치수, bb, 조각: m.parts };
+}
+
+/* 스펙서 한 쪽 = A4 한 장. 단위는 다른 쪽과 같이 mm 그대로다(viewBox 0 0 210 297).
+   그리는 자(선·글·치수)는 부속 쪽 것과 같은 꼴인데 그 함수 안에 갇혀 있어 여기서 다시 적는다 —
+   밖으로 빼면 이미 나가는 부속 쪽 그림이 흔들린다(§0 · 서랍 조립도도 같은 까닭으로 다시 적었다).
+   ⚠ **자리는 폰(375) 글자 크기로 잡았다** — t1 8 · t2 6 · t4 4.8 · t5 4.2 · tb 14.
+      넓은 화면·인쇄에서는 글자가 더 작아지므로 **폰에서 안 겹치면 어디서나 안 겹친다**(§4.9844). */
+function 스펙쪽SVG(z, m){
+  const M = A4.여백, x0 = M, x1 = A4.W - M, o = [];
+  const 선 = (ax,ay,bx,by,c) => o.push(`<line class="${c}" x1="${n2(ax)}" y1="${n2(ay)}" x2="${n2(bx)}" y2="${n2(by)}"/>`);
+  const 글 = (str,x,y,c,a) => o.push(`<text class="${c}" x="${n2(x)}" y="${n2(y)}" text-anchor="${a || 'middle'}">${esc(String(str))}</text>`);
+  /* ⚠ `.pg .ln` 에는 CSS 로 `fill:none` 이 걸려 있다 — **`fill` 속성으로는 못 이긴다**(CSS 가 이긴다).
+     채우려면 `style` 로 줘야 한다. 한 번 여기서 헛짚어 제품 그림이 민짜 격자로 나왔다. */
+  const 네 = (bx,by,bw,bh,c,f) => o.push(`<rect class="${c}" x="${n2(bx)}" y="${n2(by)}" width="${n2(bw)}" height="${n2(bh)}"`
+    + (f ? ` style="fill:${f}"` : ' fill="none"') + '/>');
+  const 가로치수 = (ax,bx,y,str) => { 선(ax,y-2.6,ax,y+1,'dim'); 선(bx,y-2.6,bx,y+1,'dim'); 선(ax,y,bx,y,'dim'); 글(str,(ax+bx)/2,y+3.4,'t3'); };
+  const 세로치수 = (ay,by,x,str) => { 선(x-1,ay,x+2.6,ay,'dim'); 선(x-1,by,x+2.6,by,'dim'); 선(x,ay,x,by,'dim');
+    o.push(`<text class="t3" x="${n2(x-2.6)}" y="${n2((ay+by)/2)}" text-anchor="middle" transform="rotate(-90 ${n2(x-2.6)} ${n2((ay+by)/2)})">${esc(str)}</text>`); };
+  const b = z.bb, BW = Math.max(1, b.x1 - b.x0), BD = Math.max(1, b.y1 - b.y0), BH = Math.max(1, b.z1 - b.z0);
+  const ix = x1 - 92;                                      // 사양 칸 왼쪽 끝
+
+  // ① 머리 — 상표 · 「제품 스펙서」 · 품명.
+  // ⚠ 오른쪽 위에는 글을 두지 마라 — 쪽 오른쪽 위의 「크게」 단추가 덮는다(서랍 조립도에서 재서 잡았다).
+  //    쪽 번호도 적지 않는다 — `.pnum`(n / 총)이 이미 거기 있다(§0 — 같은 것을 두 번 적지 않는다).
+  글('NRS', x0, 14, 'tb', 'start');
+  글('제품 스펙서', x0 + 48, 11, 't4', 'start');
+  글(줄여서(z.품명, 4.8, x1 - 30 - (x0 + 48)), x0 + 48, 17.5, 't4', 'start');
+  선(x0, 24, x1, 24, 'ln2');
+  // ② 제품명 — 사진의 「Aspen / Armchair AS10S」 자리다.
+  글(줄여서(z.품명, 8, x1 - x0), x0, 32, 't1', 'start');
+  글(`${z.품목} · ${z.치수글}`, x0, 40, 't2', 'start');
+  if (z.외경글) 글(z.외경글, x0, 46, 't4', 'start');
+  선(x0, 50, x1, 50, 'ln2');
+
+  // ③ 왼쪽 제품 그림 + 오른쪽 사양표 (사진의 가운데 켜)
+  const px = x0 + 2, py = 54, pw = (ix - 10) - px, ph = 92;
+  const k2 = Math.min(pw / BW, ph / BH);
+  const ex = px + (pw - BW*k2)/2, ey = py + (ph - BH*k2)/2;
+  // 정면에서 본 모습 — 뒤엣것부터 그려 앞엣것이 위에 온다. 사진의 제품 사진 자리라 딱지를 안 붙인다.
+  [...z.조각].sort((p, q) => (q.y + q.d/2) - (p.y + p.d/2)).forEach(p =>
+    네(ex + (p.x - b.x0)*k2, ey + (b.z1 - (p.z + p.h))*k2, p.w*k2, p.h*k2, 'ln', 'var(--fill2)'));
+  // 사양표 — 이름 왼쪽, 값 오른쪽, 줄마다 가는 선. 값을 오른끝에 맞추는 것은 이 집 표 꼴 그대로다.
+  글('사양', ix, 57, 't1', 'start');
+  선(ix, 61, x1, 61, 'ln2');
+  /* ⚠ 줄 수가 갈래마다 다르다 — 가장 많을 때가 **열한 줄**이다
+     (측판·상판·하판·선반·이동선반·도어·전면밴드·뒷판·우라홈·엣지·결).
+     그래서 **줄 사이를 줄 수에 맞춰 잡는다** — 8.2 로 박으면 열한 줄에서 치수 띠를 덮는다(재서 잡았다). */
+  const 줄사이 = z.표.length > 1 ? Math.min(8.2, 74 / (z.표.length - 1)) : 8.2;
+  z.표.forEach((r, i) => { const y = 68 + i*줄사이;
+    const 길다 = 글자폭(String(r[0]), 4.8) + 글자폭(String(r[1]), 6) > (x1 - ix);
+    글(r[0], ix, y, 't4', 'start'); 글(r[1], x1, y, 길다 ? 'tv' : 't2', 'end');
+    선(ix, y + 줄사이/2, x1, y + 줄사이/2, 'ln2'); });
+  선(x0, 150, x1, 150, 'ln2');
+
+  // ④ 치수 띠 — 사진의 Height / Seat Height / Seat Depth 자리다.
+  const cw = (x1 - x0) / 4;
+  z.치수.forEach((r, i) => { const cx = x0 + i*cw;
+    글(r[0], cx, 157, 't4', 'start'); 글(r[1], cx, 164.5, 't2', 'start'); });
+  선(x0, 170, x1, 170, 'ln2');
+
+  // ⑤ 선 도면 셋 — 위에 측면·정면, 아래에 평면. 사진의 아래 절반 차례 그대로다.
+  const 위 = 174, 아래 = 264, 칸x = x0 + 14, 칸w = x1 - 칸x, 틈 = 10;
+  const k = Math.min((칸w - 틈) / (BD + BW), (아래 - 위 - 30) / (BH + BD));
+  const Gw = BD*k + 틈 + BW*k, gx = 칸x + (칸w - Gw)/2;
+  const sx = gx, fx = gx + BD*k + 틈, ty = 위 + 5;
+  글('측면', sx, ty - 3, 't5', 'start');
+  z.조각.forEach(p => 네(sx + (p.y - b.y0)*k, ty + (b.z1 - (p.z + p.h))*k, p.d*k, p.h*k, 'ln'));
+  글('정면', fx, ty - 3, 't5', 'start');
+  z.조각.forEach(p => 네(fx + (p.x - b.x0)*k, ty + (b.z1 - (p.z + p.h))*k, p.w*k, p.h*k, 'ln'));
+  세로치수(ty, ty + BH*k, sx - 4.5, fmt(BH));
+  가로치수(sx, sx + BD*k, ty + BH*k + 4.5, fmt(BD));
+  가로치수(fx, fx + BW*k, ty + BH*k + 4.5, fmt(BW));
+  const py2 = ty + BH*k + 17;                              // 평면은 정면 아래에 그 폭으로 선다
+  글('평면', fx, py2 - 3, 't5', 'start');
+  z.조각.forEach(p => 네(fx + (p.x - b.x0)*k, py2 + (p.y - b.y0)*k, p.w*k, p.d*k, 'ln'));
+  세로치수(py2, py2 + BD*k, fx - 4.5, fmt(BD));
+  가로치수(fx, fx + BW*k, py2 + BD*k + 4.5, fmt(BW));
+
+  // ⑥ 바닥 글 — 사진의 바닥 세 칸 자리다. 전화·메일·웹주소는 이 프로그램에 없어 안 지어냈다.
+  선(x0, 270, x1, 270, 'ln2');
+  글('제3각법 · 치수 mm', x0, 276, 't5', 'start');
+  글('재단 여유 미포함', x0 + 62, 276, 't5', 'start');
+  글(new Date().toISOString().slice(0,10), x1, 276, 't5', 'end');
+  return `<svg class="pg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.W} ${A4.H}" preserveAspectRatio="xMidYMid meet" stroke-linecap="round">${o.join('')}</svg>`;
+}
+
 // 한 쪽에 세 자리. 홈 파는 부속은 홈 가공도까지 들어가므로 한 자리 반을 쓴다 —
 // 그래서 그 부속은 한 쪽에 둘까지만 들어가고 그림이 그만큼 커진다.
 function 부속쪽들(m){
@@ -2489,6 +2631,11 @@ function 부속쪽들(m){
            && 무게합(쪽[i]) + 무게(쪽[i-1][쪽[i-1].length-1]) <= Math.min(A4.칸수, 무게합(쪽[i-1])))
       쪽[i].unshift(쪽[i-1].pop());
   const 쪽들 = 쪽.map(칸 => ({ svg: 부속쪽SVG(칸, m), 이름들: 칸.map(r => r.name) }));   // 이름은 1쪽 차례가 쓴다
+  /* 10-09 사장님 말씀 — 제품 스펙서 한 쪽을 **1쪽 바로 뒤**에 둔다.
+     제품을 한눈에 보는 종이라 맨 뒤에 두면 「있는데 안 보이는」 것이 된다(§4.5).
+     ⚠ 부속 쪽은 **위에서 이미 다 짜였다** — 여기서 앞에 끼워도 그 그림이 한 톨도 안 흔들린다(markup md5 로 쟀다). */
+  const 스펙 = 스펙값(m);
+  if (스펙) 쪽들.unshift({ svg: 스펙쪽SVG(스펙, m), 이름들: ['제품 스펙서'] });
   // 10-06 사장님 말씀 — 조립된 서랍(마이다+서랍) 한 쪽을 **맨 뒤에** 더한다.
   // 앞 쪽들은 위에서 이미 다 짜였으므로 **한 톨도 안 흔들린다**. 서랍이 없으면 쪽도 없다.
   const 조립 = 서랍조립값(m);
