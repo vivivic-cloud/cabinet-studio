@@ -2550,21 +2550,27 @@ function mat(t, door, 옅음){
 }
 // 모서리선 — 반투명 0.55 였던 것을 **또렷하게** 바꿨다(10-01 사장님 말씀). 색은 그대로다.
 const edgeMat = new THREE.LineBasicMaterial({ color:0x4E3A24 });
-/* ── 3D 의 엣지 작업 — **엣지가 붙는 좁은 면을 필름 색으로 덮는다** (10-08 사장님 말씀 「도면이라함은 2D 3D 모두 포함」) ──
+/* ── 3D 의 엣지 작업 — **엣지가 붙는 좁은 면을 덮는다** (10-08 사장님 말씀 「도면이라함은 2D 3D 모두 포함」) ──
    ⚠ 필름 **두께대로 띠를 두르면 안 보인다** — 0.45~2mm 는 기본 시점에서 0.15~0.6px 다(2D 와 같은 벽 · §4.9842).
       그래서 **그 좁은 면 전체**를 덮는다. 실제로도 엣지필름은 그 면을 통째로 덮으므로 거짓이 아니다.
    ⚠ 두께는 **필름 두께 그대로 안으로** 넣는다(겉으로 안 내민다) — 도면 치수가 가공 완료 기준이라
       밖으로 붙이면 제품이 그만큼 커 보인다(§4.9846).
    ⚠ `polygonOffset` 을 **앞으로**(−1) 준다 — 판 면은 뒤로 밀려 있으므로(§4.11) 안 주면 서로 잡아먹는다. */
-const 엣지필름색 = 0x6B4B2A;
+/* 10-09 사장님 말씀 — 「3d의 엣지 작업표현 색상을 **도면의 부속의 색상과 같은 색상의 반투명**으로 표현 해 주세요」.
+   ⚠ 색을 **지어내지 않는다** — 그 부속의 제 재질(`mat()` 이 낸 `base`)을 **베껴** 쓴다. 그래서 두께·문짝 갈래마다
+      색이 저절로 갈린다(문짝 E4CBA2 · 12T 밑 C7A874 · 그 위 D9B98A). 색값을 여기 박아 두지 마라. */
+const 필름투명 = 0.45;              // 이 집의 반투명 값 그대로다 — 이동선반 3D 0.45(§4.9883)
 const 필름재들 = {};
-/* ⚠ 이동선반은 면이 비친다(§4.9883 · 09-30 사장님 말씀) — 엣지 살만 꽉 차면 그 구분이 깨진다. 같이 비치게 둔다. */
-const 필름재질 = 옅음 => { const k = 옅음 ? '옅' : '';
-  if (!필름재들[k]) 필름재들[k] = new THREE.MeshStandardMaterial({ color:엣지필름색, roughness:0.62, metalness:0,
-    transparent: !!옅음, opacity: 옅음 ? 0.45 : 1, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1 });
-  return 필름재들[k]; };
+const 필름재질 = base => {
+  if (!필름재들[base.uuid]){
+    const m = base.clone();         // 색·거칠기까지 그 부속 그대로 — 「같은 색상」 이다
+    m.transparent = true; m.opacity = 필름투명;
+    m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1;
+    필름재들[base.uuid] = m;
+  }
+  return 필름재들[base.uuid]; };
 const 모델축을three = { X:'x', Y:'z', Z:'y' };      // 모델 X=폭 → three x · 모델 Y=깊이 → three z · 모델 Z=높이 → three y
-function 엣지살붙이기(mesh, p){
+function 엣지살붙이기(mesh, p, base){
   const 본 = 본이름(p.name), 변 = 엣지변(본);
   if (!변.length) return;
   const a = 판축(p); if (!a) return;
@@ -2581,7 +2587,7 @@ function 엣지살붙이기(mesh, p){
     /* ⚠ 바깥으로 **한 톨도 내밀지 않는다** — 내밀면 조각 네모가 그만큼 커져 겉 치수가 400 → 400.08 이 된다
        (`tests/삼디홈.js` 가 잡았다). 겉면을 딱 맞추고 겹침은 `polygonOffset` 이 가른다. */
     자리[축이] = 쪽 * (반[축] - 깊/2);
-    const s = new THREE.Mesh(new THREE.BoxGeometry(크기.x, 크기.y, 크기.z), 필름재질(p.name === '이동선반'));
+    const s = new THREE.Mesh(new THREE.BoxGeometry(크기.x, 크기.y, 크기.z), 필름재질(base));
     s.position.set(자리.x, 자리.y, 자리.z);
     s.raycast = () => {};                                     // 짚기는 부속 제 몸만 받는다(`intersectObjects(…, false)`)
     mesh.add(s);
@@ -2613,8 +2619,8 @@ function applySel(){
     m.material = on ? selMat(m.userData.baseMat) : m.userData.baseMat;
     m.children[0].material = on ? selEdgeMat : edgeMat;
     // 엣지 살(`children[1]` 부터)도 같이 물든다 — 한 부속이 반만 붉으면 고른 것이 아닌 것처럼 보인다(§4.11)
-    const 옅 = m.userData.옅음;
-    for (let i = 1; i < m.children.length; i++) m.children[i].material = on ? selMat(필름재질(옅)) : 필름재질(옅);
+    const 필 = 필름재질(m.userData.baseMat);
+    for (let i = 1; i < m.children.length; i++) m.children[i].material = on ? selMat(필) : 필;
   });
   document.querySelectorAll('#svgwrap [data-pid]').forEach(el =>  // 2D 도면
     el.classList.toggle('sel', Number(el.dataset.pid) === selPid));
@@ -3070,7 +3076,7 @@ function rebuild3D(m){
     const base = mat(p.cut.T, p.name === 부속이름('문짝'), p.name === '이동선반');
     const mesh = new THREE.Mesh(geo, base);
     mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
-    엣지살붙이기(mesh, p);              // 10-08 — 엣지가 붙는 좁은 면을 필름 색으로 덮는다
+    엣지살붙이기(mesh, p, base);        // 10-08 — 엣지가 붙는 좁은 면을 덮는다 (색은 10-09 로 그 부속 색)
     mesh.userData = { base:[p.x + p.w/2 - W/2, p.z + p.h/2 - H/2, D/2 - (p.y + p.d/2)], dir:[p.dir[0], p.dir[2], -p.dir[1]],
       baseMat:base, pid:p.pid, key:`${p.name}|${p.cut.L}|${p.cut.W}|${p.cut.T}`, 옅음:p.name === '이동선반',
       서랍번호:p.서랍번호,     // 부속 번호와 부품표 열쇠 · 10-06 「동작」 이 보는 서랍 번호(없으면 undefined)

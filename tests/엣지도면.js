@@ -9,7 +9,8 @@
      ④ 정보 칸에 「엣지 상·하 · 1」 이 뜨고 **3D 우측칸에도 같은 줄**이 뜬다
      ⑤ 여덟 갈래 × 모든 부속 W-2·D-2 에서 **A4 밖 0**
      ⑥ **판은 이전설정 그대로다** — 고르개 넷 · 면 알약 0 · 담는 꼴이 `{W,D,필름,RT}`
-     ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 필름 색으로 덮고, 짚기를 안 뺏는다
+     ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 덮고, 짚기를 안 뺏는다
+     ⑧ **그 면 색은 그 부속 색 그대로이고 반투명이다** (10-09 사장님 말씀 · 부속마다 다른 색)
 
    돌리는 법:  node tests/엣지도면.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -208,6 +209,7 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
         const sk = m.children.filter(c => c.isMesh);
         살[n] = (살[n] || 0) + sk.length;
         if (sk.length && !꼴[n]) 꼴[n] = { 색: sk[0].material.color.getHexString(),
+          몸: m.material.color.getHexString(),
           비침: `${sk[0].material.transparent}/${sk[0].material.opacity}`,
           짚기끔: sk[0].raycast.toString().length < 30 }; });
       return { 살, 꼴 }; });
@@ -217,30 +219,43 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('이동선반 — 앞 한 면 × 두 장', (r.살 || {})['이동선반'], 2);
     맞나('뒷판 — 홈에 묻혀 0', (r.살 || {})['뒷판'], 0);
     맞나('전면밴드 — 0', (r.살 || {})['전면밴드'], 0);
-    맞나('필름 색', ((r.꼴 || {})['측판'] || {}).색, '6b4b2a');
-    맞나('꽉 참', ((r.꼴 || {})['측판'] || {}).비침, 'false/1');
-    맞나('이동선반은 같이 비친다 (§4.9883)', ((r.꼴 || {})['이동선반'] || {}).비침, 'true/0.45');
     맞나('짚기를 안 뺏는다', ((r.꼴 || {})['측판'] || {}).짚기끔, true);
+    // ⑧ 10-09 사장님 말씀 — 「3d의 엣지 작업표현 색상을 **도면의 부속의 색상과 같은 색상의 반투명**으로」
+    맞나('살 색 = 그 부속 색 (다섯 부속 다)',
+      Object.keys(r.꼴 || {}).map(n => `${n} ${r.꼴[n].색}/${r.꼴[n].몸}`).filter(x => {
+        const [, a, bb] = x.match(/ (\w+)\/(\w+)$/); return a !== bb; }), []);
+    맞나('측판 살 색', ((r.꼴 || {})['측판'] || {}).색, 'd9b98a');
+    맞나('반투명', ((r.꼴 || {})['측판'] || {}).비침, 'true/0.45');
+    맞나('이동선반도 같은 값 (§4.9883)', ((r.꼴 || {})['이동선반'] || {}).비침, 'true/0.45');
     // 고르면 그 부속의 엣지 살도 같이 붉어진다 — 반만 붉으면 고른 것으로 안 보인다(§4.11)
     // ⚠ 고치기 전 판에는 살이 아예 없다 — 널에 견디게 감싼다(§4.986-모바일 과 같은 자리)
     const 고 = await p.evaluate(() => { const P = window.__probe, g = P.grp();
       const m = g && g.children.find(c => c.userData.key.startsWith('측판') && c.children.filter(x => x.isMesh).length);
-      if (!m) return { 몸:null, 살:null, 남의살:null };
+      if (!m) return { 몸:null, 살:null, 남의살:null, 남의몸:null };
       P.고르기(m.userData.pid);
       const 남 = g.children.find(c => c.userData.pid !== m.userData.pid && c.children.filter(x => x.isMesh).length);
       return { 몸: m.material.color.getHexString(),
                살: m.children.filter(x => x.isMesh).map(x => x.material.color.getHexString())[0],
-               남의살: 남 ? 남.children.filter(x => x.isMesh)[0].material.color.getHexString() : null }; });
+               남의살: 남 ? 남.children.filter(x => x.isMesh)[0].material.color.getHexString() : null,
+               남의몸: 남 ? 남.material.color.getHexString() : null }; });
     맞나('고른 몸이 붉다', 고.몸, 'f2654e');
-    맞나('고른 살도 붉다', 고.살 !== '6b4b2a', true);
-    맞나('남의 살은 그대로', 고.남의살, '6b4b2a');
+    맞나('고른 살도 붉다', 고.살 !== 'd9b98a', true);
+    맞나('남의 살은 제 부속 색 그대로', 고.남의살, 고.남의몸);
     // 뒷판 얇은 두께는 3D 에도 살이 없다
     const 뒷 = [];
     for (const t of [2.7, 9, 12, 18, 25]){ await 상태({ TB:t });
       뒷.push(await p.evaluate(() => { const g = window.__probe.grp();
         return g.children.filter(c => c.userData.key.startsWith('뒷판'))
           .reduce((a, c) => a + c.children.filter(x => x.isMesh).length, 0); })); }
-    맞나('뒷판 2.7·9·12·18·25T 다 0 (홈에 묻힘)', 뒷, [0,0,0,0,0]); }
+    맞나('뒷판 2.7·9·12·18·25T 다 0 (홈에 묻힘)', 뒷, [0,0,0,0,0]);
+    // 부속마다 색이 갈린다 — 문짝은 제 색(E4CBA2)이라 몸통(D9B98A)과 다르다
+    await 상태({ TB:2.7, doors:2 });
+    const 문 = await p.evaluate(() => { const g = window.__probe.grp(), o = {};
+      g.children.forEach(m => { const n = m.userData.key.split('|')[0], sk = m.children.filter(c => c.isMesh);
+        if (sk.length && !o[n]) o[n] = `${sk[0].material.color.getHexString()}/${m.material.color.getHexString()}`; });
+      return o; });
+    맞나('문짝 살 색 = 문짝 색', 문['문짝'], 'e4cba2/e4cba2');
+    맞나('측판 살 색 = 측판 색', 문['측판'], 'd9b98a/d9b98a'); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();
