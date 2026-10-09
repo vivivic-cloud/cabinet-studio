@@ -12,6 +12,8 @@
      ⑥ 2D 부속 쪽에 「재단 사이즈」 가 뜨고 **3D 우측칸에도 같이** 뜬다 · A4 밖 0
      ⑦ 품목마다 갈라진다 · 새로 열면 그대로 · **깨진 글에도 안 터진다**
      ⑧ RT 목록에 **「RT없음」(0)** — 10-07 사장님 말씀. 고르면 재단이 필름 두께만큼만 작아진다
+     ⑨ **서랍재D 는 D면에 엣지를 안 한다**(10-09 사장님 말씀) — 한쪽은 마이다와 맞닿고 반대쪽은 안 보이는 자리다.
+        다른 부속 여덟의 기본값은 **10-08 그대로** · 고르개로 고르시면 **그 값이 이긴다**
 
    돌리는 법:  node tests/엣지설정.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -38,7 +40,9 @@ const 손질 = () => {
   return s.replace(못, 'window.__probe={set:(o)=>{Object.assign(state,o);update();},model:()=>buildModel(state),' +
     'sel:()=>selPid,고르기:(n)=>select(n),dxf:()=>buildDXF(drawing),쪽:()=>부속쪽들(모델||buildModel(state)),' +
     '엣지:()=>(typeof 엣지설정!=="undefined"?엣지설정:null),' +
-    '재단:(n,l,w)=>(typeof 재단사이즈==="function"?재단사이즈(n,l,w):null)};' + 못);
+    '재단:(n,l,w)=>(typeof 재단사이즈==="function"?재단사이즈(n,l,w):null),grp:()=>group,' +
+    '본:(n)=>(typeof 본이름==="function"?본이름(n):n),' +
+    '엣지값:(n)=>(typeof 엣지==="function"?엣지(n):{W:0,D:0})};' + 못);
 };
 
 const 띄우기 = (html) => new Promise(res => {
@@ -251,6 +255,49 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     // 깎아 내는 것이 없으므로 한 면당 필름 두께(1)만큼만 작게 재단한다
     맞나('재단 1800×400 → 1798×398', await 재단('측판', 1800, 400), { L:1798, W:398 });
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 375); }
+
+  /* ⑨ 10-09 사장님 말씀 — 「**서랍재 D의 경우 d면의 한부분은 마이다와 접촉되어 있기 때문에 엣지 작업을 하지
+     않습니다. -또한 d면의 마이다 반대족의 경우 실제 물리적 현실에서 보이지 않는 부분이기때문에**」. */
+  console.log('⑨ 서랍재D 는 D면에 엣지를 안 한다 (10-09 사장님 말씀)');
+  { await p.evaluate(() => localStorage.clear());
+    await p.reload({ waitUntil:'domcontentloaded' });
+    await p.waitForFunction(() => window.__probe, null, { timeout:20000 }); await 잠(800);
+    // ㉮ 수납장 기본 여덟은 10-08 그대로다 — 사장님이 보기로 확인해 주신 값이다
+    await p.evaluate(() => window.__probe.set({ backMode:'insert', topStyle:'overlay', shelvesM:2, doors:2 }));
+    await 잠(500);
+    맞나('수납장 기본 여덟 — 10-08 그대로', await p.evaluate(() => {
+      const m = window.__probe.model(), 본 = window.__probe.본, 값 = window.__probe.엣지값, 봄 = {}, o = {};
+      m.parts.filter(q => !q.숨김).forEach(q => { const n = 본 ? 본(q.name) : q.name;
+        if (봄[n]) return; 봄[n] = 1; const e = 값(n); o[n] = e.W + ',' + e.D; });
+      return o; }),
+      { 측판:'2,0', 상판:'2,2', 하판:'2,0', 고정선반:'1,0', 이동선반:'1,0',
+        전면밴드:'0,0', 뒷판:'0,0', 문짝:'2,2' });
+    // ㉯ 서랍장으로 — 서랍재D 만 D 0 이고 나머지는 그대로다
+    await p.selectOption('#itemSel', '서랍장'); await 잠(900);
+    await p.evaluate(() => window.__probe.set({ backMode:'insert', doors:4 })); await 잠(600);
+    맞나('서랍재D 는 W 2 · D 0 · 나머지는 그대로', await p.evaluate(() => {
+      const m = window.__probe.model(), 본 = window.__probe.본, 값 = window.__probe.엣지값, 봄 = {}, o = {};
+      m.parts.filter(q => !q.숨김).forEach(q => { const n = 본 ? 본(q.name) : q.name;
+        if (봄[n]) return; 봄[n] = 1; const e = 값(n); o[n] = e.W + ',' + e.D; });
+      return o; }),
+      { 측판:'2,0', 상판:'2,2', 하판:'2,0', 고정선반:'1,0', 전면밴드:'0,0', 뒷판:'0,0',
+        문짝:'2,2', 서랍재D:'2,0', 서랍재W:'2,0', 서랍바닥:'2,2' });
+    맞나('재단 — D면을 안 깎는다 (341 그대로)', await 재단('서랍재D', 341, 383.25), { L:341, W:382.25 });
+    맞나('서랍재W 재단은 그대로', await 재단('서랍재W', 714, 383.25), { L:714, W:382.25 });
+    // ㉰ 3D 엣지 살도 둘뿐이다 — D면 둘이 빠진다
+    맞나('서랍재D 엣지 살 2 (전에는 4)', await p.evaluate(() => {
+      const g = window.__probe.grp ? window.__probe.grp() : null; if (!g) return null;
+      const m = g.children.find(c => c.userData.key.split('|')[0] === '서랍재D');
+      return m ? m.children.filter(c => c.isMesh).length : null; }), 2);
+    // ㉱ 고르개로 고르시면 **그 값이 이긴다**
+    await 손가락('.pname[data-opt="서랍재D"]');
+    맞나('고르개가 D 0 을 보인다', await p.evaluate(() => {
+      const s = document.querySelector('.opt[data-opt="서랍재D"] select[data-edge$="|D"]');
+      return s ? s.value : null; }), '0');
+    { const 자 = '.opt[data-opt="서랍재D"] select[data-edge$="|D"]';
+      if (await p.$(자)){ await p.selectOption(자, '2'); await 잠(200);
+        await 손가락('.opt[data-opt="서랍재D"] [data-optsave]'); await 잠(300); } }
+    맞나('고르개로 D 2 를 고르면 그 값이 이긴다', await 재단('서랍재D', 341, 383.25), { L:340, W:382.25 }); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();
