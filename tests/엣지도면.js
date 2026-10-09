@@ -12,6 +12,7 @@
      ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 덮고, 짚기를 안 뺏는다
      ⑧ **그 면 색은 그 부속 색 그대로이고 반투명이다** (10-09 사장님 말씀 · 부속마다 다른 색)
      ⑨ **필름과 자재 사이에 경계선이 있다** (10-09 사장님 말씀 · 각도에 따라 안 보이던 것)
+     ⑩ **2D 의 엣지 작업부는 밝은 초록이다** (10-09 사장님 말씀 · 색값은 `--엣지` 한 자리)
 
    돌리는 법:  node tests/엣지도면.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -285,6 +286,60 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       return { 선: 뽑(m), 남: 남 ? 뽑(남) : null }; });
     맞나('고른 부속의 경계선은 붉다', 고.선, 'ff3b30');
     맞나('남의 경계선은 그대로', 고.남, '4e3a24'); }
+
+  /* ⑩ 10-09 사장님 말씀 — 「**2d도면에서 엣지 작업부는 밝은 초록색으로 표현해줘**」.
+     ⚠ 색값은 `:root` 의 **`--엣지` 한 자리**다. 여기 박아 두지 마라 — 두 군데가 되면 어긋난다.
+     ⚠ **3D 는 안 건드렸다**(10-09 사장님 말씀 — 「도면의 부속의 색상과 같은 색상의 반투명」 · §4.9841).
+        그래서 ⑧ 이 그대로 초록이 아닌 부속 색을 못 박는다 — 둘이 서로를 지킨다. */
+  console.log('⑩ 2D 엣지 작업부는 밝은 초록 (10-09 사장님 말씀)');
+  { await p.evaluate(() => window.__probe.엣지넣기 && 0);
+    await 상태({ 품목:'수납장', backMode:'insert', topStyle:'overlay', doorMode:'out', W:800, D:400, H:1800, shelvesM:2, TB:2.7, doors:2 });
+    const 색 = await p.evaluate(() => {
+      const 루트 = getComputedStyle(document.documentElement).getPropertyValue('--엣지').trim();
+      const ls = [...document.querySelectorAll('#pageBox > .page line.엣지')];
+      const 남 = [...document.querySelectorAll('#pageBox > .page line.ln')].slice(0, 3);
+      return { 루트, 수: ls.length,
+        색: [...new Set(ls.map(l => getComputedStyle(l).stroke))],
+        굵기: [...new Set(ls.map(l => getComputedStyle(l).strokeWidth))],
+        남: [...new Set(남.map(l => getComputedStyle(l).stroke))] }; });
+    맞나('색값이 :root 한 자리에 있다', 색.루트, '#34C759');
+    맞나('엣지 선이 다 밝은 초록', 색.색, ['rgb(52, 199, 89)']);
+    맞나('굵기 .9 는 그대로', 색.굵기, ['0.9px']);
+    맞나('겉면 선은 안 물든다', 색.남, ['rgb(26, 26, 25)']);
+    // 엣지가 **없는** 면에는 안 그어진다 — 그린 줄 수가 `엣지변` 의 수와 딱 맞는다
+    const 셈 = await p.evaluate(() => (window.__probe.행() || [])
+      .reduce((n, r) => n + window.__probe.변(window.__probe.본(r.name)).length, 0));
+    맞나('그린 줄 수 = 엣지가 붙는 변의 수', 색.수, 셈);
+    // 서랍장 서랍재D — D면(좌·우)에 엣지가 없으니 **초록도 없다**(10-09 · §4.9836)
+    await 상태({ 품목:'서랍장', doors:4 });
+    /* ⚠ `읽기()` 의 이름표 찾기(그 **위**의 가장 가까운 t1)는 쪽 **맨 윗 칸**에서 헛짚는다 —
+       칸 맨 위 변이 이름표보다 0.몇 mm 높아 그 변 하나를 놓친다(여기서 한 번 그렇게 「ㅡ」 하나로 나왔다).
+       그래서 ⑩ 은 **선이 든 네모를 먼저 찾고** 그 네모 **한가운데**에 가장 가까운 이름표를 고른다. */
+    const 서 = await p.evaluate(() => {
+      const o = {};
+      [...document.querySelectorAll('#pageBox > .page')].slice(1).forEach(pg => {
+        const rs = [...pg.querySelectorAll('svg rect.ln')].map(q => ({ x:+q.getAttribute('x'), y:+q.getAttribute('y'),
+          w:+q.getAttribute('width'), h:+q.getAttribute('height') }));
+        const ts = [...pg.querySelectorAll('svg text.t1')].map(t => ({ y:+t.getAttribute('y'), n:t.textContent.trim() }));
+        [...pg.querySelectorAll('svg line.엣지')].forEach(l => {
+          const x1 = +l.getAttribute('x1'), y1 = +l.getAttribute('y1'), x2 = +l.getAttribute('x2'), y2 = +l.getAttribute('y2'), e = 1e-3;
+          const rc = rs.find(q => Math.min(x1,x2) >= q.x-e && Math.max(x1,x2) <= q.x+q.w+e
+                                && Math.min(y1,y2) >= q.y-e && Math.max(y1,y2) <= q.y+q.h+e);
+          if (!rc) return;
+          const 가 = rc.y + rc.h/2; let n = '?', 작 = 1e9;
+          ts.forEach(t => { const d = Math.abs(t.y - 가); if (d < 작){ 작 = d; n = t.n; } });
+          (o[n] = o[n] || []).push(Math.abs(y1-y2) < e ? 'ㅡ' : '|');
+        });
+      });
+      return o; });
+    맞나('서랍재D 는 가로 두 줄뿐 (세로 0)', (서['서랍재D'] || []).join(''), 'ㅡㅡ');
+    맞나('서랍바닥은 네 줄 (2,2)', (서['서랍바닥'] || []).length, 4);
+    맞나('가로대는 한 줄 (1,0)', (서['가로대'] || []).join(''), 'ㅡ');
+    맞나('서랍재D 정보 줄', ((await 읽기())['서랍재D'] || {}).줄, '상·하 · 1');
+    const 서색 = await p.evaluate(() => [...new Set([...document.querySelectorAll('#pageBox > .page line.엣지')]
+      .map(l => getComputedStyle(l).stroke))]);
+    맞나('서랍장에서도 밝은 초록', 서색, ['rgb(52, 199, 89)']);
+    await 상태({ 품목:'수납장', doors:2 }); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();

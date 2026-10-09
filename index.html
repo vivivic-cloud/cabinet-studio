@@ -13,6 +13,11 @@
   --line:#E2E2DF; --line2:#EDEDEB; --accent:#111110; --accent-ink:#FFFFFF; --accent-soft:#F4F4F2;
   --dim:#FF3B30; --hidden:#9C9C98; --hatch:#9C9C98; --grid:#E2E2DF; --grid2:#EDEDEB; --ok:#6E6E6A;
   --head:#111110; --fill2:#EAEAE7;
+  /* 10-09 사장님 말씀 — 「2d도면에서 엣지 작업부는 밝은 초록색으로 표현해줘」.
+     이 집에서 짙은 글자색 말고 쓰는 색은 `--dim:#FF3B30`(아이오에스 빨강) 하나뿐이다.
+     그 짝이 되는 밝은 초록이 **#34C759**(아이오에스 초록)라 그것으로 골랐다 — 혼자 다른 색 집안이 되지 않는다.
+     ⚠ **색값은 여기 한 자리에만 둔다.** 2D 가 이것을 본다(`.pg .엣지`). 쓰는 자리가 늘면 이 이름을 보게 해라. */
+  --엣지:#34C759;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -356,7 +361,8 @@ dialog.zoom::backdrop{background:rgba(17,17,16,.72)}
 .pg text{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;fill:var(--ink2);dominant-baseline:central}
 .pg .ln{stroke:var(--ink);stroke-width:.35px;fill:none}
 /* 엣지가 붙는 변 — 겉면 선(.35)의 2.6배. 재서 고른 값이다: .35 는 안 보이고 1.4 는 치수선을 먹는다 */
-.pg .엣지{stroke:var(--ink);stroke-width:.9px;fill:none}
+/* 색은 10-09 사장님 말씀으로 밝은 초록이다(`--엣지` · :root 한 자리). **굵기 .9 는 한 톨도 안 건드렸다.** */
+.pg .엣지{stroke:var(--엣지);stroke-width:.9px;fill:none}
 .pg .ln2{stroke:var(--ink3);stroke-width:.2px}
 .pg .dim{stroke:var(--dim);stroke-width:.18px}
 .pg .gr{stroke:var(--accent);stroke-width:.22px}
