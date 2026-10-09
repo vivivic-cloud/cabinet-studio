@@ -11,6 +11,7 @@
      ⑥ **판은 이전설정 그대로다** — 고르개 넷 · 면 알약 0 · 담는 꼴이 `{W,D,필름,RT}`
      ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 덮고, 짚기를 안 뺏는다
      ⑧ **그 면 색은 그 부속 색 그대로이고 반투명이다** (10-09 사장님 말씀 · 부속마다 다른 색)
+     ⑨ **필름과 자재 사이에 경계선이 있다** (10-09 사장님 말씀 · 각도에 따라 안 보이던 것)
 
    돌리는 법:  node tests/엣지도면.js
    화면을 보는 시험이라 three.min.js 사본이 있어야 한다(`TH=<경로>`). 없으면 건너뛴다(끝값 0 · §7). */
@@ -257,6 +258,30 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       return o; });
     맞나('문짝 살 색 = 문짝 색', 문['문짝'], 'e4cba2/e4cba2');
     맞나('측판 살 색 = 측판 색', 문['측판'], 'd9b98a/d9b98a'); }
+
+  console.log('⑨ 필름과 자재 사이 경계선 (10-09 사장님 말씀)');
+  { await 상태({ 품목:'수납장', backMode:'insert', topStyle:'overlay', doorMode:'out', W:800, D:400, H:1800, shelvesM:2, TB:2.7, doors:0 });
+    const r = await p.evaluate(() => { const g = window.__probe.grp(); if (!g) return null;
+      let 살 = 0, 선 = 0, 색 = new Set(), 삼각 = 0;
+      const 셈 = q => q.index ? q.index.count/3 : q.attributes.position.count/3;
+      g.children.forEach(m => { 삼각 += 셈(m.geometry);
+        m.children.forEach(c => { if (!c.isMesh) return; 살++; 삼각 += 셈(c.geometry);
+          c.children.forEach(x => { if (x.isLineSegments){ 선++; 색.add(x.material.color.getHexString()); } }); }); });
+      return { 살, 선, 색:[...색], 삼각 }; });
+    맞나('엣지 살마다 경계선 하나', [(r||{}).살, (r||{}).선], [15, 15]);
+    맞나('선 색은 집 모서리선 그대로', (r||{}).색, ['4e3a24']);
+    맞나('삼각은 안 는다 (선은 삼각이 아니다)', (r||{}).삼각, 376);
+    // 고르면 그 부속의 경계선도 같이 붉어진다 — 한 부속 안의 선이 둘로 갈리면 안 된다(§4.11)
+    const 고 = await p.evaluate(() => { const P = window.__probe, g = P.grp();
+      const m = g && g.children.find(c => c.userData.key.startsWith('측판') && c.children.filter(x => x.isMesh).length);
+      if (!m) return { 선:null, 남:null };
+      P.고르기(m.userData.pid);
+      const 남 = g.children.find(c => c.userData.pid !== m.userData.pid && c.children.filter(x => x.isMesh).length);
+      const 뽑 = q => q.children.filter(x => x.isMesh)[0].children.filter(x => x.isLineSegments)
+        .map(x => x.material.color.getHexString())[0] || null;
+      return { 선: 뽑(m), 남: 남 ? 뽑(남) : null }; });
+    맞나('고른 부속의 경계선은 붉다', 고.선, 'ff3b30');
+    맞나('남의 경계선은 그대로', 고.남, '4e3a24'); }
 
   맞나('오류 0', 터짐.length, 0);
   await b.close(); 서버.close();

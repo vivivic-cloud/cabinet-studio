@@ -2627,9 +2627,17 @@ function 엣지살붙이기(mesh, p, base){
     /* ⚠ 바깥으로 **한 톨도 내밀지 않는다** — 내밀면 조각 네모가 그만큼 커져 겉 치수가 400 → 400.08 이 된다
        (`tests/삼디홈.js` 가 잡았다). 겉면을 딱 맞추고 겹침은 `polygonOffset` 이 가른다. */
     자리[축이] = 쪽 * (반[축] - 깊/2);
-    const s = new THREE.Mesh(new THREE.BoxGeometry(크기.x, 크기.y, 크기.z), 필름재질(base));
+    const geo = new THREE.BoxGeometry(크기.x, 크기.y, 크기.z);
+    const s = new THREE.Mesh(geo, 필름재질(base));
     s.position.set(자리.x, 자리.y, 자리.z);
     s.raycast = () => {};                                     // 짚기는 부속 제 몸만 받는다(`intersectObjects(…, false)`)
+    /* 10-09 사장님 말씀 — 「엣지 표현이 **각도에 따라** 시각적으로 구분되지 안습니다.
+       **엣지필름과 자재사이의 경계선** 표현이 필요합니다」.
+       ⚠ 까닭은 `polygonOffset −1` 이다 — 필름 면이 판 면보다 **앞으로** 나와 있어
+          판이 제 몸에 그려 둔 모서리선(`children[0]`)을 **덮어 버린다.** 색까지 같아지니 띠가 통째로 사라졌다.
+       그래서 **필름 제 모서리선을 제 깊이에** 그린다. 선 재질(`edgeMat`)·색·굵기는 그대로다 —
+       긋는 자리가 곧 필름과 자재가 만나는 그 선이다. **치수는 한 톨도 안 바뀐다.** */
+    s.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
     mesh.add(s);
   });
 }
@@ -2660,7 +2668,11 @@ function applySel(){
     m.children[0].material = on ? selEdgeMat : edgeMat;
     // 엣지 살(`children[1]` 부터)도 같이 물든다 — 한 부속이 반만 붉으면 고른 것이 아닌 것처럼 보인다(§4.11)
     const 필 = 필름재질(m.userData.baseMat);
-    for (let i = 1; i < m.children.length; i++) m.children[i].material = on ? selMat(필) : 필;
+    for (let i = 1; i < m.children.length; i++){
+      m.children[i].material = on ? selMat(필) : 필;
+      // 필름의 경계선도 같이 붉어진다 — 한 부속 안의 선이 둘로 갈려 보이면 안 된다(§4.11)
+      if (m.children[i].children[0]) m.children[i].children[0].material = on ? selEdgeMat : edgeMat;
+    }
   });
   document.querySelectorAll('#svgwrap [data-pid]').forEach(el =>  // 2D 도면
     el.classList.toggle('sel', Number(el.dataset.pid) === selPid));
@@ -3108,7 +3120,9 @@ function 조각꼴(p, m){
 }
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
-  while (group.children.length){ const c = group.children.pop(); c.geometry.dispose(); c.children.forEach(e => e.geometry.dispose()); }
+  while (group.children.length){ const c = group.children.pop(); c.geometry.dispose();
+    // 엣지 살은 제 모서리선을 손자로 달고 있다(10-09) — 그것까지 놓아 준다
+    c.children.forEach(e => { e.geometry.dispose(); e.children.forEach(x => x.geometry.dispose()); }); }
   const {W,D,H} = state;
   m.parts.forEach(p => {
     if (p.숨김) return;                // 숨긴 부속은 3D 에만 안 선다 (도면·부품표에는 다 나온다)
