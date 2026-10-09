@@ -136,7 +136,8 @@ const 칸재기 = p => p.evaluate(() => {
     const 후 = await p.evaluate(() => [window.__probe.dxf().length,
       window.__probe.쪽().map(z => z.이름들.join('·')).join(' / ')]);
     맞나('고르기 전·후 DXF 바이트 · 쪽 이름', 후, 전);
-    맞나('DXF 끼우기 2.7T 기준값', 후[0], 109007); }
+    // 10-09 부터 글자수 ≠ 바이트다 — 바이트는 `tests/디엑스에프한글.js` 가 못 박는다(§4.9840)
+    맞나('DXF 끼우기 2.7T 글자수', 후[0], 108112); }
   await ctx.close();
 
   // ───────── 폰 375 ─────────

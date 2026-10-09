@@ -2481,8 +2481,44 @@ function 부속쪽들(m){
   return 쪽들;
 }
 
-/* ───────── DXF 작성 (R12 / AC1009) ───────── */
+/* ───────── DXF 작성 (R12 / AC1009) ─────────
+   ⚠ 10-09 사장님 말씀 — 「dxf 파일 … 물음표가 나타난다」. 한글이 한 자마다 `?` 로 찍혔다.
+   까닭이 둘이고 **둘 다** 고쳤다.
+   ① 이 판은 **R12(AC1009)** 인데 글자를 `\U+XXXX` 로 적고 있었다. 그 이스케이프는 **AC1015 부터**다.
+      R12 가 아는 길은 **머리의 `$DWGCODEPAGE` 와 그 코드페이지 바이트** 하나뿐이다.
+   ② STYLE 글꼴이 `txt`(= txt.shx) 하나였다. 거기엔 한글 글리프가 없어 캐드가 `?` 를 찍는다.
+   **판은 R12 그대로 두었다** — AC1015 로 올리려면 조각마다 핸들(그룹 5)·CLASSES·OBJECTS 가 있어야 하고,
+   없으면 캐드가 **파일을 통째로 안 읽는다**. 그건 `?` 보다 나쁘다(이 방에 오토캐드가 없어 못 재는 자리다). */
 const dxfText = s => Array.from(s).map(ch => ch.charCodeAt(0) > 127 ? '\\U+' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0') : ch).join('');
+/* CP949(ansi_949) 로 적는다 — **표를 싣지 않는다.** `TextDecoder('euc-kr')` 로 두 바이트를 거꾸로 읽어 한 번만 짓는다.
+   브라우저가 안 받쳐 주면 표가 비고, 그 글자는 옛 `\U+` 로 떨어진다(적어도 지금과 같아진다). */
+let cp949표 = null;
+function cp949맵(){
+  if (cp949표) return cp949표;
+  cp949표 = new Map();
+  try {
+    const dec = new TextDecoder('euc-kr'), buf = new Uint8Array(2);
+    for (let a = 0x81; a <= 0xFE; a++) for (let b = 0x41; b <= 0xFE; b++){
+      if (b === 0x7F) continue;
+      buf[0] = a; buf[1] = b;
+      const t = dec.decode(buf);
+      if (t.length === 1 && t !== '\uFFFD' && t.charCodeAt(0) > 127 && !cp949표.has(t)) cp949표.set(t, (a << 8) | b);
+    }
+  } catch { cp949표 = new Map(); }
+  return cp949표;
+}
+/* 저장할 바이트 — 아스키는 그대로, 그 밖은 CP949 두 바이트. 표에 없는 글자만 옛 `\U+` 로 적는다. */
+function dxf바이트(s){
+  const 표 = cp949맵(), out = [];
+  for (const ch of s){
+    const c = ch.codePointAt(0);
+    if (c < 128){ out.push(c); continue; }
+    const v = 표.get(ch);
+    if (v !== undefined){ out.push(v >> 8, v & 0xFF); }
+    else for (const k of dxfText(ch)) out.push(k.charCodeAt(0));
+  }
+  return new Uint8Array(out);
+}
 const fx = n => String(Math.round(n*1000)/1000);
 function buildDXF(d){
   const L = [];
@@ -2490,6 +2526,7 @@ function buildDXF(d){
   const layers = [['OUTLINE',7,'CONTINUOUS'],['HIDDEN',8,'DASHED'],['DIM',1,'CONTINUOUS'],['TEXT',3,'CONTINUOUS'],['HATCH',8,'CONTINUOUS'],['TITLE',7,'CONTINUOUS']];
   g(0,'SECTION'); g(2,'HEADER');
   g(9,'$ACADVER'); g(1,'AC1009');
+  g(9,'$DWGCODEPAGE'); g(3,'ansi_949');     // 한글은 CP949 바이트로 적는다 — R12 가 아는 유일한 길
   const bb = d.bboxDxf || d.bbox;               // 꾸밈을 뺀 칸 — 예전과 같은 값이어야 한다
   g(9,'$EXTMIN'); g(10,fx(bb.minx)); g(20,fx(bb.miny)); g(30,0);
   g(9,'$EXTMAX'); g(10,fx(bb.maxx)); g(20,fx(bb.maxy)); g(30,0);
@@ -2503,7 +2540,10 @@ function buildDXF(d){
   layers.forEach(([n,c,lt]) => { g(0,'LAYER'); g(2,n); g(70,0); g(62,c); g(6,lt); });
   g(0,'ENDTAB');
   g(0,'TABLE'); g(2,'STYLE'); g(70,1);
-  g(0,'STYLE'); g(2,'STANDARD'); g(70,0); g(40,0); g(41,1); g(50,0); g(71,0); g(42,2.5); g(3,'txt'); g(4,'');
+  /* 한글 글꼴을 단다 — 본글꼴은 **맬건고딕 TTF**(윈도 비스타부터 늘 있다. 캐드가 `$DWGCODEPAGE` 로 바이트를 풀어 그린다),
+     큰글꼴에는 **한글 SHX**(옛 R12 짝을 보는 캐드용). 둘 중 하나만 있어도 한글이 뜬다.
+     ⚠ `txt.shx` 하나로 두면 한글 글리프가 없어 캐드가 `?` 를 찍는다 — 10-09 사장님이 보신 그 화면이다. */
+  g(0,'STYLE'); g(2,'STANDARD'); g(70,0); g(40,0); g(41,1); g(50,0); g(71,0); g(42,2.5); g(3,'malgun.ttf'); g(4,'whgtxt.shx');
   g(0,'ENDTAB');
   g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'ENTITIES');
@@ -2511,7 +2551,7 @@ function buildDXF(d){
     if (p.쪽 === 1) return;                       // 꾸밈은 CAD 자료에 안 실는다
     if (p.t === 'line'){ g(0,'LINE'); g(8,p.layer); g(10,fx(p.x1)); g(20,fx(p.y1)); g(30,0); g(11,fx(p.x2)); g(21,fx(p.y2)); g(31,0); }
     else {
-      g(0,'TEXT'); g(8,p.layer); g(10,fx(p.x)); g(20,fx(p.y)); g(30,0); g(40,fx(p.h)); g(1,dxfText(p.str));
+      g(0,'TEXT'); g(8,p.layer); g(10,fx(p.x)); g(20,fx(p.y)); g(30,0); g(40,fx(p.h)); g(1,p.str);        // 한글은 담을 때 CP949 바이트가 된다(`dxf바이트`)
       if (p.rot) g(50,p.rot);
       g(72, p.align === 'ML' ? 0 : 1); g(73,2); g(11,fx(p.x)); g(21,fx(p.y)); g(31,0);
     }
@@ -3832,9 +3872,12 @@ async function save(filename, data, fallback){
 }
 $('#btnDxf').addEventListener('click', async () => {
   const dxf = buildDXF(drawing);
-  const fallback = () => showFallback('DXF 내용', '', dxf);
-  if (standalone){ await save(fileBase() + '.dxf', dxf, fallback); return; }
-  const zip = new JSZip(); zip.file(fileBase() + '.dxf', dxf);   // claude.ai 저장 기능은 .dxf 확장자를 받지 않아 zip으로 포장
+  const 바이트 = dxf바이트(dxf);                                   // 10-09 — 한글을 CP949 로 적는다(`$DWGCODEPAGE ansi_949`)
+  /* ⚠ 받쳐 주는 길이 없어 손으로 붙여넣을 때는 **옛 `\U+` 꼴**로 보여 준다 —
+     붙여넣어 저장하면 인코딩을 고를 수 없으므로 아스키로만 적어야 그나마 읽힌다. */
+  const fallback = () => showFallback('DXF 내용', '', dxfText(dxf));
+  if (standalone){ await save(fileBase() + '.dxf', new Blob([바이트], { type:'application/octet-stream' }), fallback); return; }
+  const zip = new JSZip(); zip.file(fileBase() + '.dxf', 바이트);  // claude.ai 저장 기능은 .dxf 확장자를 받지 않아 zip으로 포장
   const blob = await zip.generateAsync({ type:'blob' });
   await save(fileBase() + '.zip', blob, fallback);
 });

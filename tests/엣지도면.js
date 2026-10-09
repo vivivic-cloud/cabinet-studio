@@ -121,9 +121,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('뒷판 2.7T 은 RT없음', await p.evaluate(() => window.__probe.엣지값('뒷판').RT), 0);
     // ⚠ 기본세팅이 켜져도 **DXF 는 한 바이트도 안 움직인다** — 엣지는 부속 쪽·3D 것이다
     await 상태({ topStyle:'inset', shelvesM:0 });
-    맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007);
+    // 10-09 부터 한글이 CP949 바이트라 **글자수 ≠ 바이트**다 — 바이트 네 기준값은 `tests/디엑스에프한글.js` 가 못 박는다
+    맞나('DXF 끼우기 2.7T 글자수', await p.evaluate(() => window.__probe.dxf().length), 108112);
     await 상태({ backMode:'cover' });
-    맞나('DXF 덮기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 71286);
+    맞나('DXF 덮기 2.7T 글자수', await p.evaluate(() => window.__probe.dxf().length), 70745);
     맞나('굵은 변이 그려진다', (await 변수()) > 0, true);
     맞나('「엣지」 줄이 뜬다', (await 줄수()) > 0, true); }
 

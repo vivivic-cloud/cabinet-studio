@@ -115,7 +115,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     await p.evaluate(() => window.__probe.set({ backMode:'insert' })); await 잠(400);
     const z = await p.evaluate(() => window.__probe.쪽().map(x => x.svg).join(''));
     맞나('2D 에 「재단 사이즈」 글이 뜬다', /재단 사이즈/.test(z), true);
-    맞나('DXF 끼우기 2.7T 기준값', await p.evaluate(() => window.__probe.dxf().length), 109007); }
+    // 10-09 부터 한글이 CP949 바이트라 **글자수 ≠ 바이트**다 — 바이트는 `tests/디엑스에프한글.js` 가 못 박는다
+    맞나('DXF 끼우기 2.7T 글자수', await p.evaluate(() => window.__probe.dxf().length), 108112); }
 
   console.log('④ 두 품목 모든 부속 판에 칸 넷 · 「서랍설정」 에는 없다');
   for (const 품 of ['수납장','서랍장']){
