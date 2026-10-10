@@ -559,20 +559,25 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
   .app.m3d{grid-template-rows:auto auto minmax(380px,60vh);grid-template-areas:"head" "params" "view3d"}
   .app.m2d{grid-template-rows:auto auto minmax(380px,84vh);grid-template-areas:"head" "params" "draw"}
 }
-/* 10-03 사장님 말씀 — 「모바일에서 … 화면이 좌우여유 유격이 있어서 화면 조정이 힘들다 화면유격이 없게 해줘」.
-   폰에서만 **좌우** 여백을 0 으로 둔다. 위아래는 한 톨도 안 건드린다(사장님이 「좌우」 라 하셨다).
-   ⚠ 넓은 화면(≥1101px)은 세 칸으로 갈라져 있어 여백이 있어야 읽힌다 — 그래서 `@media` 안이다.
+/* 10-03 사장님 말씀 — 「모바일에서 … 화면이 좌우여유 유격이 있어서 화면 조정이 힘들다 화면유격이 없게 해줘」
+      → 폰에서만 **좌우** 여백을 0 으로 두었다(위아래는 한 톨도 안 건드렸다 — 사장님이 「좌우」 라 하셨다).
+   10-10 사장님 말씀 — 「모바일 화면에서 **설정목록의 텍스트와 입력칸들이 화면의 너무 끝부분까지 잡아 먹고 있어
+      여백을 만들어 가시성을 좋게** 만들어줘」 (짚은자리 `aside.params > #boardBox > .field.wide`).
+      **나중 것이 이긴다**(§0) — `header` 와 `.params` 에 좌우 **12px** 을 되돌려 준다. §4.9861 이 지금 모습이다.
+   ⚠ **12 는 재서 고른 값이다** — × 의 닿는 자리(`.two .x::after` 40px)가 20px 단추 가운데에 걸려
+      좌우로 **10px 씩** 비어져 나가므로 **10 이 바닥**이다(그 밑이면 닿는 자리가 화면 밖으로 잘린다).
+      10-03 전의 **20 은 사장님이 물리신 값**이라 안 쓴다. 0·8·10·12·14·16·20 을 320·375·430 에서
+      다 재 봤다 — 어느 값에서도 머리 3줄 175.8 · 깎인 글 0 · 넘침 0 · 44px 단추 그대로였다.
+   ⚠ `#svgwrap` 은 **0 그대로다** — 사장님이 짚으신 것은 「설정목록」 이고, 여기에 12 를 주면
+      **A4 한 쪽이 375×530 → 351×496 으로 준다**(잰 값). 도면을 깎는 것은 청하신 일이 아니다.
+   ⚠ 넓은 화면(≥1101px)은 세 칸으로 갈라져 있어 제 여백이 있어야 읽힌다 — 그래서 `@media` 안이다.
    ⚠ `#svgwrap` 은 **아이디로** 적는다 — 245줄의 `#svgwrap{padding:10px}` 을 이겨야 하고,
       `.svgwrap` 으로 적으면 같은 클래스를 쓰는 **큰그림(`.zoomwrap`)** 까지 끌려 들어간다(§4.75). */
 @media (max-width:1100px){
-  header{padding-left:0;padding-right:0}
-  /* ⚠ `overflow-x:hidden` 은 여백을 걷었기 때문에 **같이 필요한 것**이다 — 내가 판단으로 더 한 것이다.
-     × 의 닿는 자리(`.two .x::after` 40px · §4.9866)가 20px 단추 가운데에 걸려 **좌우로 10px 씩 비어져 나간다.**
-     전에는 오른 여백 20px 안에 묻혀 안 보였는데, 0 이 되니 `.params` 가 **가로로 10px 굴러간다**
-     (잰 값: `scrollWidth 385 / clientWidth 375` · `::after` 를 끄면 375). 사장님 말씀이 「화면 조정이 힘들다」 인데
-     가로 굴림이 생기면 더 나빠진다. **닿는 자리는 한 픽셀도 안 깎았다** — 화면 밖으로 나간 쪽만 안 그린다.
-     되돌리면 이 한 줄이고, 그때 가로 굴림 10px 이 도로 생긴다. */
-  .params{padding-left:0;padding-right:0;overflow-x:hidden}
+  header{padding-left:12px;padding-right:12px}
+  /* `overflow-x:hidden` 은 여백이 0 이던 때 × 의 닿는 자리가 10px 비어져 나가 생기던 가로 굴림 막이였다.
+     12px 을 주고 나니 **숨길 것이 없다**(잰 값: `scrollWidth 375 / clientWidth 375`). 되돌이 막이로 남긴다. */
+  .params{padding-left:12px;padding-right:12px;overflow-x:hidden}
   #svgwrap{padding-left:0;padding-right:0}
 }
 /* ── 10-03 사장님 말씀 — 「이런 도면조절 옵션들 모바일에서는 도면 밖으로 빼야지 이게뭐냐 화면 다가리고」 ──
@@ -615,13 +620,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
         사장님은 아이폰으로만 쓰신다. 폰에서 못 보면 안 한 것이다.
      접혀 있을 때는 높이가 0 이라 평소 짜임이 한 픽셀도 안 바뀐다.
      줄은 **가로로 눕힌다** — 세로로 쌓으면 133px 이 되어 도면을 그만큼 밀어낸다. */
-  .pinfo{position:static;right:auto;top:auto;width:auto;max-height:none;order:1;margin:0;
+  .pinfo{position:static;right:auto;top:auto;width:auto;max-height:none;order:1;margin:0 12px;
     flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:2px;
     padding:4px 0;border-left:0;border-right:0;border-radius:0;box-shadow:none}
   .pinfo .pititle{border-bottom:0;margin:0;padding:0;font-size:13px}
   .pinfo .pirow{justify-content:flex-start;gap:4px}
+  /* 10-10 사장님 말씀 — 좌우 **12px**. 머리·설정 칸과 같은 자다(위 §4.9861 묶음).
+     ⚠ 띠에 여백을 주어도 **칸 높이가 한 픽셀도 안 바뀐다**(잰 값: `.hud` 176 · 분해 38 · 캔버스 y 439.8 ·
+        첫 화면 372 — 375·320 둘 다 전·후 같음). 캔버스는 `.view3d` 의 칸을 다 쓰므로 안 줄어든다.
+     ⚠ **두 모드에서 띠 크기가 같아야 한다**(§4.9888) — 그래서 `.draw>.dims` 도 같은 묶음에 있다. */
   .view3d>.dims,.view3d>.hud,.view3d>.explode,.draw>.dims{
-    position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0;order:1}
+    position:static;left:auto;right:auto;top:auto;bottom:auto;width:auto;max-width:none;margin:0 12px;order:1}
   .draw>.dims{margin-bottom:8px}  /* 틈은 margin 으로 — 띠 **크기**가 두 모드에서 같아야 한다(§4.9888) */
   .view3d>.explode{margin-top:0}
   /* 2D 도 같다 — 띠가 도면을 깎으면 안 된다. 칸 줄을 `auto` 로 두고 도면에 84vh 를 그대로 준다.

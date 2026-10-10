@@ -110,7 +110,7 @@ const 네모 = `(s => { const el = document.querySelector(s); if (!el) return nu
                  띠가도면위: d.bottom <= c.top + 0.5,
                  제단추: Math.round(b2.width) + '×' + Math.round(b2.height),
                  넘침: document.documentElement.scrollWidth }; }),
-        { 창폭:375, 폰갈래:true, header:'0px/0px', params:'0px/0px',
+        { 창폭:375, 폰갈래:true, header:'12px/12px', params:'12px/12px',
           띠가도면위:true, 제단추:'0×0', 넘침:375 });
     }
 

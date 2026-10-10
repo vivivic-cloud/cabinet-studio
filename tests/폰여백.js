@@ -2,7 +2,8 @@
 /* 10-03 사장님 말씀: 「**모바일에서 보고있는데 화면이 좌우여유 유격이 있어서 화면 조정이 힘들다
    화면유격이 없게 해줘**」
 
-     ① 폰(375)에서 `header`·`.params`·`#svgwrap` 의 **좌우 여백이 0** 이고 왼·오 끝에 딱 붙는다
+     ① 폰(375)에서 `header`·`.params` 의 좌우 여백이 **12px**(10-10 사장님 말씀 · §4.9833) ·
+        `#svgwrap`·`.view3d` 는 **0 그대로**(도면을 깎지 않는다)
      ② 쓸 수 있는 가로폭이 늘어난다 — 설정 칸 335 → **375** · A4 한 쪽 355 → **375**
      ③ **가로 넘침 0** — `documentElement.scrollWidth` 가 375 그대로
      ④ **진짜 손가락으로 설정 칸을 옆으로 쓸어도 안 밀린다**(× 닿는 자리가 10px 비어져 나가므로)
@@ -85,13 +86,14 @@ const 칸재기 = sel => {
 
     if (폭 === 375){
       console.log('① 375 — 좌우 여백 0 · 끝에 딱 붙는다 (3D 모드)');
-      맞나('header',  await 재('header'),  { 왼:0, 오:0, 폭:375, 좌우여백:'0px 0px' });
-      맞나('.params', await 재('.params'), { 왼:0, 오:0, 폭:375, 좌우여백:'0px 0px' });
+      // 10-10 사장님 말씀 — 설정목록에 좌우 **12px** 여백(§4.9833). 칸 자체는 여전히 화면 폭을 다 쓴다.
+      맞나('header',  await 재('header'),  { 왼:0, 오:0, 폭:375, 좌우여백:'12px 12px' });
+      맞나('.params', await 재('.params'), { 왼:0, 오:0, 폭:375, 좌우여백:'12px 12px' });
       맞나('.view3d (원래 0 이었다)', await 재('.view3d'), { 왼:0, 오:0, 폭:375, 좌우여백:'0px 0px' });
 
-      console.log('② 쓸 수 있는 가로폭이 늘었다');
+      console.log('② 쓸 수 있는 가로폭 — 여백 12px 을 뺀 351 이다 (10-10 · §4.9833)');
       맞나('보드선택 칸 폭', await p.evaluate(() =>
-        Math.round(document.querySelector('#boardBox').getBoundingClientRect().width)), 375);
+        Math.round(document.querySelector('#boardBox').getBoundingClientRect().width)), 351);
 
       console.log('③ 가로 넘침 0');
       맞나('documentElement.scrollWidth', await 넘침(), 375);
