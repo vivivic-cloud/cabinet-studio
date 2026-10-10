@@ -2644,7 +2644,7 @@ function 부속쪽들(m){
      제품을 한눈에 보는 종이라 맨 뒤에 두면 「있는데 안 보이는」 것이 된다(§4.5).
      ⚠ 부속 쪽은 **위에서 이미 다 짜였다** — 여기서 앞에 끼워도 그 그림이 한 톨도 안 흔들린다(markup md5 로 쟀다). */
   const 스펙 = 스펙값(m);
-  if (스펙) 쪽들.unshift({ svg: 스펙쪽SVG(스펙, m), 이름들: ['제품 스펙서'] });
+  if (스펙) 쪽들.unshift({ svg: 스펙쪽SVG(스펙, m), 이름들: ['제품 스펙서'], 스펙: true });
   // 10-06 사장님 말씀 — 조립된 서랍(마이다+서랍) 한 쪽을 **맨 뒤에** 더한다.
   // 앞 쪽들은 위에서 이미 다 짜였으므로 **한 톨도 안 흔들린다**. 서랍이 없으면 쪽도 없다.
   const 조립 = 서랍조립값(m);
@@ -3586,10 +3586,20 @@ function 도면그리기(){
   // 화면은 글자를 키워 보여 주므로 치수선도 그만큼 벌린 도면을 따로 짠다.
   // 내보내는 것(drawing)은 손대지 않는다 — DXF·저장 SVG 는 그대로다.
   화면도면 = drawing;   // 치수선 간격은 그대로 — 벌리면 치수 숫자가 투상 제목을 덮는다
-  const 쪽 = 부속쪽들(모델 || buildModel(state)), 총 = 1 + 쪽.length;
+  const 쪽0 = 부속쪽들(모델 || buildModel(state));
+  /* 10-10 사장님 말씀 — 「이 스펙서가 2D도면의 1페이지가 되게 해줘」.
+     **제품 스펙서가 1쪽이고 전체 도면이 2쪽으로 내려간다.** 쪽 수는 그대로다 — 차례만 바뀐다.
+     ⚠ `p1` 클래스는 「첫 쪽」 이 아니라 **차례(`.toc`)를 안은 전체 도면 쪽**을 가리키는 자다
+        (`.svgwrap .page.p1{display:flex}` · 인쇄도 같다). 그래서 **그 쪽을 그대로 따라간다.**
+     ⚠ 부속이 하나도 없으면 스펙서 쪽이 없다 — 그때는 전과 같이 **전체 도면이 1쪽**이다.
+     ⚠ 내보내는 것은 한 바이트도 안 바뀐다 — `svgForFile(drawing)` 은 쪽 차례를 안 본다(§4.5). */
+  const 스펙쪽 = (쪽0[0] && 쪽0[0].스펙) ? 쪽0.shift() : null;
+  const 쪽 = 쪽0, 총 = 1 + 쪽.length + (스펙쪽 ? 1 : 0);
+  const 장들 = [ ...(스펙쪽 ? [{ 이름: '제품 스펙서', svg: 스펙쪽.svg }] : []),
+                 { 이름: '전체 도면', 전체: true },
+                 ...쪽.map(z => ({ 이름: z.이름들.join(' · '), svg: z.svg })) ];
   const 차례 = `<div class="toc"><b>이 도면에 든 것 · 모두 ${총}쪽</b>`
-    + `<div><span>1쪽</span>전체 도면</div>`
-    + 쪽.map((z, i) => `<div><span>${i+2}쪽</span>${esc(z.이름들.join(' · '))}</div>`).join('')
+    + 장들.map((z, i) => `<div><span>${i+1}쪽</span>${esc(z.이름)}</div>`).join('')
     + `</div>`;
   // 쪽마다 「크게」 — 눌러서 한 쪽을 화면 가득 펼쳐 본다 (사장님 말씀 09-17).
   // 도면 위를 그냥 톡 치는 것은 예전처럼 부속 고르기다. 그걸 뺏으면 안 되어 단추를 따로 두었다.
@@ -3598,10 +3608,11 @@ function 도면그리기(){
   if (!w.querySelector('.pagebox'))                       // 틀은 한 번만 짠다 — 그래야 칸 크기를 잴 수 있다
     w.innerHTML = '<div class="pagebox" id="pageBox"></div><div class="thumbs" id="thumbs" role="tablist" aria-label="쪽 고르기"></div>';
   보는쪽 = Math.min(Math.max(0, 보는쪽), 총 - 1);
-  const 이름들 = ['1쪽 · 전체 도면', ...쪽.map((z, i) => `${i+2}쪽 · ${z.이름들.join(' · ')}`)];
-  $('#pageBox').innerHTML =
-    `<div class="page p1${보는쪽 === 0 ? ' 보는쪽' : ''}">${renderSVG(화면도면, true, 배)}${차례}${크게(0, 이름들[0])}<span class="pnum mono">1 / ${총}</span></div>`
-    + 쪽.map((z, i) => `<div class="page${보는쪽 === i+1 ? ' 보는쪽' : ''}">${z.svg}${크게(i+1, 이름들[i+1])}<span class="pnum mono">${i+2} / ${총}</span></div>`).join('');
+  const 이름들 = 장들.map((z, i) => `${i+1}쪽 · ${z.이름}`);
+  $('#pageBox').innerHTML = 장들.map((z, i) =>
+    `<div class="page${z.전체 ? ' p1' : ''}${보는쪽 === i ? ' 보는쪽' : ''}">`
+    + (z.전체 ? renderSVG(화면도면, true, 배) + 차례 : z.svg)
+    + `${크게(i, 이름들[i])}<span class="pnum mono">${i+1} / ${총}</span></div>`).join('');
   // 아래 썸네일 — 쪽 그림을 그대로 베껴 작게 보여 준다(다시 그리지 않는다).
   $('#thumbs').hidden = 총 < 2;                           // 쪽이 한 장뿐이면 자리만 먹는다
   $('#thumbs').innerHTML = 총 < 2 ? '' : 이름들.map((nm, i) =>

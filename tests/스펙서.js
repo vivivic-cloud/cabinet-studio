@@ -89,18 +89,20 @@ const md5 = s => crypto.createHash('md5').update(s).digest('hex').slice(0, 12);
   });
   const 값 = (g, 이름) => { const i = g.글.indexOf(이름); return i < 0 ? null : g.글[i+1]; };
 
-  console.log('① 1쪽 바로 뒤에 「제품 스펙서」 한 쪽');
+  // 10-10 사장님 말씀 — 「이 스펙서가 2D도면의 1페이지가 되게 해줘」. **스펙서가 1쪽 · 전체 도면이 2쪽**이다.
+  //   `부속쪽들`(__probe.쪽()) 의 차례는 그대로고, 화면에 세울 때만 스펙서를 맨 앞으로 올린다.
+  console.log('① 「제품 스펙서」 가 1쪽이다');
   맞나('쪽 차례 (부속쪽들)', await 쪽들(), ['제품 스펙서', '측판·상판', '하판·문짝·고정선반', '전면밴드·뒷판']);
   맞나('1쪽 차례에 든다', await p.evaluate(() => [...document.querySelectorAll('.toc > div')].map(d => d.textContent)),
-       ['1쪽전체 도면', '2쪽제품 스펙서', '3쪽측판 · 상판', '4쪽하판 · 문짝 · 고정선반', '5쪽전면밴드 · 뒷판']);
+       ['1쪽제품 스펙서', '2쪽전체 도면', '3쪽측판 · 상판', '4쪽하판 · 문짝 · 고정선반', '5쪽전면밴드 · 뒷판']);
   맞나('썸네일 수', await p.evaluate(() => document.querySelectorAll('#thumbs button').length), 5);
-  await 손가락('#thumbs button[data-th="1"]');
-  맞나('손가락으로 골라 보는 쪽', await p.evaluate(() => (document.querySelector('#pageBox > .page.보는쪽 .pnum')||{}).textContent), '2 / 5');
+  await 손가락('#thumbs button[data-th="0"]');
+  맞나('손가락으로 골라 보는 쪽', await p.evaluate(() => (document.querySelector('#pageBox > .page.보는쪽 .pnum')||{}).textContent), '1 / 5');
   const 큰 = await p.$('#pageBox > .page.보는쪽 button.big');
   맞나('「크게」 단추 크기', await 큰.boundingBox().then(r => [Math.round(r.width), Math.round(r.height)]), [56, 44]);
   await 손가락('#pageBox > .page.보는쪽 button.big');
   맞나('「크게」 가 그 쪽을 연다', await p.evaluate(() => [ !!document.querySelector('#zoomDlg').open,
-       (document.querySelector('#zoomTitle')||{}).textContent || '' ]), [true, '2쪽 · 제품 스펙서']);
+       (document.querySelector('#zoomTitle')||{}).textContent || '' ]), [true, '1쪽 · 제품 스펙서']);
   await p.evaluate(() => document.querySelector('#zoomDlg').close()); await 잠(300);
 
   console.log('② 사진 양식의 여섯 켜');
@@ -165,7 +167,7 @@ const md5 = s => crypto.createHash('md5').update(s).digest('hex').slice(0, 12);
   for (const [nm, st] of 갈래){
     await 두기(Object.assign({ W:800, D:400, H:1800, Tside:18, shelves:3, shelvesM:0, doors:2,
       doorMode:'out', topStyle:'inset', botStyle:'inset', backMode:'cover', plinth:80 }, st));
-    await 손가락('#thumbs button[data-th="1"]');
+    await 손가락('#thumbs button[data-th="0"]');
     const r = await 재기(); 쓸기.push([nm, r.밖, r.겹]);
   }
   /* ⚠ 사양표가 가장 길 때 — **열한 줄**(끼우기 · 이동선반 · 결까지 다 켠 것). 8.2 로 박으면 여기서 치수 띠를 덮는다. */
@@ -174,7 +176,7 @@ const md5 = s => crypto.createHash('md5').update(s).digest('hex').slice(0, 12);
   await p.evaluate(() => { const 결 = window.__probe.결();
     ['측판','상판','하판','고정선반','이동선반','문짝','전면밴드','뒷판'].forEach(n => 결[n] = '세로');
     window.__probe.set({}); });
-  await 잠(450); await 손가락('#thumbs button[data-th="1"]');
+  await 잠(450); await 손가락('#thumbs button[data-th="0"]');
   const 열한 = await 재기();
   const 이름열하나 = ['측판','상판','하판','고정선반','이동선반','문짝','전면밴드','뒷판','우라홈','엣지','결 방향'];
   const 열한글 = (await 스펙글()).글;
