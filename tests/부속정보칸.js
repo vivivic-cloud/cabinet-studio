@@ -115,7 +115,7 @@ const 칸재기 = p => p.evaluate(() => {
     const 접 = await 칸재기(p);
     await p.evaluate(() => window.__probe.고르기(0)); await 잠(300);
     const 폄 = await 칸재기(p);
-    맞나('캔버스가 그대로', [접.캔, 폄.캔], [[995,831], [995,831]]);
+    맞나('캔버스가 그대로', [접.캔, 폄.캔], [[995,766], [995,766]]);
     맞나('문서 높이·넘침 그대로', [접.문서, 폄.문서, 폄.넘침], [900, 900, 1280]);
     맞나('칸 안 · hud 안 겹침 · 분해 띠 안 겹침', [폄.칸안, 폄.hud겹, 폄.분해겹], [true, false, false]);
     맞나('첫 화면 안', 폄.첫화면안, true); }
@@ -152,7 +152,7 @@ const 칸재기 = p => p.evaluate(() => {
     await p2.evaluate(() => window.__probe.set({ backMode:'insert' })); await 잠(400);
     const 접 = await 칸재기(p2);
     맞나('안 고르면 접혀 있고 캔버스·문서가 그대로', [접.접힘, 접.캔, 접.문서, 접.넘침],
-      [true, [375,524], 1451, 375]);
+      [true, [375,524], 1454, 375]);
     // 진짜 손가락 — `.hud` 밑을 친다
     const cv = await p2.$('.view3d canvas'); await cv.scrollIntoViewIfNeeded(); await 잠(150);
     const r = await cv.boundingBox();

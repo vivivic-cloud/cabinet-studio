@@ -110,14 +110,18 @@ const 덮은것 = `(() => {
 
     console.log('① 3D — 도면 위에 떠 있는 것  ② 쓸 자리');
     const 삼 = await p.evaluate(덮은것);
-    맞나('3D 덮은 것 · 덮은 넓이', [삼.덮은것, 삼.덮은넓이], 폰 ? [[], 0] : [['dimsBar','modeseg','views','explode'], 40086]);
-    맞나('3D 캔버스 · 쓸 자리', [삼.그림, 삼.쓸자리], 폰 ? ['375×540', 202500] : ['995×831', 786759]);
+    // 10-10 — 모드 단추가 머리줄로 갔다(§4.9831). 3D 를 덮던 것이 하나 줄어 40,086 → **34,054**.
+    맞나('3D 덮은 것 · 덮은 넓이', [삼.덮은것, 삼.덮은넓이], 폰 ? [[], 0] : [['dimsBar','views','explode'], 34054]);
+    // 10-10 — 1280 캔버스가 머리줄 65 만큼 줄어 995×831 → **995×766**(폰은 60vh 라 그대로).
+    맞나('3D 캔버스 · 쓸 자리', [삼.그림, 삼.쓸자리], 폰 ? ['375×540', 202500] : ['995×766', 728116]);
     맞나('3D 칸 높이', await p.evaluate(() => Math.round(document.querySelector('.view3d').getBoundingClientRect().height)),
-         폰 ? 811 : 831);
-    // 10-04 — 폰에서는 띠가 다 **캔버스 위**다. 넓은 화면은 떠 있으므로 이 자는 안 댄다.
+         폰 ? 814 : 831);   // 10-10 — 머리줄 65 가 붙고 `.hud` 의 모드 줄 62 가 빠져 +3 (§4.9831)
+    /* 10-04 — 폰에서는 띠가 다 **캔버스 위**다. 넓은 화면은 떠 있으므로 이 자는 안 댄다.
+       ⚠ 10-10 부터 3D 칸이 **머리줄 + 본문(`.v3body`)** 두 켜다(§4.9831) — 띠는 본문 안에 있다.
+          `.view3d > *` 로 쓸면 본문 자체가 잡혀 늘 거짓이 된다. 머리줄은 캔버스 위라 따로 볼 것이 없다. */
     if (폰) 맞나('띠가 다 캔버스 위인가', await p.evaluate(() => {
       const c = document.querySelector('#c3d').getBoundingClientRect();
-      return [...document.querySelectorAll('.view3d > *')].filter(el => el.id !== 'c3d')
+      return [...document.querySelectorAll('.v3body > *')].filter(el => el.id !== 'c3d')
         .every(el => { const r = el.getBoundingClientRect(); return r.height === 0 || r.bottom <= c.top + 0.5; }); }), true);
 
     console.log('③ 띠의 단추가 44px 이상이고 다 눌린다');
@@ -187,7 +191,8 @@ const 덮은것 = `(() => {
       return [Math.round(r.top + window.scrollY),
               Math.round(Math.max(0, Math.min(r.bottom, innerHeight) - Math.max(r.top, 0)))]; });
     await p.evaluate(() => window.scrollTo(0, 0)); await 잠(300);
-    맞나('열자마자 캔버스 y · 첫 화면', await 첫화면(), 폰 ? [440, 460] : [69, 831]);
+    // 10-10 — 3D 머리줄 65 가 붙어 캔버스가 3px 내려간다(모드 줄이 `.hud` 에서 빠져 62 를 돌려준다 · §4.9831)
+    맞나('열자마자 캔버스 y · 첫 화면', await 첫화면(), 폰 ? [443, 457] : [134, 766]);
     if (폰){   // 치수 띠는 첫 화면 안에 통째로 · 설정 칸은 도면 **아래**
       맞나('치수 띠가 첫 화면 안인가', await p.evaluate(() => { window.scrollTo(0, 0);
         const t = document.querySelector('#dimsBar').getBoundingClientRect();
@@ -206,7 +211,7 @@ const 덮은것 = `(() => {
       /* ⚠ 10-06 — 그 톡이 부속도 고르므로 3D 우측칸(§4.9847)이 캔버스 위에 선다.
          10-08 에 엣지 기본세팅이 켜지며(§4.9842) 그 칸에 「엣지」 줄이 한 줄 늘어 **38 → 60px** 이 되었다.
          그래서 캔버스 y 440 → **500** · 첫 화면 460 → **400** 이다. 안 고른 때는 전과 한 톨도 같다(위 ⑥). */
-      맞나('접고 고른 뒤 캔버스 y · 첫 화면', await 첫화면(), [500, 400]);
+      맞나('접고 고른 뒤 캔버스 y · 첫 화면', await 첫화면(), [503, 397]);
     }
 
     console.log('⑦ 가로 넘침 · 오류');

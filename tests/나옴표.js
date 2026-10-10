@@ -143,7 +143,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       +document.querySelector('.explode').getBoundingClientRect().height.toFixed(1),
       +document.getElementById('c3d').getBoundingClientRect().width.toFixed(0) + '×' + +document.getElementById('c3d').getBoundingClientRect().height.toFixed(0),
       document.documentElement.scrollHeight, document.documentElement.scrollWidth ]),
-    [38, '995×831', 900, 1280]);
+    // 10-10 — 3D 칸에 2D 와 같은 머리줄 65 가 붙어 1280 캔버스가 995×831 → **995×766**(§4.9831).
+    [38, '995×766', 900, 1280]);
 
   console.log('⑧ 서랍재D 를 다 숨기면 접힌다 · 부속서 불변');
   const 행전 = await p.evaluate(() => JSON.stringify(window.__probe.행()));
