@@ -230,7 +230,9 @@ const 짚을자리 = (n) => {
     맞나('고른 뒤 캔버스 y · 첫 화면', await p.evaluate(() => { window.scrollTo(0, 0);
       const c = document.querySelector('#c3d').getBoundingClientRect();
       return [Math.round(c.top), Math.round(Math.max(0, Math.min(c.bottom, innerHeight) - Math.max(c.top, 0)))]; }),
-      폭 === 375 ? [500, 312] : [69, 831]);
+      // 10-10 — 3D 칸에 2D 와 같은 머리줄 65 가 붙었다(§4.9831). 폰은 `.hud` 에서 모드 줄 62 가
+      //   빠져 +3 · 1280 은 캔버스가 y 69 → 134 · 높이 831 → 766.
+      폭 === 375 ? [503, 309] : [134, 766]);
     맞나('가로 넘침', await p.evaluate(() => document.documentElement.scrollWidth), 폭);
 
     console.log('⑨ 보이는 화면이 줄어도 안 잘린다 — 글쇠·주소창·벌리기');
