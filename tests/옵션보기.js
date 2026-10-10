@@ -122,6 +122,13 @@ const 짚을자리 = (n) => {
         s.value = x; s.dispatchEvent(new Event('change', { bubbles:true })); }, v); await 잠(800); };
     const 켜짐 = () => p.evaluate(() => document.querySelector('#pmenu').classList.contains('on'));
     const 차림표 = async 이름 => {                    // 도면에서 그 부속을 골라 차림표를 띄운다
+      /* 10-10 사장님 말씀으로 **1쪽이 「제품 스펙서」** 가 되었다(§4.9832). 부속을 짚을 수 있는 것은
+         **전체 도면 쪽**(`.p1`)뿐이라 — 스펙서 쪽에는 `rect.pick` 이 하나도 없다 — 그 쪽을 먼저 고른다. */
+      await p.evaluate(() => { const ps = [...document.querySelectorAll('#pageBox>.page')];
+        const i = ps.findIndex(x => x.classList.contains('p1'));
+        if (i >= 0 && !ps[i].classList.contains('보는쪽')){
+          const b2 = document.querySelector(`#thumbs button[data-th="${i}"]`); if (b2) b2.click(); } });
+      await 잠(350);
       const 자리 = await p.evaluate(짚을자리, 이름);
       if (!자리) return null;
       for (let i = 0; i < 4 && !(await 켜짐()); i++){ await 톡(자리.x, 자리.y); await 잠(250); }
