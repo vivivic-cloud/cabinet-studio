@@ -135,7 +135,9 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       미닫이옆: !!document.querySelector('.explode #explode'),
       보이나: 보임(seg), 넘침: document.documentElement.scrollWidth }; }),
     { 글:['분해','동작'], 보임:[44,44], 닿음:['44px','44px'], 닿는:[[64,45],[46,45]], 제알약밖:[[],[]],
-      밀대:[123, 233], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
+      // 10-10 사장님 말씀 — 폰 좌우 12px 여백(§4.9833). 띠가 통째로 12 들어가 밀대가 123 → **135**,
+      //   폭 233 → **209**. 알약 크기(44)와 닿는 자리(64×45 · 46×45)는 한 톨도 안 바뀐다.
+      밀대:[135, 209], 켜진것:'분해', 미닫이옆:true, 보이나:true, 넘침:375 });
 
   /* ①-나 **진짜 손가락**으로 띠 한 줄을 정수 한 점씩 찍어 누가 골라지는지 센다(10-06 관리자 조건 1).
         한 점당 모드를 반대로 두고 찍어 바뀌는지 보고, 안 바뀌면 다시 반대로 두고 한 번 더 찍는다.
@@ -150,7 +152,10 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       s.dispatchEvent(new Event('input', { bubbles:true })); }, [m, v]); await 잠(20); };
     const 읽기 = () => p.evaluate(() => [window.__probe.st().분해모드, Number(document.querySelector('#explode').value)]);
     const 셈 = { 분해:0, 동작:0, 밀대:0, 없음:0 };
-    for (let x = 0; x <= 130; x++){
+    /* ⚠ **띠의 왼끝에서부터** 센다 — 10-10 부터 그 왼쪽 12px 은 사장님이 시키신 **여백**이라(§4.9833)
+       아무것도 안 눌리는 것이 맞다. 0 에서 시작하면 그 여백이 「죽은 칸」 으로 잡힌다. */
+    const 왼 = Math.round((await p.evaluate(() => document.querySelector('.explode').getBoundingClientRect().left)));
+    for (let x = 왼; x <= 왼 + 130; x++){
       await 세팅('동작', 50); await p.touchscreen.tap(x, y); await 잠(45);
       let [m, v] = await 읽기();
       if (m === '분해'){ 셈.분해++; continue; }
