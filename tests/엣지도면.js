@@ -10,7 +10,7 @@
      ⑤ 여덟 갈래 × 모든 부속 W-2·D-2 에서 **A4 밖 0**
      ⑥ **판은 이전설정 그대로다** — 고르개 넷 · 면 알약 0 · 담는 꼴이 `{W,D,필름,RT}`
      ⑦ **3D 에도 엣지가 보인다** — 엣지가 붙는 좁은 면을 덮고, 짚기를 안 뺏는다
-     ⑧ **그 면 색은 그 부속 색 그대로이고 반투명이다** (10-09 사장님 말씀 · 부속마다 다른 색)
+     ⑧ **그 면 색은 그 부속 색에서 살짝 민 이색이고 반투명이다** (10-11 사장님 말씀 · 색상 H 는 그대로)
      ⑨ **필름과 자재 사이에 경계선이 있다** (10-09 사장님 말씀 · 각도에 따라 안 보이던 것)
      ⑩ **2D 의 엣지 작업부는 밝은 초록이다** (10-09 사장님 말씀 · 색값은 `--엣지` 한 자리)
 
@@ -211,10 +211,14 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       g.children.forEach(m => { const n = m.userData.key.split('|')[0];
         const sk = m.children.filter(c => c.isMesh);
         살[n] = (살[n] || 0) + sk.length;
-        if (sk.length && !꼴[n]) 꼴[n] = { 색: sk[0].material.color.getHexString(),
+        if (sk.length && !꼴[n]) { const a = {}, b = {};
+          m.material.color.getHSL(a); sk[0].material.color.getHSL(b);
+          꼴[n] = { 색: sk[0].material.color.getHexString(),
           몸: m.material.color.getHexString(),
+          몸H: +a.h.toFixed(3), 몸S: +a.s.toFixed(3), 몸L: +a.l.toFixed(3),
+          살H: +b.h.toFixed(3), 살S: +b.s.toFixed(3), 살L: +b.l.toFixed(3),
           비침: `${sk[0].material.transparent}/${sk[0].material.opacity}`,
-          짚기끔: sk[0].raycast.toString().length < 30 }; });
+          짚기끔: sk[0].raycast.toString().length < 30 }; } });
       return { 살, 꼴 }; });
     맞나('측판 — 상·하 × 두 장', (r.살 || {})['측판'], 4);
     맞나('상판 — 네 면', (r.살 || {})['상판'], 4);
@@ -223,27 +227,36 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
     맞나('뒷판 — 홈에 묻혀 0', (r.살 || {})['뒷판'], 0);
     맞나('전면밴드 — 0', (r.살 || {})['전면밴드'], 0);
     맞나('짚기를 안 뺏는다', ((r.꼴 || {})['측판'] || {}).짚기끔, true);
-    // ⑧ 10-09 사장님 말씀 — 「3d의 엣지 작업표현 색상을 **도면의 부속의 색상과 같은 색상의 반투명**으로」
-    맞나('살 색 = 그 부속 색 (다섯 부속 다)',
-      Object.keys(r.꼴 || {}).map(n => `${n} ${r.꼴[n].색}/${r.꼴[n].몸}`).filter(x => {
-        const [, a, bb] = x.match(/ (\w+)\/(\w+)$/); return a !== bb; }), []);
-    맞나('측판 살 색', ((r.꼴 || {})['측판'] || {}).색, 'd9b98a');
-    맞나('반투명', ((r.꼴 || {})['측판'] || {}).비침, 'true/0.45');
+    /* ⑧ 10-11 사장님 말씀 — 「3d도면에서 엣지작업 표현이 잘 보이지 않으니 **기본색상과 살짝이 이색이 있는
+       반투명 엣지표현**을 해줘」. 10-09 의 「살 색 = 부속 색」 을 **뒤집은 것이다**(지우지 않고 적어 둔다).
+       ⚠ 자는 셋이다 — 살 색이 몸 색과 **다르고** · **색상(H)은 같고** · 밝기·채도만 밀렸다. */
+    맞나('살 색 ≠ 그 부속 색 (다섯 부속 다 밀렸다)',
+      Object.keys(r.꼴 || {}).filter(n => r.꼴[n].색 === r.꼴[n].몸), []);
+    맞나('색상(H)은 한 톨도 안 민다 (다섯 부속 다)',
+      Object.keys(r.꼴 || {}).filter(n => Math.abs(r.꼴[n].살H - r.꼴[n].몸H) > 1e-6), []);
+    맞나('밝은 부속은 어둡게 (L 이 내려간다)',
+      Object.keys(r.꼴 || {}).filter(n => r.꼴[n].몸L > 0.5 && !(r.꼴[n].살L < r.꼴[n].몸L)), []);
+    맞나('채도는 올라간다',
+      Object.keys(r.꼴 || {}).filter(n => !(r.꼴[n].살S > r.꼴[n].몸S)), []);
+    맞나('측판 몸 색', ((r.꼴 || {})['측판'] || {}).몸, 'd9b98a');
+    맞나('측판 살 색', ((r.꼴 || {})['측판'] || {}).색, 'd8a457');
+    맞나('반투명 0.45 는 한 톨도 안 건드렸다', ((r.꼴 || {})['측판'] || {}).비침, 'true/0.45');
     맞나('이동선반도 같은 값 (§4.9883)', ((r.꼴 || {})['이동선반'] || {}).비침, 'true/0.45');
     // 고르면 그 부속의 엣지 살도 같이 붉어진다 — 반만 붉으면 고른 것으로 안 보인다(§4.11)
     // ⚠ 고치기 전 판에는 살이 아예 없다 — 널에 견디게 감싼다(§4.986-모바일 과 같은 자리)
     const 고 = await p.evaluate(() => { const P = window.__probe, g = P.grp();
       const m = g && g.children.find(c => c.userData.key.startsWith('측판') && c.children.filter(x => x.isMesh).length);
       if (!m) return { 몸:null, 살:null, 남의살:null, 남의몸:null };
-      P.고르기(m.userData.pid);
       const 남 = g.children.find(c => c.userData.pid !== m.userData.pid && c.children.filter(x => x.isMesh).length);
+      const 남의살전 = 남 ? 남.children.filter(x => x.isMesh)[0].material.color.getHexString() : null;
+      P.고르기(m.userData.pid);
       return { 몸: m.material.color.getHexString(),
                살: m.children.filter(x => x.isMesh).map(x => x.material.color.getHexString())[0],
                남의살: 남 ? 남.children.filter(x => x.isMesh)[0].material.color.getHexString() : null,
-               남의몸: 남 ? 남.material.color.getHexString() : null }; });
+               남의살전 }; });
     맞나('고른 몸이 붉다', 고.몸, 'f2654e');
-    맞나('고른 살도 붉다', 고.살 !== 'd9b98a', true);
-    맞나('남의 살은 제 부속 색 그대로', 고.남의살, 고.남의몸);
+    맞나('고른 살도 붉다', 고.살 !== 'd8a457' && 고.살 !== 'd9b98a', true);
+    맞나('남의 살은 제 민 색 그대로', 고.남의살, 고.남의살전);
     // 뒷판 얇은 두께는 3D 에도 살이 없다
     const 뒷 = [];
     for (const t of [2.7, 9, 12, 18, 25]){ await 상태({ TB:t });
@@ -257,8 +270,16 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
       g.children.forEach(m => { const n = m.userData.key.split('|')[0], sk = m.children.filter(c => c.isMesh);
         if (sk.length && !o[n]) o[n] = `${sk[0].material.color.getHexString()}/${m.material.color.getHexString()}`; });
       return o; });
-    맞나('문짝 살 색 = 문짝 색', 문['문짝'], 'e4cba2/e4cba2');
-    맞나('측판 살 색 = 측판 색', 문['측판'], 'd9b98a/d9b98a'); }
+    맞나('문짝 — 살/몸 (밝은 부속도 제 색에서 민다)', 문['문짝'], 'e2b770/e4cba2');
+    맞나('측판 — 살/몸', 문['측판'], 'd8a457/d9b98a');
+    // 어두운 부속(12T 밑 C7A874)에서도 민다 — 한 방향으로 박으면 여기서 묻힌다
+    await 상태({ Tshelf:9, shelvesM:0, doors:0 });
+    const 어 = await p.evaluate(() => { const g = window.__probe.grp(), o = {};
+      g.children.forEach(m => { const n = m.userData.key.split('|')[0], sk = m.children.filter(c => c.isMesh);
+        if (sk.length && !o[n]) o[n] = `${sk[0].material.color.getHexString()}/${m.material.color.getHexString()}`; });
+      return o; });
+    맞나('9T 고정선반 — 살/몸 (어두운 부속)', 어['고정선반'], 'c79440/c7a874');
+    await 상태({ Tshelf:18, shelvesM:2, doors:2 }); }
 
   console.log('⑨ 필름과 자재 사이 경계선 (10-09 사장님 말씀)');
   { await 상태({ 품목:'수납장', backMode:'insert', topStyle:'overlay', doorMode:'out', W:800, D:400, H:1800, shelvesM:2, TB:2.7, doors:0 });
