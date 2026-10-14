@@ -84,7 +84,23 @@ const 이디 = async p => {
     b.click(); });
   await 잠(1300);
 };
-const 크게 = async p => { await p.evaluate(() => document.querySelector('#pageBox .page.보는쪽 .big').click()); await 잠(900); };
+// ⚠ 10-10 §4.9832 로 **1쪽이 「제품 스펙서」** 가 되었다 — 거기엔 `.OUTLINE` 이 없다.
+// 이 자가 재는 것은 처음부터 **전체 도면 쪽**이다. 그 쪽을 썸네일로 골라 놓고 「크게」 를 누른다.
+const 전체도면쪽 = async p => {
+  const i = await p.evaluate(() => {
+    const 쪽들 = [...document.querySelectorAll('#pageBox > .page')];
+    const k = 쪽들.findIndex(z => z.querySelector('svg .OUTLINE'));
+    if (k < 0) return -1;
+    if (!쪽들[k].classList.contains('보는쪽')){
+      const b = document.querySelector('#thumbs button[data-th="' + k + '"]');
+      if (b) b.click();
+    }
+    return k;
+  });
+  await 잠(300);
+  return i;
+};
+const 크게 = async p => { await 전체도면쪽(p); await p.evaluate(() => document.querySelector('#pageBox .page.보는쪽 .big').click()); await 잠(900); };
 const 올리기 = async (p, 목표) => {
   for (let i = 0; i < 25; i++){
     const v = await p.evaluate(() => Number(document.querySelector('#zoomPct').textContent.replace('%','')));
