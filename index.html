@@ -725,7 +725,7 @@ dialog.phone[open]{display:flex;flex-direction:column}
     <!-- 10-10 사장님 말씀 — 「3d 도면의 이 헤더부분도 2d의 헤더와 동일하게 해줘」.
          2D 칸(`.draw`)의 머리줄과 **같은 markup·같은 CSS** 다. 모드 단추는 `.hud` 안에 있던 그것을
          **옮긴 것**이고 새로 만든 것이 아니다 — 두 칸에 하나씩이라는 §4.58 은 그대로다. -->
-    <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div></div>
+    <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button><button type="button" data-mode="sk" aria-pressed="false">스케치</button></div></div>
     <div class="v3body">
     <canvas id="c3d"></canvas>
     <!-- 10-06 사장님 말씀 — 「동작시 서랍측면에 측판 끝으로 부터 몇mm 나오는지 표기해줘 **제일 하단서랍 1칸에**」.
@@ -768,7 +768,7 @@ dialog.phone[open]{display:flex;flex-direction:column}
   </main>
 
   <section class="draw" aria-label="2D 도면">
-    <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button></div></div>
+    <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button><button type="button" data-mode="sk" aria-pressed="false">스케치</button></div></div>
     <div class="svgwrap" id="svgwrap"></div>
   </section>
 
@@ -2870,6 +2870,7 @@ function applySel(){
   document.querySelectorAll('#bomBody tr').forEach(tr =>          // 부품표
     tr.classList.toggle('on', !!key && tr.dataset.key === key));
   부속정보갱신(key);                                               // 3D 우측칸
+  if (보기모드 === 'sk') 스케치세우기();        // 고른 부속의 선을 붉게
 }
 /* 3D 칸 오른쪽의 「고른 부속」 칸 — 팝업이 아니다(10-06 사장님 말씀). 고른 것이 바뀌면 글만 갈린다.
    ⚠ 적는 값은 2D 부속 쪽이 적는 그 줄 그대로다 — `부속행들` 과 `부속정보줄` 을 **같이** 쓴다.
@@ -3360,6 +3361,50 @@ function 조각꼴(p, m){
   geo.userData.선 = 선;              // 이은 자리를 걸러낸 선 — `rebuild3D` 가 이것을 쓴다
   return geo;
 }
+/* ───────── 스케치(와이어프레임) 보기 — 10-14 사장님 말씀 ─────────
+   「이곳에 스케치 버전을 추가하여 현재복잡한 상세내용을 간단하게 라인등으로 제품의 형태를 파악할 수 있는
+     스케치도면 ,또는 와이어프레임 형식의 가벼운 도면이 나타나도록 해줘」
+   ⚠ **더하는 것이다.** 지금 3D 조각(`group`)·재질·엣지 색·셈·도면·DXF 는 한 글자도 안 건드렸다 —
+      스케치에서는 `group.visible=false` 로 **숨기기만** 하고 선 한 덩이를 대신 보인다.
+   ⚠ 선은 **한 덩이**다(`LineSegments` 하나 · draw call 1). 부속마다 조각을 세우면 call 이 부속 수만큼 는다.
+   ⚠ 자리를 새로 셈하지 않는다 — **조각의 `matrixWorld` 를 그대로 베낀다.** 그래서 분해·동작으로
+      움직인 자리와 도어가 돌아간 각까지 저절로 따라온다(베끼면 두 자리가 어긋난다). */
+let 스케치군 = null, 스케치골른 = null;
+const 스케치모 = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+function 스케치변(mesh, v){
+  const g = mesh.geometry; if (!g.boundingBox) g.computeBoundingBox();
+  const b = g.boundingBox, m4 = mesh.matrixWorld;
+  const 모 = [[b.min.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.max.z],[b.min.x,b.min.y,b.max.z],
+              [b.min.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.max.z],[b.min.x,b.max.y,b.max.z]]
+             .map(([x,y,z]) => new THREE.Vector3(x,y,z).applyMatrix4(m4));
+  스케치모.forEach(([a,c]) => v.push(모[a].x,모[a].y,모[a].z, 모[c].x,모[c].y,모[c].z));
+}
+function 선덩이(v, 색){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+  const o = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color:색 }));
+  o.raycast = () => {};              // 짚기는 지금 조각이 그대로 받는다 — 선이 가로채지 않는다
+  return o;
+}
+function 스케치세우기(){
+  [스케치군, 스케치골른].forEach(o => { if (o){ scene.remove(o); o.geometry.dispose(); o.material.dispose(); } });
+  스케치군 = 스케치골른 = null;
+  if (!group) return;
+  group.updateMatrixWorld(true);
+  const 모 = [], 고 = [];
+  group.children.forEach(mesh => 스케치변(mesh, (selPid !== null && mesh.userData.pid === selPid) ? 고 : 모));
+  스케치군 = 선덩이(모, new THREE.Color(cssVar('--ink') || '#1A1A19')); scene.add(스케치군);
+  if (고.length){ 스케치골른 = 선덩이(고, new THREE.Color(cssVar('--dim') || '#FF3B30')); scene.add(스케치골른); }
+  스케치맞추기();
+}
+function 스케치맞추기(){
+  const sk = 보기모드 === 'sk';
+  if (group) group.visible = !sk;
+  if (axes) axes.visible = !sk;
+  if (grid) grid.visible = !sk;
+  if (스케치군) 스케치군.visible = sk;
+  if (스케치골른) 스케치골른.visible = sk;
+}
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
   while (group.children.length){ const c = group.children.pop(); c.geometry.dispose();
@@ -3400,6 +3445,7 @@ function rebuild3D(m){
   }
   applyExplode();
   makeGrid(); makeAxes();
+  if (보기모드 === 'sk') 스케치세우기();      // 10-14 — 선 덩이도 새 모델로 다시 세운다
   그리자();                            // 치수를 바꿔 조각이 새로 섰다
   // 세팅을 바꿀 때마다 보시던 시각이 처음으로 돌아가지 않게, 맞추기는 첫 판에서만 한다.
   // 다시 맞추고 싶으시면 도구줄의 「전체」 나 Shift+Z 를 쓰시면 된다.
@@ -3460,6 +3506,7 @@ function applyExplode(){
   // ⚠ 「동작」 에서 돌려 둔 도어를 **되돌려 놓는다** — 안 그러면 분해도에서 도어가 비스듬히 선 채로 남는다.
   group.children.forEach(c => { const {base,dir} = c.userData; c.rotation.y = 0;
     c.position.set(base[0]+dir[0]*e, base[1]+dir[1]*e, base[2]+dir[2]*e); });
+  if (보기모드 === 'sk') 스케치세우기();   // 분해·동작으로 움직인 자리를 선도 따라간다
   그리자();
 }
 function setPressed(v){ document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
@@ -5019,17 +5066,19 @@ function 모드띠맞추기(){
   띠.style.top = 머리 ? (머리.offsetHeight + 12) + 'px' : '';
 }
 function 모드바꾸기(m){
-  const 새 = (m === '2d') ? '2d' : '3d';
+  const 새 = (m === '2d') ? '2d' : (m === 'sk' ? 'sk' : '3d');
   const 판 = document.querySelector('.app');
   보기모드 = 새;
+  /* 스케치는 **3D 칸을 그대로 쓴다** — `m3d` 를 그대로 걸어 격자·폰 갈래·치수 띠를 한 줄도 안 건드린다. */
   판.classList.toggle('m2d', 새 === '2d');
-  판.classList.toggle('m3d', 새 === '3d');
+  판.classList.toggle('m3d', 새 !== '2d');
+  판.classList.toggle('sk', 새 === 'sk');
   document.querySelectorAll('.modeseg button[data-mode]').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.mode === 새)));
   requestAnimationFrame(() => {                    // 칸이 다시 자리를 잡은 뒤에 잰다
     모드띠맞추기();
-    if (새 === '3d'){ 삼디크기맞추기(); 그리자(); }
-    else 도면그리기();                              // 폭이 제대로 잡힌 뒤라야 글자 배율이 맞는다
+    if (새 === '2d') 도면그리기();
+    else { 삼디크기맞추기(); if (새 === 'sk') 스케치세우기(); else 스케치맞추기(); 그리자(); }                              // 폭이 제대로 잡힌 뒤라야 글자 배율이 맞는다
   });
 }
 addEventListener('resize', () => 모드띠맞추기());   // 머리줄이 두 줄로 접히면 띠 자리도 따라간다
