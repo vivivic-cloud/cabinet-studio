@@ -3403,7 +3403,7 @@ const 스케치시점 = [['등각좌', -0.75, 1.15], ['등각우', 0.75, 1.15],
                     ['정면', 0, Math.PI/2], ['뒷면', Math.PI, Math.PI/2]];
 let 스케치보기 = 1, 스케치캠 = null;          // 처음은 **등각우** — 3D 가 열릴 때의 그 각이다
 function 스케치겨눔(w, h){
-  if (종이) return 종이겨눔(w, h);                 // 시험 길 — 주소에 `?종이=` 가 붙었을 때만(아래)
+  if (종이 && 종이평행) return 종이겨눔(w, h);      // 시험 길 — `?투상=평행` 일 때만 평행투상(아래)
   const [, θ, φ] = 스케치시점[스케치보기], r = extR();
   스케치캠 = 스케치캠 || new THREE.PerspectiveCamera(32, 1, 5, 30000);   // 3D 와 같은 화각
   스케치캠.aspect = Math.max(0.01, w / Math.max(1, h));
@@ -3431,9 +3431,12 @@ function 스케치보기바꾸기(i){
    사장님이 가구 카탈로그 선화 한 장을 보여 주시며 「**이런 느낌에 대해서 좀 더 알아볼 수 있을까요**」 하셨다.
    **아직 고치라는 말씀이 아니다.** 그래서 보여 드릴 그림만 뽑는 길을 **따로 두고 꺼 둔다** —
    주소에 `?종이=1`(선 전부) · `?종이=2`(엣지살 뺀 것)을 붙여야 켜진다.
+   **10-15 둘째 말씀으로 ① 이 물렸다** — 「소실점 유지」 라 **기본이 원근(`스케치겨눔` 의 그 화각)** 이고,
+   평행투상은 `?투상=평행` 으로만 본다(견주시게 남겨 둔 길이다).
    **안 붙이면 아래 셈이 한 줄도 안 돈다** — 지금 화면(`1968c9d`)은 한 톨도 안 바뀐다.
    참고 그림의 규칙 다섯 가운데 넷을 여기서 흉내 낸다 —
-     ① **평행투상** `OrthographicCamera` ② **칠 없음** `MeshBasicMaterial` 종이색(빛을 안 탄다)
+     ①~~평행투상~~ → **원근 유지**(`PerspectiveCamera(32,…)` 그대로 · 새 화각을 짓지 않는다)
+     ② **칠 없음** `MeshBasicMaterial` 종이색(빛을 안 탄다)
      ③ **숨은선 지움** — 면이 불투명하니 **깊이 검사가 공짜로 해 준다**(새 기하도 새 라이브러리도 없다)
      ⑤ **종이 바탕 · 그림자 없음** — 축선도 끈다.
    ④ 선 굵기는 못 한다 — WebGL 의 `linewidth` 는 대개 안 먹는다(§4.11).
@@ -3441,6 +3444,9 @@ function 스케치보기바꾸기(i){
    ⚠ 고른 부속은 **모서리선이 붉어진다**(`applySel` 이 이미 그렇게 해 둔다). 면은 종이색이라 안 붉다. */
 const 종이 = (() => { const v = new URLSearchParams(location.search).get('종이');
                       return v === '1' ? 1 : v === '2' ? 2 : 0; })();
+/* 10-15 둘째 말씀 — 「**소실점 유지하면서 지금의 느낌대로**」. 그래서 **기본이 원근**이고
+   평행투상은 견주시게 `?투상=평행` 으로만 남겨 두었다. 지우지 마라(바이글 지시). */
+const 종이평행 = new URLSearchParams(location.search).get('투상') === '평행';
 const 종이색 = 0xF3ECDE;                      // 따뜻한 미색 — 참고 그림의 바탕
 let 종이캠 = null, 종이면 = null;
 function 종이겨눔(w, h){
@@ -3473,7 +3479,7 @@ function 종이그리기(w, h){
   const 옛색 = new THREE.Color(); renderer.getClearColor(옛색);
   const 옛알파 = renderer.getClearAlpha();
   renderer.setClearColor(종이색, 1);
-  renderer.render(scene, 종이겨눔(w, h));
+  renderer.render(scene, 스케치겨눔(w, h));       // 기본 = 원근(소실점) · `?투상=평행` 이면 종이겨눔
   renderer.setClearColor(옛색, 옛알파);
   되돌.forEach(f => f());
 }
