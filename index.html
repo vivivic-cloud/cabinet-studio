@@ -3403,6 +3403,7 @@ const 스케치시점 = [['등각좌', -0.75, 1.15], ['등각우', 0.75, 1.15],
                     ['정면', 0, Math.PI/2], ['뒷면', Math.PI, Math.PI/2]];
 let 스케치보기 = 1, 스케치캠 = null;          // 처음은 **등각우** — 3D 가 열릴 때의 그 각이다
 function 스케치겨눔(w, h){
+  if (종이) return 종이겨눔(w, h);                 // 시험 길 — 주소에 `?종이=` 가 붙었을 때만(아래)
   const [, θ, φ] = 스케치시점[스케치보기], r = extR();
   스케치캠 = 스케치캠 || new THREE.PerspectiveCamera(32, 1, 5, 30000);   // 3D 와 같은 화각
   스케치캠.aspect = Math.max(0.01, w / Math.max(1, h));
@@ -3415,6 +3416,7 @@ function 스케치그리기(){
   const cv = renderer.domElement;
   const w = Math.round(cv.clientWidth), h = Math.round(cv.clientHeight);
   if (!w || !h) return;
+  if (종이){ 종이그리기(w, h); return; }            // 시험 길 — 꺼져 있다(아래)
   renderer.render(scene, 스케치겨눔(w, h));
 }
 function 스케치맞추기(){
@@ -3424,6 +3426,56 @@ function 스케치맞추기(){
 function 스케치보기바꾸기(i){
   if (!(i >= 0 && i < 스케치시점.length) || i === 스케치보기) return;
   스케치보기 = i; 스케치맞추기(); 그리자();
+}
+/* ───────── (시험 길 · **꺼져 있다**) 종이풍 — 10-15 바이글 지시 ─────────
+   사장님이 가구 카탈로그 선화 한 장을 보여 주시며 「**이런 느낌에 대해서 좀 더 알아볼 수 있을까요**」 하셨다.
+   **아직 고치라는 말씀이 아니다.** 그래서 보여 드릴 그림만 뽑는 길을 **따로 두고 꺼 둔다** —
+   주소에 `?종이=1`(선 전부) · `?종이=2`(엣지살 뺀 것)을 붙여야 켜진다.
+   **안 붙이면 아래 셈이 한 줄도 안 돈다** — 지금 화면(`1968c9d`)은 한 톨도 안 바뀐다.
+   참고 그림의 규칙 다섯 가운데 넷을 여기서 흉내 낸다 —
+     ① **평행투상** `OrthographicCamera` ② **칠 없음** `MeshBasicMaterial` 종이색(빛을 안 탄다)
+     ③ **숨은선 지움** — 면이 불투명하니 **깊이 검사가 공짜로 해 준다**(새 기하도 새 라이브러리도 없다)
+     ⑤ **종이 바탕 · 그림자 없음** — 축선도 끈다.
+   ④ 선 굵기는 못 한다 — WebGL 의 `linewidth` 는 대개 안 먹는다(§4.11).
+   ⚠ `rebuild3D`·`applySel`·재질·기하를 **한 글자도 안 건드린다** — 그릴 때만 갈아 끼우고 **바로 되돌린다.**
+   ⚠ 고른 부속은 **모서리선이 붉어진다**(`applySel` 이 이미 그렇게 해 둔다). 면은 종이색이라 안 붉다. */
+const 종이 = (() => { const v = new URLSearchParams(location.search).get('종이');
+                      return v === '1' ? 1 : v === '2' ? 2 : 0; })();
+const 종이색 = 0xF3ECDE;                      // 따뜻한 미색 — 참고 그림의 바탕
+let 종이캠 = null, 종이면 = null;
+function 종이겨눔(w, h){
+  const [, θ, φ] = 스케치시점[스케치보기], r = extR();
+  종이캠 = 종이캠 || new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1);
+  const 네모 = new THREE.Box3().setFromObject(group);
+  const 반 = (네모.isEmpty() ? 1000 : 네모.getSize(new THREE.Vector3()).length()) * 0.54 || 1000;
+  const a = Math.max(0.01, w / Math.max(1, h));
+  종이캠.left = -반 * a; 종이캠.right = 반 * a; 종이캠.top = 반; 종이캠.bottom = -반;
+  종이캠.near = 1; 종이캠.far = r * 4 + 4000;
+  종이캠.position.set(r*Math.sin(φ)*Math.sin(θ), r*Math.cos(φ), r*Math.sin(φ)*Math.cos(θ));
+  종이캠.lookAt(0, 0, 0);
+  종이캠.updateProjectionMatrix(); 종이캠.updateMatrixWorld(true);
+  return 종이캠;
+}
+function 종이그리기(w, h){
+  종이면 = 종이면 || new THREE.MeshBasicMaterial({ color:종이색,
+    polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1 });
+  const 되돌 = [];
+  if (axes && axes.visible){ axes.visible = false; 되돌.push(() => { axes.visible = true; }); }
+  group.children.forEach(m => {
+    되돌.push(((o, v) => () => { o.material = v; })(m, m.material));
+    m.material = 종이면;
+    for (let i = 1; i < m.children.length; i++){                 // 엣지살(필름)
+      const c = m.children[i];
+      되돌.push(((o, v, b) => () => { o.material = v; o.visible = b; })(c, c.material, c.visible));
+      if (종이 === 2) c.visible = false; else c.material = 종이면;
+    }
+  });
+  const 옛색 = new THREE.Color(); renderer.getClearColor(옛색);
+  const 옛알파 = renderer.getClearAlpha();
+  renderer.setClearColor(종이색, 1);
+  renderer.render(scene, 종이겨눔(w, h));
+  renderer.setClearColor(옛색, 옛알파);
+  되돌.forEach(f => f());
 }
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
