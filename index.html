@@ -204,6 +204,11 @@ input[type=range]{width:100%;accent-color:var(--head)}
 /* 10-06 「동작」 의 나옴 딱지 — 서랍 옆 틈에 떠서 측판 끝에서 나온 거리를 적는다(§4.9850-나옴).
    `.view3d` 가 `position:relative` 라 그 안에서 뜬다. 폰 갈래(`position:static`) 목록에 넣지 마라 —
    흐름에 들어가면 도면을 아래로 민다. */
+.sktags{display:none}
+.app.sk .sktags{display:grid;position:absolute;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;pointer-events:none;z-index:2}
+.app.sk .sktags span{align-self:start;justify-self:start;margin:6px 8px;font-size:11px;color:var(--ink);opacity:.7}
+.app.sk .sktags span:nth-child(-n+2){margin-top:var(--sk위,6px)}
+.app.sk .view3d .tools,.app.sk .view3d .views,.app.sk .outtag{display:none}
 .outtag{position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,-50%);
   padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--surface);
   font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);white-space:nowrap;
@@ -728,6 +733,8 @@ dialog.phone[open]{display:flex;flex-direction:column}
     <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button><button type="button" data-mode="sk" aria-pressed="false">스케치</button></div></div>
     <div class="v3body">
     <canvas id="c3d"></canvas>
+    <!-- 10-15 — 스케치 네 시점의 이름. 한두 낱말 딱지다(§0). `absolute` 라 칸을 한 픽셀도 안 뺏는다. -->
+    <div class="sktags" aria-hidden="true"><span>등각</span><span>정면</span><span>측면</span><span>뒤</span></div>
     <!-- 10-06 사장님 말씀 — 「동작시 서랍측면에 측판 끝으로 부터 몇mm 나오는지 표기해줘 **제일 하단서랍 1칸에**」.
          떠 있는 딱지 하나다(`position:absolute`) — **칸 높이를 한 픽셀도 안 뺏는다**(§4.94 의 그 길).
          `pointer-events:none` 이라 3D 를 짚는 손가락을 안 가로챈다. -->
@@ -3053,7 +3060,11 @@ function init3D(){
   const 광선 = new THREE.Raycaster();
   const 짚힌조각 = (px,py) => {
     const r = cv.getBoundingClientRect();
-    광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
+    if (보기모드 === 'sk'){                                 // 10-15 — 네 그림 어디를 눌러도 골라진다
+      const 짚 = 스케치짚기(px-r.left, py-r.top, r.width, r.height);
+      if (!짚) return null;
+      광선.setFromCamera(new THREE.Vector2(짚.nx, 짚.ny), 짚.cam);
+    } else 광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
     const h = 광선.intersectObjects(group.children, false)[0];
     return h ? h.object : null;
   };
@@ -3136,6 +3147,12 @@ function init3D(){
     return { d: Math.hypot(a.x-b.x, a.y-b.y) || 1, x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; };
   cv.addEventListener('pointerdown', e => {
     const touch = e.pointerType === 'touch';
+    /* 10-15 — 스케치는 **고정된 그림**이다. 돌리기·줌·이동·밴드끌기를 다 끈다.
+       자국은 남긴다 — 톡 쳐서 고르기와 두 번 톡 쳐 손질 차림표는 그대로여야 한다. */
+    if (보기모드 === 'sk'){
+      drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, mode:null, id:e.pointerId, touch, held:false, 끌:null };
+      축 = null; return;
+    }
     if (touch){
       손3d.set(e.pointerId, { x:e.clientX, y:e.clientY });
       if (손3d.size === 2){
@@ -3221,7 +3238,8 @@ function init3D(){
     핀치 = null; if (핀치틀){ cancelAnimationFrame(핀치틀); 핀치틀 = 0; } } };
   cv.addEventListener('pointerup', e => { 손뗌(e); end(e); });
   cv.addEventListener('pointercancel', e => { 손뗌(e); end(e); });
-  cv.addEventListener('wheel', e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
+  cv.addEventListener('wheel', e => { if (보기모드 === 'sk') return;   // 스케치는 줌이 없다
+    e.preventDefault(); zoomBy(Math.exp(e.deltaY*0.0012), e.clientX, e.clientY); }, {passive:false});
   document.addEventListener('keydown', e => {
     if (e.target.matches('input,select,textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -3252,6 +3270,7 @@ function init3D(){
     }
     if (!그릴까) return;
     그릴까 = false;
+    if (보기모드 === 'sk'){ 스케치그리기(); return; }        // 10-15 — 고정된 네 시점. 카메라를 안 쓴다
     camera.position.set(cam.tgt.x + cam.r*Math.sin(cam.phi)*Math.sin(cam.theta), cam.tgt.y + cam.r*Math.cos(cam.phi), cam.tgt.z + cam.r*Math.sin(cam.phi)*Math.cos(cam.theta));
     camera.lookAt(cam.tgt);
     renderer.render(scene, camera);
@@ -3369,14 +3388,15 @@ function 조각꼴(p, m){
    ⚠ 선은 **한 덩이**다(`LineSegments` 하나 · draw call 1). 부속마다 조각을 세우면 call 이 부속 수만큼 는다.
    ⚠ 자리를 새로 셈하지 않는다 — **조각의 `matrixWorld` 를 그대로 베낀다.** 그래서 분해·동작으로
       움직인 자리와 도어가 돌아간 각까지 저절로 따라온다(베끼면 두 자리가 어긋난다). */
-let 스케치군 = null, 스케치골른 = null;
+let 스케치군 = null, 스케치골른 = null, 스케치네모 = null, 스케치캠 = null;
 const 스케치모 = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-function 스케치변(mesh, v){
+function 스케치변(mesh, v, 네모){
   const g = mesh.geometry; if (!g.boundingBox) g.computeBoundingBox();
   const b = g.boundingBox, m4 = mesh.matrixWorld;
   const 모 = [[b.min.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.max.z],[b.min.x,b.min.y,b.max.z],
               [b.min.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.max.z],[b.min.x,b.max.y,b.max.z]]
              .map(([x,y,z]) => new THREE.Vector3(x,y,z).applyMatrix4(m4));
+  모.forEach(q => 네모.expandByPoint(q));                 // 네 시점을 맞출 겉 네모 — 손으로 안 셈한다
   스케치모.forEach(([a,c]) => v.push(모[a].x,모[a].y,모[a].z, 모[c].x,모[c].y,모[c].z));
 }
 function 선덩이(v, 색){
@@ -3391,8 +3411,9 @@ function 스케치세우기(){
   스케치군 = 스케치골른 = null;
   if (!group) return;
   group.updateMatrixWorld(true);
-  const 모 = [], 고 = [];
-  group.children.forEach(mesh => 스케치변(mesh, (selPid !== null && mesh.userData.pid === selPid) ? 고 : 모));
+  const 모 = [], 고 = [], 네모 = new THREE.Box3();
+  group.children.forEach(mesh => 스케치변(mesh, (selPid !== null && mesh.userData.pid === selPid) ? 고 : 모, 네모));
+  스케치네모 = 네모.isEmpty() ? null : 네모;
   스케치군 = 선덩이(모, new THREE.Color(cssVar('--ink') || '#1A1A19')); scene.add(스케치군);
   if (고.length){ 스케치골른 = 선덩이(고, new THREE.Color(cssVar('--dim') || '#FF3B30')); scene.add(스케치골른); }
   스케치맞추기();
@@ -3404,6 +3425,73 @@ function 스케치맞추기(){
   if (grid) grid.visible = !sk;
   if (스케치군) 스케치군.visible = sk;
   if (스케치골른) 스케치골른.visible = sk;
+}
+/* ───────── 10-15 사장님 말씀 — 스케치는 **돌리는 화면이 아니라 네 시점의 고정 그림**이다 ─────────
+   「3d도 움직이는 도면이 아닌 등각/정면/측면/뒤 시점에서 보는 고정된 그림이 나타났으면해
+     — 단 부속으로 정의된 각객체를 클릭하면 이 스케치 도면에서도 해당 부속이 선택 되어야해」
+
+   ⚠ **선 덩이는 그대로 쓴다**(10-14 것) — 바뀐 것은 **어떻게 보여 주느냐**뿐이다.
+      한 덩이를 네 번 그린다(칸마다 뷰포트를 잘라). 그래서 부속이 늘어도 draw call 이 안 늘고,
+      치수·분해·동작으로 조각이 움직이면 네 그림이 **저절로** 같이 따라온다.
+   ⚠ 시점 값은 집에 이미 있는 `VIEWS` 를 그대로 쓴다 — 새 숫자를 짓지 않는다(§4.59 의 그 값).
+   ⚠ **직교(Orthographic)** 다. 투시로 그리면 고정 그림인데도 원근이 져 캐드 도면처럼 안 보인다.
+   ⚠ **칸 나눔은 어느 폭에서나 2×2** 다 — 아래 「내가 정한 것」 참고(폰에서 네 그림이 두 배 커진다). */
+const 스케치시점 = [['등각', VIEWS.iso], ['정면', VIEWS.front], ['측면', VIEWS.side], ['뒤', VIEWS.back]];
+const 스케치캠들 = () => (스케치캠 = 스케치캠 ||
+  스케치시점.map(() => new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100000)));
+/* 칸은 화면 좌표(왼위 0,0)로 센다 — 뷰포트로 넘길 때만 아래가 0 인 three 쪽으로 뒤집는다 */
+const 스케치칸 = (i, w, h) => ({ x:(i % 2) * (w/2), y:Math.floor(i/2) * (h/2), w:w/2, h:h/2 });
+const 스케치꼭지 = b => [[b.min.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.max.z],
+  [b.min.x,b.min.y,b.max.z],[b.min.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.min.z],
+  [b.max.x,b.max.y,b.max.z],[b.min.x,b.max.y,b.max.z]].map(([x,y,z]) => new THREE.Vector3(x,y,z));
+function 스케치겨눔(i, w, h){
+  const cam = 스케치캠들()[i], [θ, φ] = 스케치시점[i][1], b = 스케치네모;
+  const c = b.getCenter(new THREE.Vector3()), R = Math.max(10, b.min.distanceTo(b.max));
+  cam.position.set(c.x + R*Math.sin(φ)*Math.sin(θ), c.y + R*Math.cos(φ), c.z + R*Math.sin(φ)*Math.cos(θ));
+  cam.up.set(0, 1, 0); cam.lookAt(c); cam.updateMatrixWorld(true);
+  let mx = 1, my = 1;                                   // 겉 네모 여덟 꼭지를 카메라 눈으로 재서 담는다
+  스케치꼭지(b).forEach(q => { const v = cam.worldToLocal(q);
+    mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y)); });
+  const ar = Math.max(0.01, w / Math.max(1, h));
+  let hw = mx * 1.12, hh = my * 1.12;                   // 여유 12% — 선이 칸 테두리에 닿지 않게
+  if (hw/hh < ar) hw = hh*ar; else hh = hw/ar;
+  cam.left = -hw; cam.right = hw; cam.top = hh; cam.bottom = -hh; cam.far = R*4;
+  cam.updateProjectionMatrix();
+  return cam;
+}
+function 스케치그리기(){
+  const cv = renderer.domElement;
+  const w = Math.round(cv.clientWidth), h = Math.round(cv.clientHeight);
+  if (!w || !h) return;
+  renderer.setScissorTest(true);
+  for (let i = 0; i < 스케치시점.length; i++){
+    const k = 스케치칸(i, w, h);
+    renderer.setViewport(k.x, h - (k.y + k.h), k.w, k.h);
+    renderer.setScissor(k.x, h - (k.y + k.h), k.w, k.h);
+    renderer.render(scene, 스케치네모 ? 스케치겨눔(i, k.w, k.h) : camera);
+  }
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, w, h);
+  스케치딱지(cv, w, h);
+}
+/* 시점 이름 딱지는 **캔버스에 맞춘다** — 폰에서는 띠가 흐름 안에 서서 `.v3body` 와 캔버스 자리가 다르다.
+   윗줄 딱지는 치수 띠를 피해 내려 앉힌다(겹치는지 **재서** 정한다 · §4.55 의 그 길). */
+function 스케치딱지(cv, w, h){
+  const t = document.querySelector('.sktags'); if (!t) return;
+  t.style.left = cv.offsetLeft + 'px'; t.style.top = cv.offsetTop + 'px';
+  t.style.width = w + 'px'; t.style.height = h + 'px';
+  const d = document.querySelector('#dimsBar'); let 위 = 6;
+  if (d){ const dr = d.getBoundingClientRect(), cr = cv.getBoundingClientRect();
+    if (dr.height && dr.bottom > cr.top && dr.top < cr.top + h/2) 위 = Math.round(dr.bottom - cr.top + 8); }
+  t.style.setProperty('--sk위', 위 + 'px');
+}
+/* 짚은 자리가 어느 칸이고 그 칸 안에서 어디인가 — 네 그림 **어디를 눌러도** 그 부속이 골라진다 */
+function 스케치짚기(x, y, w, h){
+  if (!스케치네모 || !w || !h) return null;
+  const col = Math.min(1, Math.max(0, Math.floor(x / (w/2)))), row = Math.min(1, Math.max(0, Math.floor(y / (h/2))));
+  const i = row*2 + col, k = 스케치칸(i, w, h);
+  return { cam: 스케치겨눔(i, k.w, k.h),
+           nx: (x - k.x) / k.w * 2 - 1, ny: -((y - k.y) / k.h * 2 - 1) };
 }
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
@@ -3500,6 +3588,7 @@ function applyExplode(){
       c.rotation.y = 0;
       const 나옴 = (n && 레일 && 서랍번호 !== undefined) ? 레일 * 칸열림(state.explode, n, 서랍번호) : 0;
       c.position.set(base[0], base[1], base[2] + 나옴); });   // 몸통은 `나옴` 이 0 이라 한 톨도 안 움직인다
+    if (보기모드 === 'sk') 스케치세우기();   // ⚠ 이 갈래는 여기서 돌아간다 — 선도 여기서 따라와야 한다
     그리자(); return;
   }
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
