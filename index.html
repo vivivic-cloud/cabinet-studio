@@ -204,10 +204,8 @@ input[type=range]{width:100%;accent-color:var(--head)}
 /* 10-06 「동작」 의 나옴 딱지 — 서랍 옆 틈에 떠서 측판 끝에서 나온 거리를 적는다(§4.9850-나옴).
    `.view3d` 가 `position:relative` 라 그 안에서 뜬다. 폰 갈래(`position:static`) 목록에 넣지 마라 —
    흐름에 들어가면 도면을 아래로 민다. */
-.sktags{display:none}
-.app.sk .sktags{display:grid;position:absolute;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;pointer-events:none;z-index:2}
-.app.sk .sktags span{align-self:start;justify-self:start;margin:6px 8px;font-size:11px;color:var(--ink);opacity:.7}
-.app.sk .sktags span:nth-child(-n+2){margin-top:var(--sk위,6px)}
+.hud .skv{display:none}
+.app.sk .hud .skv{display:flex}
 .app.sk .view3d .tools,.app.sk .view3d .views,.app.sk .outtag{display:none}
 .outtag{position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,-50%);
   padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--surface);
@@ -733,8 +731,6 @@ dialog.phone[open]{display:flex;flex-direction:column}
     <div class="panelhead"><h2>제작 도면</h2><div class="modeseg" role="group" aria-label="보기 모드"><button type="button" data-mode="3d" aria-pressed="true">3D</button><button type="button" data-mode="2d" aria-pressed="false">2D</button><button type="button" data-mode="sk" aria-pressed="false">스케치</button></div></div>
     <div class="v3body">
     <canvas id="c3d"></canvas>
-    <!-- 10-15 — 스케치 네 시점의 이름. 한두 낱말 딱지다(§0). `absolute` 라 칸을 한 픽셀도 안 뺏는다. -->
-    <div class="sktags" aria-hidden="true"><span>등각</span><span>정면</span><span>측면</span><span>뒤</span></div>
     <!-- 10-06 사장님 말씀 — 「동작시 서랍측면에 측판 끝으로 부터 몇mm 나오는지 표기해줘 **제일 하단서랍 1칸에**」.
          떠 있는 딱지 하나다(`position:absolute`) — **칸 높이를 한 픽셀도 안 뺏는다**(§4.94 의 그 길).
          `pointer-events:none` 이라 3D 를 짚는 손가락을 안 가로챈다. -->
@@ -747,6 +743,14 @@ dialog.phone[open]{display:flex;flex-direction:column}
       <div class="d"><i>높이</i><input id="H" data-key="H" type="number" min="300" max="2400" step="1" value="1800"><span>mm</span></div>
     </div>
     <div class="hud">
+      <!-- 10-15 사장님 말씀 — 「그림 상부에 등각좌/등각우/ 정면/뒷면 선택으로 각 그림만 보여지게」.
+           `.hud` 안에 두면 떠 있는 알약 묶음 꼴·44px 이 그대로 오고 폰에서는 그림 바로 위에 선다. -->
+      <div class="skv" role="group" aria-label="스케치 시점">
+        <button type="button" data-skv="0">등각좌</button>
+        <button type="button" data-skv="1" aria-pressed="true">등각우</button>
+        <button type="button" data-skv="2">정면</button>
+        <button type="button" data-skv="3">뒷면</button>
+      </div>
       <div class="tools" role="group" aria-label="도구">
         <button type="button" data-tool="select" title="선택 (Space)">선택</button>
         <button type="button" data-tool="orbit" title="궤도 (O)" aria-pressed="true">궤도</button>
@@ -2877,7 +2881,6 @@ function applySel(){
   document.querySelectorAll('#bomBody tr').forEach(tr =>          // 부품표
     tr.classList.toggle('on', !!key && tr.dataset.key === key));
   부속정보갱신(key);                                               // 3D 우측칸
-  if (보기모드 === 'sk') 스케치세우기();        // 고른 부속의 선을 붉게
 }
 /* 3D 칸 오른쪽의 「고른 부속」 칸 — 팝업이 아니다(10-06 사장님 말씀). 고른 것이 바뀌면 글만 갈린다.
    ⚠ 적는 값은 2D 부속 쪽이 적는 그 줄 그대로다 — `부속행들` 과 `부속정보줄` 을 **같이** 쓴다.
@@ -3060,11 +3063,10 @@ function init3D(){
   const 광선 = new THREE.Raycaster();
   const 짚힌조각 = (px,py) => {
     const r = cv.getBoundingClientRect();
-    if (보기모드 === 'sk'){                                 // 10-15 — 네 그림 어디를 눌러도 골라진다
-      const 짚 = 스케치짚기(px-r.left, py-r.top, r.width, r.height);
-      if (!짚) return null;
-      광선.setFromCamera(new THREE.Vector2(짚.nx, 짚.ny), 짚.cam);
-    } else 광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
+    if (보기모드 === 'sk')                                  // 10-15 — 붙박이 카메라로 겨눈다
+      광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)),
+                         스케치겨눔(r.width, r.height));
+    else 광선.setFromCamera(new THREE.Vector2((px-r.left)/r.width*2-1, -((py-r.top)/r.height*2-1)), camera);
     const h = 광선.intersectObjects(group.children, false)[0];
     return h ? h.object : null;
   };
@@ -3247,6 +3249,8 @@ function init3D(){
     if (k === 'o') setTool('orbit'); else if (k === 'h') setTool('pan'); else if (k === 'z') setTool('zoom'); else if (k === ' '){ setTool('select'); e.preventDefault(); }
   });
   document.querySelectorAll('.tools button').forEach(b => b.addEventListener('click', () => b.dataset.tool === 'extents' ? zoomExtents() : setTool(b.dataset.tool)));
+  document.querySelectorAll('.skv button[data-skv]').forEach(b =>
+    b.addEventListener('click', () => 스케치보기바꾸기(Number(b.dataset.skv))));   // 10-15 — 네 모습 고르개
   setTool('orbit');
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', makeGrid);
@@ -3380,118 +3384,46 @@ function 조각꼴(p, m){
   geo.userData.선 = 선;              // 이은 자리를 걸러낸 선 — `rebuild3D` 가 이것을 쓴다
   return geo;
 }
-/* ───────── 스케치(와이어프레임) 보기 — 10-14 사장님 말씀 ─────────
-   「이곳에 스케치 버전을 추가하여 현재복잡한 상세내용을 간단하게 라인등으로 제품의 형태를 파악할 수 있는
-     스케치도면 ,또는 와이어프레임 형식의 가벼운 도면이 나타나도록 해줘」
-   ⚠ **더하는 것이다.** 지금 3D 조각(`group`)·재질·엣지 색·셈·도면·DXF 는 한 글자도 안 건드렸다 —
-      스케치에서는 `group.visible=false` 로 **숨기기만** 하고 선 한 덩이를 대신 보인다.
-   ⚠ 선은 **한 덩이**다(`LineSegments` 하나 · draw call 1). 부속마다 조각을 세우면 call 이 부속 수만큼 는다.
-   ⚠ 자리를 새로 셈하지 않는다 — **조각의 `matrixWorld` 를 그대로 베낀다.** 그래서 분해·동작으로
-      움직인 자리와 도어가 돌아간 각까지 저절로 따라온다(베끼면 두 자리가 어긋난다). */
-let 스케치군 = null, 스케치골른 = null, 스케치네모 = null, 스케치캠 = null;
-const 스케치모 = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-function 스케치변(mesh, v, 네모){
-  const g = mesh.geometry; if (!g.boundingBox) g.computeBoundingBox();
-  const b = g.boundingBox, m4 = mesh.matrixWorld;
-  const 모 = [[b.min.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.max.z],[b.min.x,b.min.y,b.max.z],
-              [b.min.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.max.z],[b.min.x,b.max.y,b.max.z]]
-             .map(([x,y,z]) => new THREE.Vector3(x,y,z).applyMatrix4(m4));
-  모.forEach(q => 네모.expandByPoint(q));                 // 네 시점을 맞출 겉 네모 — 손으로 안 셈한다
-  스케치모.forEach(([a,c]) => v.push(모[a].x,모[a].y,모[a].z, 모[c].x,모[c].y,모[c].z));
-}
-function 선덩이(v, 색){
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
-  const o = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color:색 }));
-  o.raycast = () => {};              // 짚기는 지금 조각이 그대로 받는다 — 선이 가로채지 않는다
-  return o;
-}
-function 스케치세우기(){
-  [스케치군, 스케치골른].forEach(o => { if (o){ scene.remove(o); o.geometry.dispose(); o.material.dispose(); } });
-  스케치군 = 스케치골른 = null;
-  if (!group) return;
-  group.updateMatrixWorld(true);
-  const 모 = [], 고 = [], 네모 = new THREE.Box3();
-  group.children.forEach(mesh => 스케치변(mesh, (selPid !== null && mesh.userData.pid === selPid) ? 고 : 모, 네모));
-  스케치네모 = 네모.isEmpty() ? null : 네모;
-  스케치군 = 선덩이(모, new THREE.Color(cssVar('--ink') || '#1A1A19')); scene.add(스케치군);
-  if (고.length){ 스케치골른 = 선덩이(고, new THREE.Color(cssVar('--dim') || '#FF3B30')); scene.add(스케치골른); }
-  스케치맞추기();
-}
-function 스케치맞추기(){
-  const sk = 보기모드 === 'sk';
-  if (group) group.visible = !sk;
-  if (axes) axes.visible = !sk;
-  if (grid) grid.visible = !sk;
-  if (스케치군) 스케치군.visible = sk;
-  if (스케치골른) 스케치골른.visible = sk;
-}
-/* ───────── 10-15 사장님 말씀 — 스케치는 **돌리는 화면이 아니라 네 시점의 고정 그림**이다 ─────────
-   「3d도 움직이는 도면이 아닌 등각/정면/측면/뒤 시점에서 보는 고정된 그림이 나타났으면해
-     — 단 부속으로 정의된 각객체를 클릭하면 이 스케치 도면에서도 해당 부속이 선택 되어야해」
+/* ───────── 스케치 — 3D 도면의 「캡쳐본」 이다 (10-14 · 10-15 사장님 말씀) ─────────
+   10-14 「스케치 버전을 추가하여 … 제품의 형태를 파악할 수 있는 … 가벼운 도면」
+   10-15 「**움직이는 도면이 아닌** 등각/정면/측면/뒤 시점에서 보는 **고정된 그림**
+          — 단 부속으로 정의된 각객체를 클릭하면 이 스케치 도면에서도 해당 부속이 선택 되어야해」
+   10-15 「이 그림은 **3d도면과 같은 도면의 캡쳐본** 이었으면 좋겠습니다. **네가지 모습을 모두
+          보여주지말고 등각을 기본으로** 보여주면서 그림 상부에 **등각좌/등각우/ 정면/뒷면** 선택으로
+          **각 그림만** 보여지게 해주세요」
 
-   ⚠ **선 덩이는 그대로 쓴다**(10-14 것) — 바뀐 것은 **어떻게 보여 주느냐**뿐이다.
-      한 덩이를 네 번 그린다(칸마다 뷰포트를 잘라). 그래서 부속이 늘어도 draw call 이 안 늘고,
-      치수·분해·동작으로 조각이 움직이면 네 그림이 **저절로** 같이 따라온다.
-   ⚠ 시점 값은 집에 이미 있는 `VIEWS` 를 그대로 쓴다 — 새 숫자를 짓지 않는다(§4.59 의 그 값).
-   ⚠ **직교(Orthographic)** 다. 투시로 그리면 고정 그림인데도 원근이 져 캐드 도면처럼 안 보인다.
-   ⚠ **칸 나눔은 어느 폭에서나 2×2** 다 — 아래 「내가 정한 것」 참고(폰에서 네 그림이 두 배 커진다). */
-const 스케치시점 = [['등각', VIEWS.iso], ['정면', VIEWS.front], ['측면', VIEWS.side], ['뒤', VIEWS.back]];
-const 스케치캠들 = () => (스케치캠 = 스케치캠 ||
-  스케치시점.map(() => new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100000)));
-/* 칸은 화면 좌표(왼위 0,0)로 센다 — 뷰포트로 넘길 때만 아래가 0 인 three 쪽으로 뒤집는다 */
-const 스케치칸 = (i, w, h) => ({ x:(i % 2) * (w/2), y:Math.floor(i/2) * (h/2), w:w/2, h:h/2 });
-const 스케치꼭지 = b => [[b.min.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.min.z],[b.max.x,b.min.y,b.max.z],
-  [b.min.x,b.min.y,b.max.z],[b.min.x,b.max.y,b.min.z],[b.max.x,b.max.y,b.min.z],
-  [b.max.x,b.max.y,b.max.z],[b.min.x,b.max.y,b.max.z]].map(([x,y,z]) => new THREE.Vector3(x,y,z));
-function 스케치겨눔(i, w, h){
-  const cam = 스케치캠들()[i], [θ, φ] = 스케치시점[i][1], b = 스케치네모;
-  const c = b.getCenter(new THREE.Vector3()), R = Math.max(10, b.min.distanceTo(b.max));
-  cam.position.set(c.x + R*Math.sin(φ)*Math.sin(θ), c.y + R*Math.cos(φ), c.z + R*Math.sin(φ)*Math.cos(θ));
-  cam.up.set(0, 1, 0); cam.lookAt(c); cam.updateMatrixWorld(true);
-  let mx = 1, my = 1;                                   // 겉 네모 여덟 꼭지를 카메라 눈으로 재서 담는다
-  스케치꼭지(b).forEach(q => { const v = cam.worldToLocal(q);
-    mx = Math.max(mx, Math.abs(v.x)); my = Math.max(my, Math.abs(v.y)); });
-  const ar = Math.max(0.01, w / Math.max(1, h));
-  let hw = mx * 1.12, hh = my * 1.12;                   // 여유 12% — 선이 칸 테두리에 닿지 않게
-  if (hw/hh < ar) hw = hh*ar; else hh = hw/ar;
-  cam.left = -hw; cam.right = hw; cam.top = hh; cam.bottom = -hh; cam.far = R*4;
-  cam.updateProjectionMatrix();
-  return cam;
+   ⚠ **보이는 것은 3D 와 똑같다** — 숨기는 것이 없다. 「같은 도면의 캡쳐본」 이라 하셨다.
+      10-14 의 선만 그린 와이어프레임은 이 말씀으로 물렸다(되살리려면 `f1a68ea` 의 `선덩이`·`스케치변`·
+      `스케치세우기` 셋과 그 부르는 자리 넷이다).
+   ⚠ **다른 것은 카메라뿐이다.** 돌리기·줌·이동이 없는 **붙박이 카메라**로 한 번 그린다.
+      그래서 치수·분해·동작으로 모델이 바뀌면 그림이 **저절로** 따라오고, 부속 고르기도
+      3D 가 하던 그대로다(붉게 칠해지는 것까지).
+   ⚠ 거리는 집의 `extR()` 을 그대로 쓴다 — 「전체(Shift+Z)」 가 잡는 그 거리다. 새 숫자를 짓지 않는다. */
+const 스케치시점 = [['등각좌', -0.75, 1.15], ['등각우', 0.75, 1.15],
+                    ['정면', 0, Math.PI/2], ['뒷면', Math.PI, Math.PI/2]];
+let 스케치보기 = 1, 스케치캠 = null;          // 처음은 **등각우** — 3D 가 열릴 때의 그 각이다
+function 스케치겨눔(w, h){
+  const [, θ, φ] = 스케치시점[스케치보기], r = extR();
+  스케치캠 = 스케치캠 || new THREE.PerspectiveCamera(32, 1, 5, 30000);   // 3D 와 같은 화각
+  스케치캠.aspect = Math.max(0.01, w / Math.max(1, h));
+  스케치캠.position.set(r*Math.sin(φ)*Math.sin(θ), r*Math.cos(φ), r*Math.sin(φ)*Math.cos(θ));
+  스케치캠.lookAt(0, 0, 0);
+  스케치캠.updateProjectionMatrix(); 스케치캠.updateMatrixWorld(true);
+  return 스케치캠;
 }
 function 스케치그리기(){
   const cv = renderer.domElement;
   const w = Math.round(cv.clientWidth), h = Math.round(cv.clientHeight);
   if (!w || !h) return;
-  renderer.setScissorTest(true);
-  for (let i = 0; i < 스케치시점.length; i++){
-    const k = 스케치칸(i, w, h);
-    renderer.setViewport(k.x, h - (k.y + k.h), k.w, k.h);
-    renderer.setScissor(k.x, h - (k.y + k.h), k.w, k.h);
-    renderer.render(scene, 스케치네모 ? 스케치겨눔(i, k.w, k.h) : camera);
-  }
-  renderer.setScissorTest(false);
-  renderer.setViewport(0, 0, w, h);
-  스케치딱지(cv, w, h);
+  renderer.render(scene, 스케치겨눔(w, h));
 }
-/* 시점 이름 딱지는 **캔버스에 맞춘다** — 폰에서는 띠가 흐름 안에 서서 `.v3body` 와 캔버스 자리가 다르다.
-   윗줄 딱지는 치수 띠를 피해 내려 앉힌다(겹치는지 **재서** 정한다 · §4.55 의 그 길). */
-function 스케치딱지(cv, w, h){
-  const t = document.querySelector('.sktags'); if (!t) return;
-  t.style.left = cv.offsetLeft + 'px'; t.style.top = cv.offsetTop + 'px';
-  t.style.width = w + 'px'; t.style.height = h + 'px';
-  const d = document.querySelector('#dimsBar'); let 위 = 6;
-  if (d){ const dr = d.getBoundingClientRect(), cr = cv.getBoundingClientRect();
-    if (dr.height && dr.bottom > cr.top && dr.top < cr.top + h/2) 위 = Math.round(dr.bottom - cr.top + 8); }
-  t.style.setProperty('--sk위', 위 + 'px');
+function 스케치맞추기(){
+  document.querySelectorAll('.skv button[data-skv]').forEach(b =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.skv) === 스케치보기)));
 }
-/* 짚은 자리가 어느 칸이고 그 칸 안에서 어디인가 — 네 그림 **어디를 눌러도** 그 부속이 골라진다 */
-function 스케치짚기(x, y, w, h){
-  if (!스케치네모 || !w || !h) return null;
-  const col = Math.min(1, Math.max(0, Math.floor(x / (w/2)))), row = Math.min(1, Math.max(0, Math.floor(y / (h/2))));
-  const i = row*2 + col, k = 스케치칸(i, w, h);
-  return { cam: 스케치겨눔(i, k.w, k.h),
-           nx: (x - k.x) / k.w * 2 - 1, ny: -((y - k.y) / k.h * 2 - 1) };
+function 스케치보기바꾸기(i){
+  if (!(i >= 0 && i < 스케치시점.length) || i === 스케치보기) return;
+  스케치보기 = i; 스케치맞추기(); 그리자();
 }
 function rebuild3D(m){
   selPid = null;                       // 치수를 바꾸면 조각이 새로 서므로 고른 것을 푼다
@@ -3533,7 +3465,6 @@ function rebuild3D(m){
   }
   applyExplode();
   makeGrid(); makeAxes();
-  if (보기모드 === 'sk') 스케치세우기();      // 10-14 — 선 덩이도 새 모델로 다시 세운다
   그리자();                            // 치수를 바꿔 조각이 새로 섰다
   // 세팅을 바꿀 때마다 보시던 시각이 처음으로 돌아가지 않게, 맞추기는 첫 판에서만 한다.
   // 다시 맞추고 싶으시면 도구줄의 「전체」 나 Shift+Z 를 쓰시면 된다.
@@ -3588,14 +3519,12 @@ function applyExplode(){
       c.rotation.y = 0;
       const 나옴 = (n && 레일 && 서랍번호 !== undefined) ? 레일 * 칸열림(state.explode, n, 서랍번호) : 0;
       c.position.set(base[0], base[1], base[2] + 나옴); });   // 몸통은 `나옴` 이 0 이라 한 톨도 안 움직인다
-    if (보기모드 === 'sk') 스케치세우기();   // ⚠ 이 갈래는 여기서 돌아간다 — 선도 여기서 따라와야 한다
     그리자(); return;
   }
   const e = state.explode * Math.max(state.H, state.W) * 0.28;
   // ⚠ 「동작」 에서 돌려 둔 도어를 **되돌려 놓는다** — 안 그러면 분해도에서 도어가 비스듬히 선 채로 남는다.
   group.children.forEach(c => { const {base,dir} = c.userData; c.rotation.y = 0;
     c.position.set(base[0]+dir[0]*e, base[1]+dir[1]*e, base[2]+dir[2]*e); });
-  if (보기모드 === 'sk') 스케치세우기();   // 분해·동작으로 움직인 자리를 선도 따라간다
   그리자();
 }
 function setPressed(v){ document.querySelectorAll('.views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v))); }
@@ -5167,7 +5096,7 @@ function 모드바꾸기(m){
   requestAnimationFrame(() => {                    // 칸이 다시 자리를 잡은 뒤에 잰다
     모드띠맞추기();
     if (새 === '2d') 도면그리기();
-    else { 삼디크기맞추기(); if (새 === 'sk') 스케치세우기(); else 스케치맞추기(); 그리자(); }                              // 폭이 제대로 잡힌 뒤라야 글자 배율이 맞는다
+    else { 삼디크기맞추기(); 스케치맞추기(); 그리자(); }                              // 폭이 제대로 잡힌 뒤라야 글자 배율이 맞는다
   });
 }
 addEventListener('resize', () => 모드띠맞추기());   // 머리줄이 두 줄로 접히면 띠 자리도 따라간다
