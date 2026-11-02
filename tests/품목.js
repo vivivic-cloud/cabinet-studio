@@ -101,8 +101,8 @@ const 잠 = ms => new Promise(r => setTimeout(r, ms));
 
   console.log('① 설정 칸 맨 위에 「품목」 무리  ② 처음은 수납장');
   // 「되돌리기」 단추는 머리의 「저장」 곁이다(§4.9871) — 설정 칸 무리는 예전 그대로 둘이다
-  맞나('무리 차례 (설정 칸 맨 위)', await p.evaluate(() =>
-    [...document.querySelectorAll('.params .group')].map(g => g.querySelector('h2').textContent)), ['품목', '보드선택']);
+  맞나('무리 차례 (설정 칸 맨 위)', await p.evaluate(() =>   // 11-02 — 「보링」 무리가 품목 밑에 섰다(§4.98270)
+    [...document.querySelectorAll('.params .group')].map(g => g.querySelector('h2').textContent)), ['품목', '보링', '보드선택']);
   /* 10-03 사장님 말씀: 「이런 버튼형식이 아닌 드롭다운목록 선택형태로」 — 라디오가 아니라 고르개다.
      목록은 `품목값` 에서 짓는다. `select` 에는 ::after 가 안 먹으므로 제 높이가 곧 닿는 자리다(§4.9895). */
   맞나('고르개 하나 · 라디오 0', await p.evaluate(() =>

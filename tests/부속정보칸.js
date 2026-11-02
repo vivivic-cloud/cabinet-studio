@@ -152,7 +152,7 @@ const 칸재기 = p => p.evaluate(() => {
     await p2.evaluate(() => window.__probe.set({ backMode:'insert' })); await 잠(400);
     const 접 = await 칸재기(p2);
     맞나('안 고르면 접혀 있고 캔버스·문서가 그대로', [접.접힘, 접.캔, 접.문서, 접.넘침],
-      [true, [375,524], 1454, 375]);
+      [true, [375,524], 1534, 375]);   // 11-02 — 「보링」 무리 62 + 틈 18 (§4.98270)
     // 진짜 손가락 — `.hud` 밑을 친다
     const cv = await p2.$('.view3d canvas'); await cv.scrollIntoViewIfNeeded(); await 잠(150);
     const r = await cv.boundingBox();

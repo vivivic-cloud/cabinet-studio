@@ -51,6 +51,9 @@ button:disabled{opacity:.5;cursor:default}
 .group h2{margin:0;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:800;
   display:flex;align-items:center;gap:8px}
 .group h2::after{content:"";flex:1;height:1px;background:var(--line2)}
+/* 11-02 보링 무리 — 높이를 정수로 붙든다. 61.34 그대로면 밑의 부속 줄이 소수 자리로 밀려 × 맨 아랫점이
+   손가락 보정에 아랫줄로 끌린다(1280 에서 재서 잡았다 · §4.9850 의 그 덫). */
+#boringBox{min-height:62px}
 .field{display:grid;grid-template-columns:1fr 112px;align-items:center;gap:10px}
 .field[hidden]{display:none}
 .field label,#optDlgBody label{color:var(--ink);font-weight:600;word-break:keep-all}
@@ -710,6 +713,13 @@ dialog.phone[open]{display:flex;flex-direction:column}
            품목이 늘면 그 배열에 한 낱말 더하는 것으로 끝나야 한다. -->
       <div class="field wide"><select id="itemSel" name="품목" aria-label="품목"></select></div>
     </div>
+    <!-- 11-02 사장님 말씀 — 「각 품목의 도면에 보링항목을 두어 첫번째 체결방식인 미니픽스를 선택하게」.
+         값은 `state.보링` 이라 **품목마다 따로 담긴다**(§4.9872). 단추는 `보링값` 에서 짓는다(「보링고르개맞추기」).
+         `data-area` 는 바이글 손잡이가 짚은 자리 이름으로 가져간다 — 「보링 · 미니픽스」. -->
+    <div class="group" id="boringBox" data-area="보링">
+      <h2>보링</h2>
+      <div class="field wide"><div class="seg mini" id="boringSeg" role="group" aria-label="보링 체결방식"></div></div>
+    </div>
     <div class="group" id="boardBox">
       <h2>보드선택</h2>
       <div class="field gr" data-home="0" data-part="상판"><button type="button" class="pname" data-opt="상판" aria-expanded="false">상판</button><div class="two"><select id="Ttop" data-key="Ttop" aria-label="상판 두께"><option>12</option><option>15</option><option selected>18</option><option>23</option><option>24</option><option>25</option><option>28</option><option>55</option></select><button type="button" class="x" data-kill="상판" aria-label="상판 지우기">×</button></div><div class="opt" data-opt="상판" hidden></div></div>
@@ -998,6 +1008,9 @@ const 본품목 = 품 => { let p = 품;
   for (let n = 0; n < 30; n++){ const x = 새품목들.find(y => y.이름 === p); if (!x) return p; p = x.참고; }
   return '수납장'; };
 const 품목키 = 품 => 본품목(품 || state.품목);
+/* 11-02 사장님 말씀 — 보링 체결방식. **지금은 미니픽스 하나뿐**이다. 체결방식이 늘면 여기 한 낱말을 더한다.
+   보링 위치·크기 규칙은 **아직 정해지지 않았다** — 도면에 구멍을 그리지 않는다(§4.98270). */
+const 보링값 = ['미니픽스'];
 let 지금품목 = '수납장';
 try { const v = localStorage.getItem(곳간 + '.품목'); if (품목값.includes(v)) 지금품목 = v; } catch (e) {}
 const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
@@ -1303,7 +1316,8 @@ function 품목바꾸기(새){
 const state = { 품목:지금품목, W:800, D:400, H:1800, Ttop:18, Tside:18, Tshelf:18, Tshelf2:18, Tdoor:18, Tbot:18, Tplinth:18, TB:2.7, shelves:3, shelvesM:0, plinth:80, topStyle:'inset', botStyle:'inset', 밴드꼴:'하판아래', backMode:'cover', doors:2, doorMode:'out',
   /* 10-05 사장님 말씀 — 서랍재 세 가지. 「서랍의 기본 소재의 두께는 **12mm**」 라 셋 다 12 다.
      서랍바닥은 「뒷판과 같은 원리로 **끼우기/덮기**」 — 홈 시작점을 기본값으로 주셨으니 **끼우기가 기본**이다(내가 정했다). */
-  Tsw:12, Tsd:12, Tsb:12, 서랍바닥꼴:'insert', explode:0, 분해모드:'분해' };   // 10-06 — 기본은 「분해」(§4.9850)
+  Tsw:12, Tsd:12, Tsb:12, 서랍바닥꼴:'insert', explode:0, 분해모드:'분해',   // 10-06 — 기본은 「분해」(§4.9850)
+  보링:'' };   // 11-02 — 체결방식. '' = 없음 · 값은 `보링값` 안의 것만(§4.98270)
 /* 10-02 사장님 말씀: 「**수납장과 서랍장은 다른개념의 제품이므로 동일 외경입력치를 적용받지 않습니다.
    품목변환시 각각의 입력에 맞는 제품도면이 나타나야 합니다.**」
    그래서 `state` 를 **곳간의 여섯째**로 태웠다 — `cabinet-studio.<품목>.상태`.
@@ -1325,6 +1339,7 @@ function 상태넣기(o){
     else if (typeof 본 === 'string'){ if (typeof v === 'string' && v) state[k] = v; }
     else if (typeof 본 === 'boolean'){ if (typeof v === 'boolean') state[k] = v; }
   });
+  if (!보링값.includes(state.보링)) state.보링 = '';     // 모르는 체결방식은 버린다(§4.98270)
 }
 곳간읽기();                      // 지금 품목의 한 벌을 읽는다 — 상태까지 여섯이다
 /* 10-02 사장님 말씀: 「**과거의 설정으로 한단계씩 되돌아 갈 수 있는 버튼**을 만들어 주세요」.
@@ -2587,6 +2602,7 @@ function 스펙값(m){
   if (선.has('전면밴드'))  표.push(['전면밴드', `${fmt(s.plinth)} · ${fmt(s.Tplinth)}T`]);
   if (선.has('뒷판'))      표.push(['뒷판', `${fmt(s.TB)}T · ${s.backMode === 'insert' ? '끼우기' : '덮기'}`]);
   if (m.홈)                표.push(['우라홈', fmt(규칙.우라홈)]);
+  if (보링값.includes(s.보링)) 표.push(['보링', s.보링]);   // 11-02 — 고른 체결방식만 적는다(없음이면 줄이 없다)
   // 엣지 — 부속마다 고를 수 있다(§4.9846). 한 가지로 맞춰져 있으면 그 값을, 갈리면 「부속마다 다름」.
   const 엣부 = [...선].filter(n => 엣지변(본이름(n)).length);
   if (엣부.length){
@@ -3679,6 +3695,7 @@ function update(){
   비활성갱신();                                                    // 지운 줄을 「비활성 부속」 으로 (사장님 말씀 09-22)
   이름칸갱신();                                                    // 품목마다 이름표·사이즈 칸 (사장님 말씀 10-02)
   지우기단추갱신();                                                // 두께 줄의 × 상태 (사장님 말씀 09-17)
+  보링고르개맞추기();                                              // 11-02 — 품목·되돌리기를 따라온다 (§4.98270)
   결단추갱신();                                                    // 두께 줄의 결 방향 단추 (사장님 말씀 09-22)
   이름목록갱신();                                                  // 칸 안 드롭다운 — 도면에 있는 것은 뺀다
   밴드살피기();
@@ -3822,6 +3839,13 @@ function 도면그리기(){
   });
   $('#thumbs').querySelectorAll('button[data-th]').forEach(b =>
     b.addEventListener('click', () => 쪽고르기(+b.dataset.th)));
+  /* 11-02 — 보링 체결방식을 고르면 2D 부속 짚을 자리(.pick)에 자리 이름을 붙인다.
+     바이글 손잡이가 그 이름(「보링 · 미니픽스 · 측판」)을 짚은 것으로 가져간다 — 사장님이 그 부속의
+     보링 정의를 말씀하시면 그 자리로 지시가 들어간다. **화면 DOM 에만 붙인다** — 저장 SVG·DXF 는 그대로다. */
+  if (보링값.includes(state.보링) && 모델)
+    $('#pageBox').querySelectorAll('.pick[data-pid]').forEach(r => {
+      const p = 모델.parts[+r.dataset.pid]; if (p) r.dataset.area = `보링 · ${state.보링} · ${p.name}`;
+    });
   applySel();
 }
 // 쪽 고르기 — 그림은 그대로 두고 어느 쪽을 보일지만 바꾼다(다시 그리지 않는다).
@@ -3893,6 +3917,7 @@ document.addEventListener('change', e => {
   if (el.name === 'topStyle' && el.checked){ state.topStyle = el.value; update(); return; }
   if (el.name === 'botStyle' && el.checked){ state.botStyle = el.value; update(); return; }
   if (el.name === '밴드꼴' && el.checked){ state.밴드꼴 = el.value; update(); return; }
+  if (el.name === '보링' && el.checked){ state.보링 = el.value; update(); return; }   // 11-02 · §4.98270
   // 10-05 — 서랍바닥 끼우기/덮기. 홈 칸이 뜨고 사라지므로 `backMode` 처럼 판을 다시 그린다.
   if (el.name === '서랍바닥꼴' && el.checked){ state.서랍바닥꼴 = el.value; 결단추갱신(); update(); return; }
   if (el.name === 'doors' && el.checked){ state.doors = Number(el.value); update(); return; }
@@ -4910,6 +4935,16 @@ function 상태칸맞추기(){
 }
 /* 품목 고르개 — 목록을 `품목값` 에서 만들고 지금 품목을 가리킨다 (10-03 사장님 말씀).
    **품목이 늘 때 고쳐야 하는 자리가 `품목값` 하나여야 한다** — 여기서 option 을 짓는 까닭이다. */
+/* 보링 고르개 — 단추를 `보링값` 에서 짓고 지금 품목의 `state.보링` 을 가리킨다(§4.98270).
+   「없음」 을 앞에 둔다 — 고르기 전에는 체결방식이 없다. `update()` 마다 부르므로 되돌리기·품목 바꾸기도 따라온다. */
+function 보링고르개맞추기(){
+  const seg = $('#boringSeg'); if (!seg) return;
+  const 지을글 = [['', '없음'], ...보링값.map(v => [v, v])].map(([v, 글]) =>
+    `<label><input type="radio" name="보링" value="${esc(v)}">${esc(글)}</label>`).join('');
+  if (seg.dataset.지은 !== 지을글){ seg.innerHTML = 지을글; seg.dataset.지은 = 지을글; }
+  seg.querySelectorAll('input').forEach(i => { const 켬 = i.value === state.보링; if (i.checked !== 켬) i.checked = 켬; });
+  $('#boringBox').dataset.area = state.보링 ? `보링 · ${state.보링}` : '보링';
+}
 function 품목고르개맞추기(){
   const sel = $('#itemSel'); if (!sel) return;
   const 지을글 = 품목값.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
