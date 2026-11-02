@@ -498,7 +498,7 @@ dialog{border:1px solid var(--line);border-radius:20px;background:var(--surface)
 /* 판 머리에 늘 보이는 나가기 — 굴려도 따라온다.
    관계제어판은 `.dlg` 가 굴러가는 칸이다(속 3,887px / 보이는 593px). 그래서 맨 아래 「닫기」 가
    y3,927 에 있어 한참 굴려야 나왔다 — 사장님이 「나가기 버튼 없어요」 하신 자리다. */
-.dlg.rdlg{padding-top:0}                 /* 머리가 맨 위에 딱 붙게 — 위에 틈이 있으면 글이 그 틈으로 비친다 */
+.dlg.rdlg,.dlg.sdlg{padding-top:0}                 /* 머리가 맨 위에 딱 붙게 — 위에 틈이 있으면 글이 그 틈으로 비친다 */
 .dlghead{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin:0 -20px 0;padding:14px 10px 10px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
 .dlghead h3{margin:0}
@@ -506,6 +506,10 @@ dialog{border:1px solid var(--line);border-radius:20px;background:var(--surface)
   font-size:20px;line-height:1;color:var(--ink3)}
 .dlgx:hover{background:var(--fill2);color:var(--head)}
 dialog::backdrop{background:rgba(17,17,16,.4)}
+/* 조혼가구 상품검색 판 (11-02) — 판은 굴러가고 틀(iframe) 높이는 틀 안에서 제가 맞춘다(발주상품고르기.html) */
+#srchDlg{max-height:90dvh}
+.dlg.sdlg{max-height:90dvh;overflow:auto;-webkit-overflow-scrolling:touch}
+#srchFrame{display:block;flex:none;width:100%;height:420px;border:0;background:transparent}
 .dlg{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
 .dlg h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .dlg p{margin:0;color:var(--ink2);font-size:13px}
@@ -675,6 +679,7 @@ dialog.phone[open]{display:flex;flex-direction:column}
     </div>
     <div class="toolbar">
       <button id="btnBomOpen" type="button">부품표</button>
+      <button id="btnSrch" type="button">상품검색</button>
       <button id="btnUndo" type="button" disabled>되돌리기</button>
       <button id="btnSvg" type="button">SVG 도면 저장</button>
       <button id="btnDxf" type="button" class="primary">DXF 내보내기</button>
@@ -868,6 +873,14 @@ dialog.phone[open]{display:flex;flex-direction:column}
     <button type="button" id="bSave">SVG 저장</button>
     <button type="button" id="bClose" class="primary">닫기</button>
   </div>
+</div></dialog>
+
+<!-- 조혼가구 상품검색 (11-02 사장님 말씀) — 검색칸·부속카드는 vivivic-apps 공용 부품을 그대로 띄운다. 여기서 그리지 않는다. -->
+<dialog id="srchDlg"><div class="dlg sdlg">
+  <div class="dlghead"><h3>상품검색</h3><button type="button" class="dlgx" id="srchX" aria-label="닫기">×</button></div>
+  <select id="srchSup" aria-label="발주처"></select>
+  <p id="srchMsg" role="status" aria-live="polite" hidden></p>
+  <iframe id="srchFrame" title="상품검색"></iframe>
 </div></dialog>
 
 <div id="hidmenu" role="menu" aria-hidden="true"></div>
@@ -5190,6 +5203,73 @@ $('#btnUndo').addEventListener('click', 되돌리기한단계);
   $('#phoneX').addEventListener('click', 닫기);
   판.addEventListener('close', () => { 틀.src = 'about:blank'; 단추.setAttribute('aria-pressed', 'false'); });
   addEventListener('keydown', e => { if (e.key === 'Escape' && 판.open){ e.preventDefault(); 닫기(); } });
+})();
+
+/* ───────── 조혼가구 상품검색 (11-02 사장님 말씀) ─────────
+   사장님 말씀: 「… 이프로그램에서 조혼가구 상품검색을 통해서 검색이 되게 해주고 검색된 부속이 나타나게 해줘」
+   **베끼지 않는다** — 조혼가구와 같은 공용 부품(vivivic-apps/shared)을 그대로 부른다. 영림원외주입력 psLoad·psBox 가 본보기다.
+     · 원장 읽기 — shared/발주상품검색.js 의 metaPath·latestMeta·readSheet (파이어스토어 excel_metadata 의 가장 늦은 원장 엑셀 · 익명 로그인)
+     · 검색칸·부속카드 — shared/발주상품고르기.html 을 틀(iframe)로 띄워 `발주상품고르기보기.열기(원장, 발주처)`
+   ⚠ 틀 안을 부르려면 **같은 출처**여야 한다 — 배포(vivivic-cloud.github.io)에서는 NRS 와 vivivic-apps 가 같은 출처다.
+   ⚠ 읽기만 한다. 금액 칸은 꺼내지 않는다(발주상품검색.js 머리 주석). 처음 열 때만 불러온다 — NRS 여는 길은 안 느려진다.
+   고른 상품은 `고른상품`(pick 결과 · 풀리면 null)에 둔다 — 도면 자동생성(다음 지시)이 여기서 이어받는다. */
+const 조혼부품 = 'https://vivivic-cloud.github.io/vivivic-apps/shared/';
+const 조혼FB = {apiKey:"AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs",authDomain:"vivivic-4b7ef.firebaseapp.com",projectId:"vivivic-4b7ef",
+  storageBucket:"vivivic-4b7ef.firebasestorage.app",messagingSenderId:"830175660542",appId:"1:830175660542:web:9054030480c8280af8d8af"};
+const 원장 = { data:null, file:'', loading:null, err:'', sup:'조혼가구' };
+let 고른상품 = null;
+function 스크립트(src){ return new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = src;
+  sc.onload = ok; sc.onerror = () => { sc.remove(); no(new Error(src)); }; document.head.appendChild(sc); }); }
+function 원장읽기(){
+  if (원장.data) return Promise.resolve();
+  if (원장.loading) return 원장.loading;
+  원장.err = '';
+  const V = 'https://www.gstatic.com/firebasejs/11.2.0/';
+  원장.loading = Promise.all([
+    window.발주상품검색 ? null : 스크립트(조혼부품 + encodeURIComponent('발주상품검색') + '.js'),
+    window.XLSX ? null : 스크립트('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'),
+    import(V + 'firebase-app.js'), import(V + 'firebase-auth.js'), import(V + 'firebase-firestore.js')
+  ]).then(([, , A, U, F]) => {
+    const app = A.getApps().find(a => a.name === 'nrs') || A.initializeApp(조혼FB, 'nrs');
+    return U.signInAnonymously(U.getAuth(app)).then(() => F.getDocs(F.collection(F.getFirestore(app), 발주상품검색.metaPath())));
+  }).then(snap => {
+    const m = 발주상품검색.latestMeta(snap.docs.map(d => d.data()));
+    if (!m || !m.downloadURL) throw new Error('원장 엑셀 없음');
+    원장.file = m.fileName || '';
+    return fetch(m.downloadURL).then(r => { if (!r.ok) throw new Error('원장 엑셀 ' + r.status); return r.arrayBuffer(); });
+  }).then(buf => { 원장.data = 발주상품검색.readSheet(window.XLSX, buf); })
+    .catch(e => { 원장.err = (e && e.message) || '원장 못 읽음'; 원장.loading = null; console.warn('원장', e); });
+  return 원장.loading;
+}
+(function(){
+  const 판 = $('#srchDlg'), 틀 = $('#srchFrame'), 고르개 = $('#srchSup'), 알림 = $('#srchMsg');
+  let 틀됨 = false, 넘긴발주처 = null;          // 다시 열 때는 넘기지 않는다 — 보던 검색이 그대로 남는다
+  const 넘기기 = () => {
+    let w = null; try { w = 틀.contentWindow; } catch (e) {}
+    if (!틀됨 || !원장.data || !w || !w.발주상품고르기보기 || 넘긴발주처 === 원장.sup) return;
+    넘긴발주처 = 원장.sup;
+    w.발주상품고르기보기.고르면(k => { 고른상품 = k; });
+    w.발주상품고르기보기.열기(원장.data, 원장.sup);
+  };
+  const 알리기 = () => {
+    const 글 = 원장.err || (원장.data ? '' : '원장 불러오는 중');
+    알림.textContent = 글; 알림.hidden = !글;
+  };
+  틀.addEventListener('load', () => { 틀됨 = !!틀.getAttribute('src'); 넘긴발주처 = null; 넘기기(); });
+  고르개.addEventListener('change', () => { 원장.sup = 고르개.value; 고른상품 = null; 넘기기(); });
+  $('#btnSrch').addEventListener('click', () => {
+    if (!틀.getAttribute('src')) 틀.src = 조혼부품 + encodeURIComponent('발주상품고르기') + '.html';
+    판.showModal();
+    알리기();
+    원장읽기().then(() => {
+      if (window.발주상품검색 && !고르개.options.length){
+        고르개.innerHTML = 발주상품검색.SUPPLIERS.map(x => `<option value="${esc(x[1])}">${esc(x[0])}</option>`).join('');
+        고르개.value = 원장.sup;
+      }
+      알리기(); 넘기기();
+    });
+  });
+  $('#srchX').addEventListener('click', () => 판.close());
 })();
 
 // 마지막에 보던 품목에 고르개를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
