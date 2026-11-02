@@ -100,6 +100,7 @@ select:focus{border-color:var(--head)}
   text-align:left;word-break:keep-all;border-radius:10px}
 .pname::after{content:"▾";font-size:11px;color:var(--ink3);flex:none}
 .pname[aria-expanded="true"]::after{content:"▴";color:var(--head)}
+.pname .newtag{flex:none;padding:1px 6px;border-radius:8px;background:var(--fill2);color:var(--ink3);font-size:10.5px;font-weight:600}
 .pname:hover{color:var(--head)}
 /* 10-05 — 「서랍설정」 은 부속 이름표가 아니라 **메뉴 단추**다. 단추는 44px 이다(§0). */
 .pname.big{min-height:44px}
@@ -510,6 +511,17 @@ dialog::backdrop{background:rgba(17,17,16,.4)}
 #srchDlg{max-height:90dvh}
 .dlg.sdlg{max-height:90dvh;overflow:auto;-webkit-overflow-scrolling:touch}
 #srchFrame{display:block;flex:none;width:100%;height:420px;border:0;background:transparent}
+/* 도면생성 설문 판 (11-02) — 참고 품목 고르개 하나 + 원장 부속마다 짝 고르개 하나. 고르개는 품목 고르개와 같은 44px */
+#srchGen{min-height:44px}
+#genDlg{max-height:90dvh;width:min(560px,calc(100vw - 24px))}
+#genRef,#genParts select{width:100%;min-height:44px}
+#genParts{display:flex;flex-direction:column;gap:8px}
+.gcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 10px;align-items:center;
+  padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.gcard b{font-size:14px;color:var(--head);word-break:keep-all}
+.gcard span{font-size:12px;color:var(--ink3);word-break:keep-all}
+.gcard>div{min-width:0;display:flex;flex-direction:column;gap:2px}
+.gcard.amt0{background:#FFFBEB;border-color:#FDE68A}
 .dlg{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
 .dlg h3{margin:0;font-size:17px;font-weight:700;letter-spacing:-.3px;color:var(--head)}
 .dlg p{margin:0;color:var(--ink2);font-size:13px}
@@ -879,8 +891,18 @@ dialog.phone[open]{display:flex;flex-direction:column}
 <dialog id="srchDlg"><div class="dlg sdlg">
   <div class="dlghead"><h3>상품검색</h3><button type="button" class="dlgx" id="srchX" aria-label="닫기">×</button></div>
   <select id="srchSup" aria-label="발주처"></select>
+  <button type="button" id="srchGen" class="primary" disabled>도면생성</button>
   <p id="srchMsg" role="status" aria-live="polite" hidden></p>
   <iframe id="srchFrame" title="상품검색"></iframe>
+</div></dialog>
+
+<!-- 도면생성 설문 (11-02 사장님 말씀) — ① 참고 품목 ② 부속마다 참고 품목의 어느 부속인지 -->
+<dialog id="genDlg"><div class="dlg sdlg">
+  <div class="dlghead"><h3>도면생성</h3><button type="button" class="dlgx" id="genX" aria-label="닫기">×</button></div>
+  <b id="genName"></b>
+  <select id="genRef" aria-label="참고 품목"></select>
+  <div id="genParts"></div>
+  <div class="row"><button type="button" id="genMake" class="primary" disabled>만들기</button></div>
 </div></dialog>
 
 <div id="hidmenu" role="menu" aria-hidden="true"></div>
@@ -961,6 +983,21 @@ const 규칙기본 = { 이름:'', 이동좌우:1, 이동앞뒤:10, 뒷판키움:
    설계는 §4.9876 에 적어 두었다. */
 const 곳간 = 'cabinet-studio';
 const 품목값 = ['수납장', '서랍장'];
+/* 11-02 사장님 말씀 — 조혼가구 상품으로 **새 품목**을 만든다(「도면생성」 · 아래 설문 판).
+   새 품목은 `cabinet-studio.새품목` 한 줄에 목록으로 담기고, 제 곳간은 다른 품목과 똑같이 `cabinet-studio.<상품명>.*` 다.
+   **관계는 참고 품목의 것을 그대로 쓴다** — `본품목()` 이 새 품목을 그 바탕(수납장·서랍장)으로 돌려준다. */
+const 새품목들 = [];
+try {
+  const a = JSON.parse(localStorage.getItem(곳간 + '.새품목') || 'null');
+  if (Array.isArray(a)) a.forEach(x => {
+    if (x && typeof x.이름 === 'string' && x.이름 && !품목값.includes(x.이름) && 품목값.includes(x.참고)){
+      새품목들.push(x); 품목값.push(x.이름); }
+  });
+} catch (e) {}
+const 본품목 = 품 => { let p = 품;
+  for (let n = 0; n < 30; n++){ const x = 새품목들.find(y => y.이름 === p); if (!x) return p; p = x.참고; }
+  return '수납장'; };
+const 품목키 = 품 => 본품목(품 || state.품목);
 let 지금품목 = '수납장';
 try { const v = localStorage.getItem(곳간 + '.품목'); if (품목값.includes(v)) 지금품목 = v; } catch (e) {}
 const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
@@ -973,14 +1010,14 @@ const 칸 = (이름, 품) => `${곳간}.${품 || 지금품목}.${이름}`;
       하판 「측판 아래」 에서 전면밴드를 없앨 때와 같은 길이다(`걸레높이 = 아래덮 ? 0 : plinth`). */
 // 10-05 — 서랍재 세 가지는 **서랍장에만** 발생한다(「서랍장 상태에서 발생되는 기본 부속」).
 const 품목없는부속 = { 수납장:['서랍재W','서랍재D','서랍바닥'], 서랍장:['이동선반'] };
-const 품목밖 = (이름, 품) => (품목없는부속[품 || state.품목] || []).includes(이름);
+const 품목밖 = (이름, 품) => (품목없는부속[품목키(품)] || []).includes(이름);
 /* 품목마다 부속 **명칭**이 다르다 (10-02 사장님 말씀: 「**서랍장 품목의 고정선반의 명칭은 가로대 입니다**」).
    ⚠ **저장 열쇠는 한 글자도 안 건드린다** — `data-part`·`data-opt`·`data-kill`·`Tshelf`·`규칙.고정선반들임`
       다 옛 이름 그대로다(§4.85 「전면밴드 = 옛 걸레받이」 와 같은 길 — 열쇠를 바꾸면 담긴 값이 날아간다).
       바뀌는 것은 **부속의 이름**뿐이다 — 부품표·도면·3D·화면 줄에 그 이름으로 나간다. */
 const 품목이름 = { 수납장:{}, 서랍장:{ 고정선반:'가로대', 문짝:'마이다' } };
-const 부속이름 = (이름, 품) => (품목이름[품 || state.품목] || {})[이름] || 이름;   // 본이름 → 그 품목의 명칭
-const 본이름 = (이름, 품) => { const m = 품목이름[품 || state.품목] || {};        // 명칭 → 본이름(저장 열쇠)
+const 부속이름 = (이름, 품) => (품목이름[품목키(품)] || {})[이름] || 이름;   // 본이름 → 그 품목의 명칭
+const 본이름 = (이름, 품) => { const m = 품목이름[품목키(품)] || {};        // 명칭 → 본이름(저장 열쇠)
   return Object.keys(m).find(k => m[k] === 이름) || 이름; };
 /* 그 품목에서 **두께(사이즈)를 0.5mm 단위로 임의 입력**하는 부속 (같은 말씀).
    줄의 두께 고르개(`select`)를 숫자 칸으로 갈아 끼운다 — 담는 열쇠(`Tshelf`)는 그대로다. */
@@ -992,11 +1029,11 @@ const 품목자유두께 = { 수납장:[], 서랍장:['고정선반'] };
    ⚠ 「선반유격」 은 칸만 감추지 않는다 — **셈에서도 0 으로 본다**(§4.9899 의 그 규칙).
       담긴 `고정선반들임` 값은 **안 지운다** — 수납장으로 돌아가면 그대로 살아난다. */
 const 품목깊이입력 = { 수납장:[], 서랍장:['고정선반'] };
-const 깊이입력인가 = (이름, 품) => (품목깊이입력[품 || state.품목] || []).includes(이름);
+const 깊이입력인가 = (이름, 품) => (품목깊이입력[품목키(품)] || []).includes(이름);
 /* 도어 방식의 이름 — 서랍장은 「외부 / 내부」 다 (10-02 사장님 말씀: 「도어의 인도어 아웃도어 와
    **동일 개념의 외부/내부** 선택이 가능하게」). **값(`out`·`in`)과 셈은 한 글자도 안 건드렸다 — 이름만이다.** */
 const 모드값 = { 수납장:{ out:'아웃도어', in:'인도어' }, 서랍장:{ out:'외부', in:'내부' } };
-const 모드글 = (v, 품) => (모드값[품 || state.품목] || 모드값.수납장)[v];
+const 모드글 = (v, 품) => (모드값[품목키(품)] || 모드값.수납장)[v];
 /* 옛 한 벌(앞머리만 쓰던 것)을 **수납장** 으로 한 번만 옮겨 담는다.
    값은 한 글자도 안 고치고 통째로 옮긴다. 새 열쇠가 이미 있으면 아무것도 안 한다.
    **사장님이 맞춰 두신 값이 하나도 날아가면 안 된다** — 이것이 제일 중요하다(관리자). */
@@ -1168,7 +1205,8 @@ function 곳간읽기(){
   try {
     if (지금품목 !== '수납장' && localStorage.getItem(칸('규칙')) === null)
       ['규칙','부속','손질','지난부속','결','상태','엣지'].forEach(k => {
-        const v = localStorage.getItem(칸(k, '수납장'));
+        const 참 = (새품목들.find(y => y.이름 === 지금품목) || {}).참고 || '수납장';   // 새 품목은 참고 품목을 베낀다
+        const v = localStorage.getItem(칸(k, 참));
         if (v !== null) localStorage.setItem(칸(k), v);
       });
   } catch (e) {}
@@ -2119,6 +2157,10 @@ const 자리있는부속 = ['밴드','보호대'];
 // 예전에 만들어 둔 밴드에는 이 값이 없다 — 그때는 「하」 하나뿐이었으므로 그렇게 읽는다.
 const 밴드단 = c => Array.isArray(c.단) ? c.단 : ['하'];
 const 밴드단값 = ['상','중','하'];
+/* 11-02 — 「도면생성」 의 「새 부속」 은 원장 재단 치수(`c.원장` = {L, W, 수량})를 쥔다. 자리 규칙은 아직 없다 —
+   사장님이 짚어서 지시로 관계를 설명하시면 그때 세운다. 그 전까지는 부품표·부속 쪽에 **원장 치수 그대로** 적는다. */
+const 원장치수 = c => (c && c.원장 && Number.isFinite(c.원장.L) && Number.isFinite(c.원장.W))
+  ? { L:c.원장.L, W:c.원장.W, qty:(Number(c.원장.수량) > 0 ? Number(c.원장.수량) : 1) } : null;
 function bomRows(m){
   const map = new Map();
   const 홈글 = m.홈 ? `홈 ${fmt(m.홈.깊이)}×${fmt(m.홈.폭)}` : '';
@@ -2129,7 +2171,8 @@ function bomRows(m){
     map.get(k).qty += 1 + (p.더 || 0);
   });
   // 만든 부속 — 재단은 선반과 같은 규칙(내부 폭 × 몸통 깊이)을 쓴다. 자리 규칙은 아직 없다.
-  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:결표기(c.이름), 비고:''}); });
+  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; const 원 = 원장치수(c);
+    map.set(`${c.이름}|만든`, {name:c.이름, qty:원 ? 원.qty : 1, L:원 ? 원.L : m.innerW, W:원 ? 원.W : m.CD, T:c.T, grain:결표기(c.이름), 비고:''}); });
   return [...map.values()];
 }
 
@@ -2255,7 +2298,8 @@ function 부속행들(m){
     if (!map.has(k)) map.set(k, {name:p.name, qty:0, 홈:!!(m.홈 && 홈부속.includes(p.name)), ...p.cut, grain:결표기(본이름(p.name))});
     map.get(k).qty += 1 + (p.더 || 0);
   });
-  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; map.set(`${c.이름}|만든`, {name:c.이름, qty:1, L:m.innerW, W:m.CD, T:c.T, grain:결표기(c.이름), 홈:false}); });
+  만든부속.forEach(c => { if (자리있는부속.includes(c.이름)) return; const 원 = 원장치수(c);
+    map.set(`${c.이름}|만든`, {name:c.이름, qty:원 ? 원.qty : 1, L:원 ? 원.L : m.innerW, W:원 ? 원.W : m.CD, T:c.T, grain:결표기(c.이름), 홈:false}); });
   // 자주 보는 것이 앞에 온다 — 몸통 → 문짝 → 선반 → 전면밴드 → 뒷판, 만든 부속은 맨 뒤.
   // 부품표(bomRows)의 차례는 건드리지 않는다.
   const 순 = n => { const i = 부속차례.indexOf(n); return i < 0 ? 부속차례.length : i; };
@@ -4503,10 +4547,13 @@ function 부속그리기(){
   // 여러 개 켤 수 있고, 다시 누르면 꺼지고, 셋 다 끌 수도 있다 — 그래서 라디오가 아니라 체크다.
   // 그리는 곳은 `줄옵션('밴드')`, 듣는 곳은 아래 document 위임이다.
   $('#customList').innerHTML = 만든부속.map((c,i) =>
-    `<div class="field gr">` +
-    `<button type="button" class="pname" data-opt="${esc(c.이름)}" aria-expanded="false">${esc(c.이름)}</button>` +
+    /* 11-02 — 「도면생성」 의 「새 부속」 은 이름 옆에 `새 부속` 딱지를 단다. 바이글 손잡이가 길게 누른 자리의 글을
+       그대로 베끼므로(`무엇()`) 짚으면 「이름 새 부속」 이 지시에 붙어 간다. `data-area` 는 관리자만 보는 칸(`짚은자`)에
+       품목·원장 치수를 실어 보낸다 — 지시를 받는 쪽이 그 부속이 무엇인지 안다. */
+    `<div class="field gr"${c.새 ? ` data-area="${esc(`새 부속 · ${c.이름} · 품목 ${state.품목}` + (원장치수(c) ? ` · 원장 ${원장치수(c).L}×${원장치수(c).W}×${c.T} · ${원장치수(c).qty}개` : ''))}"` : ''}>` +
+    `<button type="button" class="pname" data-opt="${esc(c.이름)}" aria-expanded="false">${esc(c.이름)}${c.새 ? '<small class="newtag">새 부속</small>' : ''}</button>` +
     `<div class="two">` +
-    `<select data-ci="${i}" aria-label="${esc(c.이름)} 두께">${두께값.map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
+    `<select data-ci="${i}" aria-label="${esc(c.이름)} 두께">${(두께값.includes(c.T) ? 두께값 : [c.T, ...두께값]).map(v => `<option${v===c.T?' selected':''}>${v}</option>`).join('')}</select>` +
     `<button type="button" class="x" data-del="${i}" aria-label="지우기">×</button></div>` +
     `<div class="opt" data-opt="${esc(c.이름)}" hidden></div></div>`).join('');
   $('#customList').querySelectorAll('select[data-ci]').forEach(el =>
@@ -4672,7 +4719,7 @@ function 줄옵션(이름){
   if (이름 === '문짝'){
     // 서랍장 마이다는 **8개까지 분할**이다 (10-02 사장님 말씀). 수납장 문짝은 0·1·2 그대로.
     const 끝 = 부속이름('문짝') === '마이다' ? 8 : 2;
-    const 모드 = 모드값[state.품목] || 모드값.수납장;
+    const 모드 = 모드값[품목키()] || 모드값.수납장;
     return `<div class="seg mini" role="group" aria-label="${esc(부속이름('문짝'))}">` +
       [...Array(끝 + 1).keys()].map(v =>
         `<label><input type="radio" name="doors" value="${v}"${state.doors===v?' checked':''}>${v}</label>`).join('') +
@@ -4880,7 +4927,7 @@ function 이름칸갱신(){
     const 칸 = 줄.querySelector('.two [data-key]');
     if (!칸 || 칸 === document.activeElement) return;
     if (줄.dataset.고르개 === undefined && 칸.tagName === 'SELECT') 줄.dataset.고르개 = 칸.outerHTML;
-    const 자유 = (품목자유두께[state.품목] || []).includes(본), 열쇠 = 칸.dataset.key;
+    const 자유 = (품목자유두께[품목키()] || []).includes(본), 열쇠 = 칸.dataset.key;
     if (자유 === (칸.tagName === 'INPUT')) {                        // 이미 맞다 — 값만 맞춘다
       if (칸.tagName === 'SELECT' && ![...칸.options].some(o => Number(o.value) === state[열쇠]))
         칸.add(new Option(String(state[열쇠]), String(state[열쇠])));   // 목록에 없는 값도 그대로 보인다
@@ -5248,7 +5295,7 @@ function 원장읽기(){
     let w = null; try { w = 틀.contentWindow; } catch (e) {}
     if (!틀됨 || !원장.data || !w || !w.발주상품고르기보기 || 넘긴발주처 === 원장.sup) return;
     넘긴발주처 = 원장.sup;
-    w.발주상품고르기보기.고르면(k => { 고른상품 = k; });
+    w.발주상품고르기보기.고르면(k => { 고른상품 = k; 생성단추(); });
     w.발주상품고르기보기.열기(원장.data, 원장.sup);
   };
   const 알리기 = () => {
@@ -5256,7 +5303,7 @@ function 원장읽기(){
     알림.textContent = 글; 알림.hidden = !글;
   };
   틀.addEventListener('load', () => { 틀됨 = !!틀.getAttribute('src'); 넘긴발주처 = null; 넘기기(); });
-  고르개.addEventListener('change', () => { 원장.sup = 고르개.value; 고른상품 = null; 넘기기(); });
+  고르개.addEventListener('change', () => { 원장.sup = 고르개.value; 고른상품 = null; 생성단추(); 넘기기(); });
   $('#btnSrch').addEventListener('click', () => {
     if (!틀.getAttribute('src')) 틀.src = 조혼부품 + encodeURIComponent('발주상품고르기') + '.html';
     판.showModal();
@@ -5270,6 +5317,118 @@ function 원장읽기(){
     });
   });
   $('#srchX').addEventListener('click', () => 판.close());
+})();
+function 생성단추(){ const b = $('#srchGen'); if (b) b.disabled = !(고른상품 && 고른상품.rowIndexes && 고른상품.rowIndexes.length); }
+
+/* ───────── 도면생성 — 고른 상품으로 새 품목을 만든다 (11-02 사장님 말씀) ─────────
+   사장님 말씀: 「상품이 선택되면 해당 상품의 이름으로 새로운 품목이 생성되어 … 해당 제품의 원본데이터에 따른 제품의
+   도면이 생성되면됩니다 … 도면생성을 누르면 잘모르는 부분의 설문 … 어느 품목을 참고하여 새품목을 생성할건지 …
+   각부속을 참고할 품목의 어느부속으로 정의 내릴것인지를 각 부속카드에서 드롭다운으로 … 매칭될 부속명이 없을경우
+   … 새부속으로 만들어 지게」.
+   차례 — ① 참고 품목(지금 있는 품목 이름 고르개) ② 원장 부속마다 짝(참고 품목의 부속 · 「새 부속」 · 비움=안 씀)
+   ③ 「만들기」 — 참고 품목의 곳간 일곱을 **글 그대로** 새 품목 칸으로 베끼고(서랍장 첫 베끼기와 같은 길 · §4.9876),
+      그 품목으로 바꾼 뒤 원장 값으로 두께·외경·수량을 넣는다. 짝마다 무엇을 넣는지는 `원장넣기` 한 자리다.
+   ⚠ **짝을 저절로 고르지 않는다** — 사장님이 고르신다(말씀에 「자동」 이 없다). 비워 둔 부속은 도면에 안 쓴다. */
+const 짝본 = ['측판','상판','하판','고정선반','이동선반','문짝','전면밴드','뒷판','서랍재W','서랍재D','서랍바닥'];
+const 짝두께 = { 측판:'Tside', 상판:'Ttop', 하판:'Tbot', 고정선반:'Tshelf', 이동선반:'Tshelf2', 문짝:'Tdoor',
+                 전면밴드:'Tplinth', 뒷판:'TB', 서랍재W:'Tsw', 서랍재D:'Tsd', 서랍바닥:'Tsb' };
+const 원장두께 = p => { const m = /(\d+(?:\.\d+)?)\s*T(?![a-z])/i.exec(`${p.원장명} ${p.마감}`); return m ? Number(m[1]) : NaN; };
+// 참고 품목의 부속 고르개 — 붙박이(그 품목에 서는 것만 · 그 품목의 이름으로)와 그 품목의 만든 부속
+function 참고부속(참){
+  const 본 = 본품목(참), 목록 = 짝본.filter(n => !(품목없는부속[본] || []).includes(n))
+    .map(n => ({ 값:n, 글:(품목이름[본] || {})[n] || n }));
+  let 만든 = []; try { 만든 = JSON.parse(localStorage.getItem(칸('부속', 참)) || '[]'); } catch (e) {}
+  if (참 === 지금품목) 만든 = 만든부속;
+  (Array.isArray(만든) ? 만든 : []).forEach(c => { if (c && c.이름) 목록.push({ 값:'만든:' + c.이름, 글:c.이름 }); });
+  return 목록;
+}
+// 원장 값을 지금 품목(방금 만든 새 품목)에 넣는다. 짝마다 하나씩 — 넣는 자리는 여기 한 곳이다.
+function 원장넣기(줄들){
+  const 본 = 본품목(state.품목), 첫 = {}, 수 = {};
+  줄들.forEach(r => {
+    if (!r.짝) return;
+    const T = 원장두께(r);
+    if (r.짝 === '새 부속'){
+      let 이름 = (r.부속명 || r.원장명 || '새 부속').trim(), n = 2;
+      while (붙박이.includes(이름) || 만든부속.some(c => c.이름 === 이름)) 이름 = `${(r.부속명 || '새 부속').trim()} ${n++}`;
+      만든부속.push({ 이름, T:Number.isFinite(T) ? T : 18, 새:true,
+        원장:{ L:r.w, W:r.d, 수량:r.수량, 원장명:r.원장명, 마감:r.마감 } });
+      return;
+    }
+    if (r.짝.startsWith('만든:')){
+      const c = 만든부속.find(x => x.이름 === r.짝.slice(3));
+      if (c && Number.isFinite(T)) c.T = T;
+      return;
+    }
+    if (Number.isFinite(T) && 짝두께[r.짝]) state[짝두께[r.짝]] = T;
+    if (!첫[r.짝]) 첫[r.짝] = r;
+    수[r.짝] = (수[r.짝] || 0) + (Number(r.수량) || 0);
+  });
+  // 외경 — 원장 재단 치수를 참고 품목의 결합 방식대로 거꾸로 푼다(buildModel 의 재단 식을 뒤집은 것)
+  const 위덮 = state.topStyle === 'overlay', 아래덮 = state.botStyle === 'under';
+  const 판 = 첫.상판 || 첫.하판;
+  if (판 && Number.isFinite(판.w) && 판.w > 0)
+    state.W = (첫.상판 ? 위덮 : 아래덮) ? 판.w : 판.w + 2 * state.Tside;
+  if (첫.측판 && Number.isFinite(첫.측판.w) && 첫.측판.w > 0){
+    state.H = 첫.측판.w + (위덮 ? state.Ttop : 0) + (아래덮 ? state.Tbot : 0);
+    if (Number.isFinite(첫.측판.d) && 첫.측판.d > 0) state.D = 첫.측판.d;
+  }
+  if (수.고정선반 !== undefined) state.shelves = Math.max(0, Math.min(8, Math.round(수.고정선반)));
+  if (수.이동선반 !== undefined) state.shelvesM = Math.max(0, Math.min(8, Math.round(수.이동선반)));
+  if (수.문짝 !== undefined) state.doors = Math.max(0, Math.min((품목이름[본] || {}).문짝 === '마이다' ? 8 : 2, Math.round(수.문짝)));
+  if (규칙.이름) delete 규칙.이름;          // 참고 품목의 품목구분명이 새 품목 이름을 덮지 않게
+}
+function 새품목만들기(이름, 참, 줄들, 상품){
+  let 새 = 이름 || '새 품목', n = 2;
+  while (품목값.includes(새)) 새 = `${이름} (${n++})`;
+  담기();                                   // 보던 품목을 먼저 담는다
+  try {
+    ['규칙','부속','손질','지난부속','결','상태','엣지'].forEach(k => {
+      const v = localStorage.getItem(칸(k, 참)); if (v !== null) localStorage.setItem(칸(k, 새), v); });
+  } catch (e) {}
+  새품목들.push({ 이름:새, 참고:참, 상품, 짝:줄들.map(r => ({ 부속명:r.부속명, 원장명:r.원장명, 마감:r.마감,
+    w:r.w, d:r.d, 수량:r.수량, 공급처:r.공급처, 짝:r.짝 })) });
+  품목값.push(새);
+  try { localStorage.setItem(곳간 + '.새품목', JSON.stringify(새품목들)); } catch (e) {}
+  품목바꾸기(새);
+  원장넣기(줄들);
+  마지막한벌 = 한벌();                      // 원장을 넣은 이 모습이 새 품목의 첫 걸음이다
+  담기(); 품목고르개맞추기(); 부속그리기(); 결단추갱신(); update(); 상태칸맞추기();
+  return 새;
+}
+(function(){
+  const 판 = $('#genDlg'), 참고칸 = $('#genRef'), 칸들 = $('#genParts'), 만듦 = $('#genMake');
+  let 줄들 = [], 상품 = null;
+  const 카드그리기 = () => {
+    const 참 = 참고칸.value;
+    만듦.disabled = !참;
+    if (!참){ 칸들.innerHTML = ''; return; }
+    const 고를 = [{ 값:'', 글:'—' }, ...참고부속(참), { 값:'새 부속', 글:'새 부속' }];
+    칸들.innerHTML = 줄들.map((r, i) => `<div class="gcard${r.isAmt ? '' : ' amt0'}"><div><b>${esc(r.부속명 || r.원장명)}</b>` +
+      `<span>${[`${fmt(r.w)} × ${fmt(r.d)}`, r.원장명, r.마감, fmt(r.수량)].filter(v => v && !/정보없음$/.test(v)).map(esc).join(' · ')}</span></div>` +
+      `<select data-gi="${i}" aria-label="${esc(r.부속명 || r.원장명)}">` +
+      고를.map(o => `<option value="${esc(o.값)}"${o.값 === r.짝 ? ' selected' : ''}>${esc(o.글)}</option>`).join('') +
+      `</select></div>`).join('');
+  };
+  $('#srchGen').addEventListener('click', () => {
+    if (!고른상품 || !원장.data || !window.발주상품검색) return;
+    // 이름은 검색 목록에 보이던 그 이름(`code`)이다 — `displayName` 은 분류를 이어 붙인 것이라 다르다
+    상품 = { 이름:고른상품.code || 고른상품.displayName, code:고른상품.code, 분류:고른상품.displayName, 발주처:고른상품.supplier };
+    줄들 = 고른상품.rowIndexes.map(i => 발주상품검색.part(원장.data, i)).filter(Boolean).map(p => ({ ...p, 짝:'' }));
+    $('#genName').textContent = 상품.이름;
+    참고칸.innerHTML = `<option value="">참고 품목</option>` + 품목값.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    카드그리기();
+    $('#srchDlg').close();
+    판.showModal();
+  });
+  참고칸.addEventListener('change', () => { 줄들.forEach(r => r.짝 = ''); 카드그리기(); });
+  칸들.addEventListener('change', e => { const el = e.target.closest('select[data-gi]'); if (el) 줄들[+el.dataset.gi].짝 = el.value; });
+  만듦.addEventListener('click', () => {
+    if (!참고칸.value) return;
+    새품목만들기(상품.이름, 참고칸.value, 줄들, 상품);
+    판.close();
+  });
+  $('#genX').addEventListener('click', () => 판.close());
 })();
 
 // 마지막에 보던 품목에 고르개를 맞춘다 (10-02 · 담긴 것이 없으면 수납장)
